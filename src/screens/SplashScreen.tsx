@@ -10,6 +10,7 @@ export const SplashScreen = () => {
   const logoScale = useRef(new Animated.Value(0.5)).current; // start smaller
   const textFade = useRef(new Animated.Value(0)).current; // text invisible initially
   const textTranslate = useRef(new Animated.Value(50)).current; // start 50px below
+  const theme = useTheme().theme;
 
   useEffect(() => {
     setMode('light');
@@ -42,7 +43,7 @@ export const SplashScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#006c76ff', '#006c76ff']}
+      colors={[theme.colors.splashColor , theme.colors.splashColor]}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
       style={styles.gradient}
