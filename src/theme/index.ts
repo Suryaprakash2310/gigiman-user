@@ -1,4 +1,4 @@
-import { spacing, radius, typography, zIndex, shadow, BaseTheme } from './base';
+import { BaseTheme, radius, shadow, spacing, typography, zIndex } from './base';
 
 export type AppTheme = BaseTheme & {
   colors: {
@@ -13,6 +13,7 @@ export type AppTheme = BaseTheme & {
     success: string;
     danger: string;
     cardShadow: string;
+    splashColor: string;
   };
   dark: boolean;
 };
@@ -37,6 +38,7 @@ export const lightTheme: AppTheme = {
     success: '#10B981',
     danger: '#EF4444',
     cardShadow: 'rgba(0,0,0,0.06)',
+    splashColor: '#006c76ff'
   },
 };
 
@@ -60,6 +62,7 @@ export const darkTheme: AppTheme = {
     success: '#22D3EE',
     danger: '#F87171',
     cardShadow: 'rgba(0,0,0,0.55)',
+    splashColor: '#006c76ff'
   },
 };
 
