@@ -14,6 +14,7 @@ export type AppTheme = BaseTheme & {
     danger: string;
     cardShadow: string;
     splashColor: string;
+    button:string;
   };
   dark: boolean;
 };
@@ -29,7 +30,7 @@ export const lightTheme: AppTheme = {
   colors: {
     background: '#F9FAFB',
     surface: '#FFFFFF',
-    primary: '#0B6E4F',       // deep green – trust, stability
+    primary: '#A2CCCC',       // soft teal
     primaryDark: '#07533B',
     accent: '#F59E0B',        // warm orange – action, excitement
     text: '#0F172A',
@@ -38,7 +39,8 @@ export const lightTheme: AppTheme = {
     success: '#10B981',
     danger: '#EF4444',
     cardShadow: 'rgba(0,0,0,0.06)',
-    splashColor: '#285B5B'
+    splashColor: '#285B5B',
+    button:'#c02bffff'
   },
 };
 
@@ -53,7 +55,7 @@ export const darkTheme: AppTheme = {
   colors: {
     background: '#0B1220',
     surface: '#101826',
-    primary: '#34D399',        // calm mint green
+    primary: '#285B5B',        // dark teal
     primaryDark: '#1DB184',
     accent: '#FBBF24',         // warm highlight
     text: '#E6EEF3',
@@ -62,7 +64,8 @@ export const darkTheme: AppTheme = {
     success: '#22D3EE',
     danger: '#F87171',
     cardShadow: 'rgba(0,0,0,0.55)',
-    splashColor: '#285B5B'
+    splashColor: '#285B5B',
+    button:'#c02bffff'
   },
 };
 
