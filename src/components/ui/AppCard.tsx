@@ -16,7 +16,7 @@ export default function AppCard({
       style={[
         {
           backgroundColor: theme.colors.surface,
-          padding: theme.spacing.lg,
+          //padding: theme.spacing.lg,
           borderRadius: theme.radius.lg,
           shadowColor: theme.colors.cardShadow,
           shadowOpacity: theme.shadow.card.light.shadowOpacity,
