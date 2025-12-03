@@ -17,6 +17,7 @@ import AppBottomSheet, {
   AppBottomSheetRef,
 } from "@/src/components/ui/AppBottomSheet";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import AppHeader from "@/src/components/ui/AppHeader";
 
 /* ----------------------------- MAIN SERVICE LIST ----------------------------- */
 
@@ -82,6 +83,7 @@ export default function ServicesScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.safe, { paddingTop: insets.top }]}>
+      <AppHeader showBack={true} />
       <View style={styles.container}>
         {/* HEADER */}
         <AppText weight="bold" size="h1" style={{ marginBottom: 12 }}>

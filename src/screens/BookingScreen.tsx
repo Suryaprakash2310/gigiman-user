@@ -4,6 +4,7 @@ import { View, StyleSheet, FlatList, TouchableOpacity } from "react-native";
 import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
 import BookingCard from "../components/BookingCard";
+import AppHeader from "../components/ui/AppHeader";
 
 // -------------------------------------
 // 1) TYPE
@@ -80,6 +81,7 @@ export default function BookingScreen() {
 
   return (
     <View style={styles.container}>
+      <AppHeader title='Bookings'/>
       {/* FILTER BUTTONS */}
       <View style={styles.filterRow}>
         {FILTERS.map((label) => {

@@ -122,7 +122,7 @@ export default function BookingCard({
                     </View>
                 )}
                 <AppText weight="bold" size="body" style={{ color: theme.colors.text }}>
-                    ₹{amount}
+                    {amount}
                 </AppText>
             </View>
         </TouchableOpacity>

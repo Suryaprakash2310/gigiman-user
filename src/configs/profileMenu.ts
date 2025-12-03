@@ -5,7 +5,7 @@ export const PROFILE_MENU = [
     id: 'personal',
     label: 'Personal Details',
     icon: 'user',
-    screen: 'PersonalDetailScreen',
+    screen: 'PersonalDetailsPage',
   },
   {
     id: 'bookings',
@@ -17,13 +17,13 @@ export const PROFILE_MENU = [
     id: 'addresses',
     label: 'Saved Addresses',
     icon: 'map-pin',
-    screen: 'SavedAddresses',
+    screen: 'SavedAddressesScreen',
   },
   {
     id: 'payments',
     label: 'Payment History',
     icon: 'credit-card',
-    screen: 'PaymentHistory',
+    screen: 'PaymentHistoryPage',
   },
 ];
 

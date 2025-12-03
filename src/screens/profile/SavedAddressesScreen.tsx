@@ -10,6 +10,7 @@ import AppText from '@/src/components/ui/AppText';
 import AppButton from '@/src/components/ui/AppButton';
 
 import AddressCard, { Address } from '@/src/components/AddressCard';
+import AppHeader from '@/src/components/ui/AppHeader';
 
 const STORAGE_KEY = 'gigiman_saved_addresses';
 
@@ -87,6 +88,7 @@ export default function SavedAddressesScreen() {
   return (
     <View style={styles.container}>
       {/* <AppHeader title="Saved Addresses" /> */}
+      <AppHeader showBack={true}/>
 
       <View style={styles.body}>
         {/* Top text */}

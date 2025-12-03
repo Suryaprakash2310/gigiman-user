@@ -11,6 +11,7 @@ import AppText from '../../components/ui/AppText';
 import { useTheme } from '../../theme/useTheme';
 import ServiceCategoryCard from '../../components/ServiceCategoryCard';
 import { useNavigation } from '@react-navigation/native';
+import AppHeader from '@/src/components/ui/AppHeader';
 
 interface Service {
   id: string;
@@ -79,6 +80,7 @@ export default function ServiceCategory() {
 
   return (
     <View style={[styles.safe, { backgroundColor: theme.colors.background }]}>
+      <AppHeader showBack={true} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

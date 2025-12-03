@@ -14,6 +14,7 @@ import { useAuthContext } from "../context/AuthContext";
 import AppText from '../components/ui/AppText';
 import AppButton from '../components/ui/AppButton';
 import OtpInput, { OtpInputRef } from '../components/ui/OtpInput';
+import AppHeader from '../components/ui/AppHeader';
 
 type OtpRouteParams = {
   phone?: string;
@@ -89,11 +90,14 @@ const OtpScreen: React.FC = () => {
   };
 
   return (
+    <>
+    <AppHeader showBack={true}/>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
     >
+      
       {/* TOP SECTION */}
       <View style={styles.content}>
         <AppText weight="bold" size="h2">Enter OTP</AppText>
@@ -131,6 +135,7 @@ const OtpScreen: React.FC = () => {
         />
       </View>
     </KeyboardAvoidingView>
+    </>
   );
 };
 

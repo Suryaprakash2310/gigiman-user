@@ -18,6 +18,7 @@ import FanInstall from '@/assets/images/FanInstall.svg';
 import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { AppTabsParamList } from '../navigation/AppStack';
+import AppHeader from '../components/ui/AppHeader';
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
 
 /* -------------------------------------------------------------------------- */
@@ -84,6 +85,7 @@ const HomeScreen: React.FC = () => {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+        <AppHeader showBack={false} title='GigiMan' />
         {/* ------------------------------ HEADER ------------------------------ */}
         <View style={styles.headerRow}>
           <View>
@@ -120,7 +122,7 @@ const HomeScreen: React.FC = () => {
         </View>
 
         {/* -------------------------- SEARCH BAR --------------------------- */}
-        <View style={styles.searchWrapper}>
+        {/* <View style={styles.searchWrapper}>
           <View
             style={[
               styles.searchContainer,
@@ -141,7 +143,7 @@ const HomeScreen: React.FC = () => {
               style={[styles.searchInput, { color: theme.colors.text }]}
             />
           </View>
-        </View>
+        </View> */}
 
         {/* --------------------------- HERO CARD --------------------------- */}
         <AppCard

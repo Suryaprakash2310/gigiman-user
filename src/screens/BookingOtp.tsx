@@ -7,6 +7,7 @@ import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 're
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import BookingDetailsCard from '../components/BookingDetailsCard';
 import { useBooking } from '../context/BookingContext';
+import AppHeader from '../components/ui/AppHeader';
 
 export default function BookingDetailsPage() {
     const { theme } = useTheme();
@@ -42,6 +43,7 @@ export default function BookingDetailsPage() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
+            <AppHeader showBack={true}/>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
                 {/* Header Section */}
