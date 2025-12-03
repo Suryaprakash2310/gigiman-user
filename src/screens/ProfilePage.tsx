@@ -1,214 +1,124 @@
-import ProfilePageCard from '@/src/components/ProfilePageCard';
-import AppText from '@/src/components/ui/AppText';
-import { lightTheme } from '@/src/theme';
-import { Feather } from '@expo/vector-icons';
+// src/screens/profile/ProfileScreen.tsx
+
 import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/src/theme/useTheme';
 
-export default function ProfilePage() {
-    const handleBackPress = () => {
-        console.log('Back button pressed');
-        // Add navigation logic here
-    };
+//import AppHeader from '@/src/components/ui/AppHeader';
+import AppText from '@/src/components/ui/AppText';
+//import Avatar from '@/src/components/ui/AvatarUpload';
 
-    const handlePersonalDetails = () => {
-        console.log('Personal details pressed');
-        // Add navigation to personal details screen
-    };
 
-    const handleMyBookings = () => {
-        console.log('My bookings pressed');
-        // Add navigation to bookings screen
-    };
+//import ProfileMenuItem from './ProfileMenuItem';
+import {
+  PROFILE_MENU,
+  SUPPORT_MENU,
+  LOGOUT_MENU,
+} from '../configs/profileMenu';
+import ProfileMenuItem from '../components/ProfileMenuItem';
+import AvatarUpload from '../components/ui/AvatorUpload';
 
-    const handleSavedAddresses = () => {
-        console.log('Saved addresses pressed');
-        // Add navigation to addresses screen
-    };
+export default function ProfileScreen() {
+  const { theme } = useTheme();
+  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
-    const handlePaymentHistory = () => {
-        console.log('Payment history pressed');
-        // Add navigation to payment history screen
-    };
+  const styles = createStyles(theme, insets);
 
-    const handleSupport = () => {
-        console.log('Support pressed');
-        // Add navigation to support screen
-    };
+  const handlePress = (screen: string) => {
+    if (!screen) return;
+    navigation.navigate(screen);
+  };
 
-    const handleLogout = () => {
-        console.log('Logout pressed');
-        // Add logout logic here
-    };
+  return (
+    <View style={styles.container}>
+      {/* <AppHeader title="Profile" showBack={false} /> */}
 
-    return (
-        <View style={[styles.container, { backgroundColor: lightTheme.colors.background }]}>
-            {/* Header */}
-            <View style={[styles.header, { backgroundColor: lightTheme.colors.surface }]}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={handleBackPress}
-                    activeOpacity={0.7}
-                >
-                    <Feather name="chevron-left" size={24} color={lightTheme.colors.text} />
-                </TouchableOpacity>
-                <AppText weight="bold" size="h3" style={[styles.headerTitle, { color: lightTheme.colors.text }]}>
-                    Profile
-                </AppText>
-                <View style={styles.backButton} />
-            </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* USER INFO */}
+        <View style={styles.profileSection}>
+          <AvatarUpload size={90} />
 
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Profile Section */}
-                <View style={styles.profileSection}>
-                    <View style={styles.avatarContainer}>
-                        <View style={[styles.avatar, { backgroundColor: lightTheme.colors.border }]}>
-                            <Feather name="user" size={48} color={lightTheme.colors.textMuted} />
-                        </View>
-                    </View>
-                    <AppText weight="bold" size="h2" style={[styles.userName, { color: lightTheme.colors.text }]}>
-                        Alex Martinez
-                    </AppText>
-                    <AppText
-                        weight="regular"
-                        size="body"
-                        style={[styles.userEmail, { color: lightTheme.colors.textMuted }]}
-                    >
-                        alex.math@gmail.com
-                    </AppText>
-                </View>
+          <AppText weight="bold" size="h2" style={{ marginTop: 12 }}>
+            Alex Martinez
+          </AppText>
 
-                {/* Menu Items Section */}
-                <View style={styles.menuSection}>
-                    <ProfilePageCard
-                        label="Personal details"
-                        icon={
-                            <View style={styles.iconCircle}>
-                                <Feather name="user" size={20} color="#3B82F6" />
-                            </View>
-                        }
-                        onPress={handlePersonalDetails}
-                        showChevron={true}
-                    />
-                    <ProfilePageCard
-                        label="My bookings"
-                        onPress={handleMyBookings}
-                        showChevron={true}
-                    />
-                    <ProfilePageCard
-                        label="Saved addresses"
-                        onPress={handleSavedAddresses}
-                        showChevron={true}
-                    />
-                    <ProfilePageCard
-                        label="Payment history"
-                        onPress={handlePaymentHistory}
-                        showChevron={true}
-                    />
-                </View>
-
-                {/* Support Section */}
-                <View style={styles.supportSection}>
-                    <ProfilePageCard
-                        label="Support / Help"
-                        onPress={handleSupport}
-                        showChevron={true}
-                    />
-                </View>
-
-                {/* Logout Section */}
-                <View style={styles.logoutSection}>
-                    <ProfilePageCard
-                        label="Log Out"
-                        onPress={handleLogout}
-                        showChevron={false}
-                        textColor={lightTheme.colors.danger}
-                    />
-                </View>
-            </ScrollView>
+          <AppText color="textMuted" size="body" style={{ marginTop: 4 }}>
+            alex.math@gmail.com
+          </AppText>
         </View>
-    );
+
+        {/* MAIN MENU */}
+        <View style={styles.menuBlock}>
+          {PROFILE_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; screen: string; }) => (
+            <ProfileMenuItem
+              key={item.id}
+              label={item.label}
+              icon={item.icon}
+              onPress={() => handlePress(item.screen)}
+            />
+          ))}
+        </View>
+
+        {/* SUPPORT MENU */}
+        <View style={styles.menuBlock}>
+          {SUPPORT_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; screen: string; }) => (
+            <ProfileMenuItem
+              key={item.id}
+              label={item.label}
+              icon={item.icon}
+              onPress={() => handlePress(item.screen)}
+            />
+          ))}
+        </View>
+
+        {/* LOGOUT */}
+        <View style={styles.menuBlock}>
+          {LOGOUT_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; }) => (
+            <ProfileMenuItem
+              key={item.id}
+              label={item.label}
+              icon={item.icon}
+              isDestructive
+              showChevron={false}
+              onPress={() => console.log('LOGOUT')}
+            />
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any, insets: any) =>
+  StyleSheet.create({
     container: {
-        flex: 1,
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingBottom: insets.bottom,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 3,
-        elevation: 3,
+    scroll: {
+      flex: 1,
     },
-    backButton: {
-        width: 40,
-        height: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    headerTitle: {
-        flex: 1,
-        textAlign: 'center',
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingHorizontal: 20,
-        paddingTop: 24,
-        paddingBottom: 32,
+    content: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
     },
     profileSection: {
-        alignItems: 'center',
-        marginBottom: 32,
+      alignItems: 'center',
+      marginBottom: 30,
     },
-    avatarContainer: {
-        marginBottom: 16,
+    menuBlock: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      padding: 12,
+      marginBottom: 20,
+      elevation: 2,
     },
-    avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    userName: {
-        marginBottom: 4,
-    },
-    userEmail: {
-        marginBottom: 0,
-    },
-    menuSection: {
-        marginBottom: 20,
-    },
-    supportSection: {
-        marginBottom: 20,
-    },
-    logoutSection: {
-        marginBottom: 0,
-    },
-    iconCircle: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#DBEAFE',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-});
+  });

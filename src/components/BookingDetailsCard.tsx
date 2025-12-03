@@ -2,8 +2,9 @@ import { useTheme } from '@/src/theme/useTheme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import AppCard from './AppCard';
-import AppText from './AppText';
+import AppCard from './ui/AppCard';
+import AppText from './ui/AppText';
+
 
 interface BookingDetailsCardProps {
     name: string;

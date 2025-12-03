@@ -6,17 +6,20 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from './src/theme/ThemeProvider';
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigation from './src/navigation/RootNavigation';
+import { BookingProvider } from './src/context/BookingContext';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <RootNavigation />
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </AuthProvider>
+        <BookingProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <RootNavigation />
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </AuthProvider>
+        </BookingProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

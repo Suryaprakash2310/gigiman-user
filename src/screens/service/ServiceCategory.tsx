@@ -6,9 +6,11 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import AppText from '../components/ui/AppText';
-import ServiceCategoryCard from '../components/ui/ServiceCategoryCard';
-import { useTheme } from '../theme/useTheme';
+import AppText from '../../components/ui/AppText';
+//import ServiceCategoryCard from '../components/ui/ServiceCategoryCard';
+import { useTheme } from '../../theme/useTheme';
+import ServiceCategoryCard from '../../components/ServiceCategoryCard';
+import { useNavigation } from '@react-navigation/native';
 
 interface Service {
   id: string;
@@ -53,15 +55,26 @@ const servicesData: Service[] = [
 ];
 
 export default function ServiceCategory() {
-  const { theme, setMode } = useTheme();
-
-  useEffect(() => {
-    setMode && setMode('light');
-  }, [setMode]);
+  const { theme } = useTheme();
+  const navigation = useNavigation<any>();
 
   const handleServicePress = (serviceId: string) => {
     // TODO: Navigate to service detail or booking flow
     console.log(`Service pressed: ${serviceId}`);
+    navigation.navigate("Booking", {
+  serviceName: "Fan Installation",
+  price: 149,
+  time: "30–40 mins",
+  image: require("../../../assets/images/SampleService.png"),
+  description: [
+    "Technician visit",
+    "Tools included",
+    "Installation support"
+  ],
+  rating: 4.9,
+  reviews: 1500
+});
+
   };
 
   return (
@@ -74,7 +87,7 @@ export default function ServiceCategory() {
         <View style={[styles.heroCard, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.cardShadow }]}>
           {/* Hero image placeholder */}
           <Image
-            source={require('../../assets/images/SampleService.png')}
+            source={require('../../../assets/images/SampleService.png')}
             style={styles.heroImagePlaceholder}
             resizeMode="cover"
           />

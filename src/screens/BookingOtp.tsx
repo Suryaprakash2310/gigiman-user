@@ -1,15 +1,16 @@
 import AppCard from '@/src/components/ui/AppCard';
 import AppText from '@/src/components/ui/AppText';
-import BookingDetailsCard from '@/src/components/ui/BookingDetailsCard';
 import { useTheme } from '@/src/theme/useTheme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import BookingDetailsCard from '../components/BookingDetailsCard';
+import { useBooking } from '../context/BookingContext';
 
 export default function BookingDetailsPage() {
     const { theme } = useTheme();
-
+    const { ongoingBooking } = useBooking();
     // Animation values
     const scale = useSharedValue(0);
     const opacity = useSharedValue(0);
@@ -36,6 +37,8 @@ export default function BookingDetailsPage() {
     const brightCyan = '#67E8F9'; // Cyan 300 - brighter, softer
     const otpBg = '#A5F3FC'; // Cyan 200
     const primaryTeal = '#0D9488'; // Teal 600
+    if (!ongoingBooking)
+    return <AppText>No booking found</AppText>;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: '#F8FAFC' }]}>

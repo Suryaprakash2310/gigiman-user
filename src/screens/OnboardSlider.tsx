@@ -1,7 +1,7 @@
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
 import AppText from "../components/ui/AppText";
-import OnboardingCard from "../components/ui/OnboardCard";
+import OnboardingCard from "../components/OnboardCard";
 import { useTheme } from "../theme/useTheme";
 export default function OnboardingScreen() {
   const { theme } = useTheme();

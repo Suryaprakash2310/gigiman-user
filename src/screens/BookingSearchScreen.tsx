@@ -1,312 +1,152 @@
-import AppCard from '@/src/components/ui/AppCard';
-import AppText from '@/src/components/ui/AppText';
-import { useTheme } from '@/src/theme/useTheme';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
-
-// Light theme color palette (hardcoded to enforce light mode)
-const lightColors = {
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  primary: '#07533B', // Using a darker, high-contrast color for accents
-  text: '#0F172A',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
-  danger: '#EF4444',
-  progressBackground: '#E5E7EB',
-  iconBackground: '#F3F4F6',
-};
+// src/screens/booking/BookingSearchScreen.tsx
+import React, { useEffect, useRef, useState } from "react";
+import { View, StyleSheet, TouchableOpacity, Animated, Modal } from "react-native";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import AppCard from "@/src/components/ui/AppCard";
+import AppText from "@/src/components/ui/AppText";
+import { useTheme } from "@/src/theme/useTheme";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useBooking } from "@/src/context/BookingContext";
 
 export default function BookingSearchScreen() {
-  const { theme } = useTheme(); // Still used for non-color values like spacing
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { setOngoingBooking } = useBooking();
 
-  const handleCancelBooking = () => {
-    console.log('Cancel booking pressed');
-    setIsModalVisible(false);
-    // Add your cancel logic here
-  };
+  const { serviceName, amount, date, time } = route.params;
+
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, { toValue: 1, duration: 1600, useNativeDriver: false }),
+        Animated.timing(progress, { toValue: 0, duration: 1600, useNativeDriver: false })
+      ])
+    ).start();
+  }, []);
+
+  const animatedWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["20%", "80%"]
+  });
+
+  // ⏳ Auto-Navigate to OTP Page after 2 mins
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const bookingId = Math.random().toString(36).slice(2);
+
+      // Store booking in global context
+      setOngoingBooking({
+        id: bookingId,
+        serviceName,
+        date,
+        time,
+        amount,
+        technicianName: "Arun Kumar"
+      });
+
+      navigation.navigate("BookingDetails", { bookingId });
+    }, 2000); // change to 120000 for production (2 mins)
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
-    <View style={[styles.container, { backgroundColor: lightColors.background }]}>
-      <View style={styles.content}>
-        {/* Top Section - Header */}
-        <View style={styles.headerSection}>
-          <View style={styles.iconContainer}>
-            <Feather name="search" size={80} color={lightColors.primary} />
-          </View>
-
-          <AppText weight="bold" size="h2" style={[styles.title, { color: lightColors.text }]}>
-            Finding the best technician for you...
-          </AppText>
-
-          <AppText
-            weight="regular"
-            size="body"
-            style={[styles.subtitle, { color: lightColors.textMuted }]}
-          >
-            This may take 10-30 seconds. Please stay on this page.
-          </AppText>
-        </View>
-
-        {/* Middle Section - Status Card */}
-        <View style={styles.cardSection}>
-          {/* Info Button */}
-          <TouchableOpacity
-            style={styles.infoButton}
-            onPress={() => setIsModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Feather name="info" size={20} color={lightColors.primary} />
-          </TouchableOpacity>
-
-          <AppCard style={[styles.statusCard, { backgroundColor: lightColors.surface }]}>
-            {/* Content Row */}
-            <View style={styles.cardContentRow}>
-              {/* Left - Icon Container */}
-              <View
-                style={[
-                  styles.serviceIconContainer,
-                  { backgroundColor: lightColors.iconBackground },
-                ]}
-              >
-                <MaterialCommunityIcons name="fan" size={32} color={lightColors.primary} />
-              </View>
-
-              {/* Center - Text Content */}
-              <View style={styles.textContent}>
-                <AppText weight="bold" size="body" style={{ color: lightColors.text }}>
-                  Fan Installation
-                </AppText>
-                <AppText
-                  weight="regular"
-                  size="small"
-                  style={[styles.addressText, { color: lightColors.textMuted }]}
-                >
-                  123 Gandhi Nagar
-                </AppText>
-                <AppText
-                  weight="regular"
-                  size="small"
-                  style={[styles.timeText, { color: lightColors.textMuted }]}
-                >
-                  Today, 4:30-5:00 PM
-                </AppText>
-              </View>
-
-              {/* Right - Price */}
-              <View style={styles.priceContainer}>
-                <AppText weight="bold" size="h3" style={{ color: lightColors.primary }}>
-                  ₹149
-                </AppText>
-              </View>
-            </View>
-
-            {/* Progress Indicator */}
-            <View style={styles.progressSection}>
-              <View
-                style={[
-                  styles.progressBackground,
-                  { backgroundColor: lightColors.progressBackground },
-                ]}
-              >
-                <View style={[styles.progressBar, { backgroundColor: lightColors.primary }]} />
-              </View>
-            </View>
-          </AppCard>
-        </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      
+      <View style={styles.headerSection}>
+        <Feather name="search" size={70} color={theme.colors.primary} />
+        <AppText weight="bold" size="h2" style={styles.title}>
+          Finding the best technician for you…
+        </AppText>
+        <AppText color="textMuted" style={styles.subtitle}>
+          This usually takes 10–30 seconds. Stay on this page.
+        </AppText>
       </View>
 
-      {/* Modal for Cancel Booking */}
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setIsModalVisible(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={[styles.modalCard, { backgroundColor: lightColors.surface }]}>
-              <AppText weight="bold" size="h3" style={[styles.modalTitle, { color: lightColors.text }]}>
-                Cancel Booking?
-              </AppText>
-              <AppText
-                weight="regular"
-                size="body"
-                style={[styles.modalMessage, { color: lightColors.textMuted }]}
-              >
-                Are you sure you want to cancel this booking?
-              </AppText>
+      {/* INFO BUTTON */}
+      <View style={styles.infoWrapper}>
+        <TouchableOpacity style={[styles.infoButton, { backgroundColor: theme.colors.surface }]}
+          onPress={() => setModalVisible(true)}>
+          <Feather name="info" size={20} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </View>
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.keepButton, { borderColor: lightColors.border }]}
-                  onPress={() => setIsModalVisible(false)}
-                  activeOpacity={0.7}
-                >
-                  <AppText weight="semibold" size="body" style={{ color: lightColors.text }}>
-                    Keep Booking
-                  </AppText>
-                </TouchableOpacity>
+      {/* STATUS CARD */}
+      <AppCard style={styles.card}>
+        <View style={styles.cardRow}>
+          <View style={[styles.iconBox, { backgroundColor: theme.colors.border + "30" }]}>
+            <MaterialCommunityIcons name="fan" size={34} color={theme.colors.primary} />
+          </View>
 
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelConfirmButton, { backgroundColor: lightColors.danger }]}
-                  onPress={handleCancelBooking}
-                  activeOpacity={0.7}
-                >
-                  <AppText weight="semibold" size="body" style={{ color: '#FFFFFF' }}>
-                    Cancel Booking
-                  </AppText>
-                </TouchableOpacity>
-              </View>
+          <View style={{ flex: 1 }}>
+            <AppText weight="bold">{serviceName}</AppText>
+            <AppText color="textMuted" size="small">{date}</AppText>
+            <AppText color="textMuted" size="small">{time}</AppText>
+          </View>
+
+          <AppText weight="bold" size="h3" style={{ color: theme.colors.primary }}>
+            ₹{amount}
+          </AppText>
+        </View>
+
+        {/* PROGRESS */}
+        <View style={styles.progressBg}>
+          <Animated.View style={[styles.progressBar, { backgroundColor: theme.colors.primary, width: animatedWidth }]} />
+        </View>
+      </AppCard>
+
+      {/* CANCEL MODAL */}
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.colors.surface }]}>
+            <AppText weight="bold" size="h3">Cancel Booking?</AppText>
+            <AppText color="textMuted" style={{ marginVertical: 10 }}>
+              Are you sure you want to cancel this booking?
+            </AppText>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.modalBtn, { borderColor: theme.colors.border }]}
+                onPress={() => setModalVisible(false)}>
+                <AppText>Keep Booking</AppText>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.colors.danger }]}
+                onPress={() => navigation.goBack()}>
+                <AppText style={{ color: "white" }}>Cancel</AppText>
+              </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
+
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  content: {
-    flex: 1,
-  },
-  headerSection: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-  iconContainer: {
-    marginBottom: 24,
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 16,
-  },
-  subtitle: {
-    textAlign: 'center',
-    paddingHorizontal: 8,
-    lineHeight: 20,
-  },
-  cardSection: {
-    paddingHorizontal: 20,
-    marginTop: 32,
-    position: 'relative',
-  },
-  infoButton: {
-    position: 'absolute',
-    top: -44,
-    right: 24,
-    zIndex: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  statusCard: {
-    marginBottom: 0,
-  },
-  cardContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  serviceIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  textContent: {
-    flex: 1,
-  },
-  addressText: {
-    marginTop: 4,
-  },
-  timeText: {
-    marginTop: 2,
-  },
-  priceContainer: {
-    marginLeft: 8,
-  },
-  progressSection: {
-    marginTop: 4,
-  },
-  progressBackground: {
-    height: 4,
-    width: '100%',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    width: '30%',
-    borderRadius: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '85%',
-    maxWidth: 400,
-  },
-  modalCard: {
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  modalTitle: {
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  modalMessage: {
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  keepButton: {
-    borderWidth: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  cancelConfirmButton: {
-    // backgroundColor set dynamically
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    headerSection: { alignItems: "center", paddingTop: 50, paddingHorizontal: 24 },
+    title: { marginTop: 10, textAlign: "center", color: theme.colors.text },
+    subtitle: { marginTop: 5, textAlign: "center" },
+    infoWrapper: { marginTop: 40, alignItems: "center" },
+    infoButton: {
+      position: "absolute", top: -20, right: 20,
+      width: 38, height: 38, borderRadius: 20, justifyContent: "center", alignItems: "center"
+    },
+    card: { marginTop: 20, padding: 20, borderRadius: 16 },
+    cardRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+    iconBox: { width: 60, height: 60, borderRadius: 14, justifyContent: "center", alignItems: "center", marginRight: 16 },
+    progressBg: { height: 5, borderRadius: 4, backgroundColor: theme.colors.border },
+    progressBar: { height: "100%", borderRadius: 4 },
+    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
+    modalCard: { width: "85%", borderRadius: 16, padding: 24 },
+    modalButtons: { flexDirection: "row", gap: 12, marginTop: 12 },
+    modalBtn: { flex: 1, height: 48, borderRadius: 12, borderWidth: 1, justifyContent: "center", alignItems: "center" },
+  });

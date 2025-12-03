@@ -1,157 +1,599 @@
-import React, { useEffect } from 'react';
+// src/screens/HomeScreen.tsx
+import React, { useEffect, useState } from 'react';
 import {
-	SafeAreaView,
-	View,
-	StyleSheet,
-	ScrollView,
-	Pressable,
-	Image,
+  SafeAreaView,
+  View,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
-import AppCard from '../components/ui/AppCard';
-import AppText from '../components/ui/AppText';
-import AppInput from '../components/ui/AppInput';
-import AppButton from '../components/ui/AppButton';
-import { useTheme } from '../theme/useTheme';
-import { MaterialIcons, Entypo, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
-const services = [
-	{ id: '1', name: 'Plumbing', icon: 'tint' },
-	{ id: '2', name: 'Electrical', icon: 'bolt' },
-	{ id: '3', name: 'Cleaning', icon: 'broom' },
-	{ id: '4', name: 'Pest Control', icon: 'bug' },
-	{ id: '5', name: 'AC Repair', icon: 'snowflake' },
-	{ id: '6', name: 'Carpentry', icon: 'hammer' },
+import { useTheme } from '@/src/theme/useTheme';
+import AppText from '@/src/components/ui/AppText';
+import AppCard from '@/src/components/ui/AppCard';
+import AppButton from '@/src/components/ui/AppButton';
+import FanInstall from '@/assets/images/FanInstall.svg';
+import { useNavigation } from "@react-navigation/native";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { AppTabsParamList } from '../navigation/AppStack';
+type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
+
+/* -------------------------------------------------------------------------- */
+/*                               MOCK CONFIG DATA                             */
+/* -------------------------------------------------------------------------- */
+
+type ServiceCategory = {
+  id: string;
+  label: string;
+  icon: any;
+};
+
+type PopularService = {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: any;
+};
+
+export type RecentService = {
+  id: string;
+  name: string;
+  icon: any;    //React.FC<React.SVGProps<SVGSVGElement>>;
+};
+
+
+const SERVICE_CATEGORIES: ServiceCategory[] = [
+  { id: 'hair', label: 'Electical', icon: FanInstall },
+  { id: 'clean', label: 'Cleaning', icon: FanInstall },
+  { id: 'paint', label: 'Painting', icon: FanInstall },
+  { id: 'cook', label: 'Plumbing', icon: FanInstall },
 ];
 
-const recent = [
-	{ id: 'r1', name: 'Water Pumbling', icon: 'water' },
-	{ id: 'r2', name: 'House Cleaning', icon: 'broom' },
-	{ id: 'r3', name: 'AC Service', icon: 'snowflake' },
+const POPULAR_SERVICES: PopularService[] = [
+  { id: 'ps1', title: 'Home Deep Cleaning', subtitle: 'Full home • 2-3 hrs', icon: FanInstall },
+  { id: 'ps2', title: 'Kitchen Cleanup', subtitle: 'Oil & stain removal', icon: FanInstall },
+  { id: 'ps3', title: 'AC Service', subtitle: 'Cooling issues fixed', icon: FanInstall },
 ];
 
-export default function MainScreen() {
-	const { theme, setMode } = useTheme();
+export const RECENT_SERVICES: RecentService[] = [
+  { id: '1', name: 'AC Repair', icon: FanInstall },
+  { id: '2', name: 'Fan Installation', icon: FanInstall },
+  { id: '3', name: 'Home Cleaning', icon: FanInstall },
+];
 
-	useEffect(() => {
-		setMode && setMode('light');
-	}, [setMode]);
+/* -------------------------------------------------------------------------- */
+/*                                  SCREEN                                     */
+/* -------------------------------------------------------------------------- */
 
-	return (
-		<SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]}>
-			<ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-				<View style={styles.headerRow}>
-					<View style={{ flex: 1 }}>
-						<AppText weight="semibold" size="h3">Welcome Back</AppText>
-						<AppText color="textMuted">Find services near you</AppText>
-					</View>
+const HomeScreen: React.FC = () => {
+  const { theme, setMode } = useTheme();
+  const styles = createStyles(theme);
+  const [search, setSearch] = useState('');
+  const navigation = useNavigation<Nav>();
 
-					<View style={styles.locationBox}>
-						<MaterialIcons name="place" size={18} color={theme.colors.primary} />
-						<AppText weight="semibold" color="primary" style={{ marginLeft: 6 }}>Trichy, Tamil Nadu</AppText>
-					</View>
-				</View>
 
-				<View style={{ marginTop: theme.spacing.md }}>
-					<AppInput
-						placeholder="Search services, e.g. Plumbing"
-						style={{ borderRadius: 12 }}
-					/>
-				</View>
+  useEffect(() => {
+    setMode?.('light');
+  }, [setMode]);
 
-				<View style={{ marginTop: theme.spacing.md }}>
-					<ScrollView horizontal showsHorizontalScrollIndicator={false}>
-						<AppCard style={styles.offerCard}>
-							<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-								<Entypo name="ticket" size={28} color={theme.colors.surface} />
-								<View style={{ marginLeft: 12 }}>
-									<AppText weight="semibold" color="surface">First booking</AppText>
-									<AppText color="surface">Get up to 30% off</AppText>
-								</View>
-							</View>
-						</AppCard>
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ------------------------------ HEADER ------------------------------ */}
+        <View style={styles.headerRow}>
+          <View>
+            <AppText size="caption" color="textMuted">
+              Your Location
+            </AppText>
+            <View style={styles.locationRow}>
+              <Ionicons
+                name="location-sharp"
+                size={14}
+                color={theme.colors.primary}
+                style={{ marginRight: 4 }}
+              />
+              <AppText weight="semibold">Trichy, Tamil Nadu</AppText>
+              <Ionicons
+                name="chevron-down"
+                size={16}
+                color={theme.colors.textMuted}
+                style={{ marginLeft: 2 }}
+              />
+            </View>
+          </View>
 
-						<AppCard style={[styles.offerCard, { marginLeft: 12, backgroundColor: theme.colors.accent }] }>
-							<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-								<FontAwesome5 name="gift" size={26} color={theme.colors.surface} />
-								<View style={{ marginLeft: 12 }}>
-									<AppText weight="semibold" color="surface">Holiday Offer</AppText>
-									<AppText color="surface">Flat ₹50 off</AppText>
-								</View>
-							</View>
-						</AppCard>
-					</ScrollView>
-				</View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.iconCircle} activeOpacity={0.8}>
+              <Feather name="bell" size={18} color={theme.colors.text} />
+            </TouchableOpacity>
+            <View style={styles.avatarCircle}>
+              <AppText weight="bold" style={{ color: '#fff', fontSize: 12 }}>
+                G
+              </AppText>
+            </View>
+          </View>
+        </View>
 
-				<View style={{ marginTop: theme.spacing.lg }}>
-					<AppText weight="semibold" size="h3" style={{ marginBottom: theme.spacing.sm }}>Recent Bookings</AppText>
-					<ScrollView horizontal showsHorizontalScrollIndicator={false}>
-						{recent.map(r => (
-							<AppCard key={r.id} style={styles.recentCard}>
-								<View style={styles.recentIconWrap}>
-									<MaterialIcons name="home-repair-service" size={28} color={theme.colors.primary} />
-								</View>
-								<AppText weight="semibold" style={{ marginTop: 8 }}>{r.name}</AppText>
-							</AppCard>
-						))}
-					</ScrollView>
-				</View>
+        {/* -------------------------- SEARCH BAR --------------------------- */}
+        <View style={styles.searchWrapper}>
+          <View
+            style={[
+              styles.searchContainer,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <Ionicons
+              name="search"
+              size={18}
+              color={theme.colors.textMuted}
+              style={{ marginRight: 8 }}
+            />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search for a service.."
+              placeholderTextColor={theme.colors.textMuted}
+              style={[styles.searchInput, { color: theme.colors.text }]}
+            />
+          </View>
+        </View>
 
-				<View style={{ marginTop: theme.spacing.lg }}>
-					<AppText weight="semibold" size="h3" style={{ marginBottom: theme.spacing.sm }}>Services</AppText>
+        {/* --------------------------- HERO CARD --------------------------- */}
+        <AppCard
+          style={[
+            styles.heroCard,
+            { backgroundColor: theme.colors.primary },
+          ]}
+        >
+          <View style={{ flex: 1 }}>
+            <AppText
+              weight="bold"
+              size="h2"
+              style={{ color: '#fff', marginBottom: 4 }}
+            >
+              Your solution, one tap away!
+            </AppText>
+            <AppText
+              size="small"
+              style={{
+                color: '#E2F3F4',
+                marginBottom: 12,
+                maxWidth: 210,
+              }}
+            >
+              Seamless, fast & reliable services at your fingertips.
+            </AppText>
+            <AppButton
+              title="Explore"
+              variant="outline"
+              onPress={() => {navigation.navigate("ServiceTab")}}
+              //size="small"
+              style={styles.exploreButton}
+            />
+          </View>
 
-					<View style={[styles.grid, { position: 'relative' }]}> 
-						{/** Show first N services and present a +N tile for the rest */}
-						{(() => {
-							const shownCount = 5;
-							const shown = services.slice(0, shownCount);
-							const hiddenCount = Math.max(0, services.length - shownCount);
+          {/* Minimal line-style illustration – simple geometric block */}
+          <View style={styles.heroIllustration}>
+            <View style={styles.heroBoxOuter}>
+              <View style={styles.heroBoxInner} />
+              <View style={styles.heroLine} />
+              <View style={styles.heroDot} />
+            </View>
+          </View>
+        </AppCard>
 
-							return (
-								<>
-									{shown.map(s => (
-										<AppCard key={s.id} style={styles.serviceCard}>
-											<View style={styles.iconWrap}>
-												<FontAwesome5 name={s.icon as any} size={28} color={theme.colors.primary} />
-											</View>
-											<AppText weight="semibold" style={{ marginTop: 10 }}>{s.name}</AppText>
-											<AppButton title="Book" onPress={() => {}} variant="secondary" style={{ marginTop: 12 }} />
-										</AppCard>
-									))}
+        {/* ----------------------- SERVICE CATEGORIES ---------------------- */}
+        <SectionHeader
+          title="Service Categories"
+          onPressViewAll={() => {navigation.navigate("ServiceTab")}}
+        />
 
-									{hiddenCount > 0 && (
-										<AppCard key="more" style={[styles.serviceCard, styles.moreTile]}>
-											<Pressable onPress={() => { /* TODO: navigate to full list or open modal */ }} style={styles.moreInner}>
-												<AppText weight="bold" size="h2">+{hiddenCount}</AppText>
-												<AppText color="textMuted" style={{ marginTop: 6 }}>More</AppText>
-											</Pressable>
-										</AppCard>
-									)}
-								</>
-							);
-						})()}
-					</View>
-				</View>
+        <View style={styles.categoryGrid}>
+          {SERVICE_CATEGORIES.map((cat) => (
+            <ServiceCategoryCard key={cat.id} category={cat} />
+          ))}
+        </View>
 
-			</ScrollView>
-		</SafeAreaView>
-	);
-}
+        {/* ------------------------ POPULAR SERVICES ----------------------- */}
+        <SectionHeader
+          title="Popular Services"
+          onPressViewAll={() => {navigation.navigate("ServiceTab")}}
+        />
 
-const styles = StyleSheet.create({
-	safe: { flex: 1 },
-	scroll: { padding: 20, paddingBottom: 40 },
-	headerRow: { flexDirection: 'row', alignItems: 'center' },
-	locationBox: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 10, backgroundColor: 'transparent' },
-	offerCard: { width: 260, paddingVertical: 18, paddingHorizontal: 16, backgroundColor: '#FF6B6B' },
-	recentCard: { width: 120, alignItems: 'center', paddingVertical: 18, marginRight: 12 },
-	recentIconWrap: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF' },
-	grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-	serviceCard: { width: '48%', marginBottom: 12, paddingVertical: 18, alignItems: 'center' },
-	iconWrap: { width: 64, height: 64, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-	threeDots: { position: 'absolute', left: 8, bottom: 8, padding: 6 },
-	moreCard: { alignItems: 'center', justifyContent: 'center' },
-	morePress: { width: 64, height: 64, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-	moreTile: { alignItems: 'center', justifyContent: 'center' },
-	moreInner: { width: 92, height: 92, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 8 }}
+        >
+          {POPULAR_SERVICES.map((service) => (
+            <PopularServiceCard key={service.id} service={service} />
+          ))}
+        </ScrollView>
+
+        {/* ------------------------ RECENT BOOKINGS ------------------------ */}
+        <SectionHeader
+          title="Your Recent Bookings"
+          onPressViewAll={() => { }}
+        />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: 20 }}
+        >
+          {RECENT_SERVICES.map(s => (
+            <RecentServiceCard key={s.id} service={s} />
+          ))}
+        </ScrollView>
+
+
+        <View style={{ height: 24 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+export default HomeScreen;
+
+/* -------------------------------------------------------------------------- */
+/*                          SMALL REUSABLE COMPONENTS                         */
+/* -------------------------------------------------------------------------- */
+
+const SectionHeader: React.FC<{
+  title: string;
+  onPressViewAll?: () => void;
+}> = ({ title, onPressViewAll }) => {
+  const { theme } = useTheme();
+  const navigation = useNavigation();
+  return (
+    <View style={sectionHeaderStyles.container}>
+      <AppText weight="semibold" size="h3">
+        {title}
+      </AppText>
+      {onPressViewAll && (
+        <TouchableOpacity
+          onPress={onPressViewAll}
+          activeOpacity={0.7}
+        >
+          <AppText
+            size="small"
+            weight="semibold"
+            style={{ color: theme.colors.primary }}
+          >
+            View all
+          </AppText>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+// const ServiceCategoryCard: React.FC<{ category: ServiceCategory }> = ({
+//   category,
+// }) => {
+//   const { theme } = useTheme();
+//   const s = categoryCardStyles(theme);
+//   return (
+//     <AppCard style={s.card}>
+//       <View style={s.iconCircle}>
+//         <MaterialCommunityIcons
+//           name={category.icon}
+//           size={20}
+//           color={theme.colors.primary}
+//         />
+//       </View>
+//       <AppText weight="semibold" style={s.label}>
+//         {category.label}
+//       </AppText>
+//     </AppCard>
+//   );
+// };
+const ServiceCategoryCard: React.FC<{ category: ServiceCategory }> = ({
+  category,
+}) => {
+  const { theme } = useTheme();
+  const s = categoryCardStyles(theme);
+
+  // Dynamic SVG Component
+  const IconSvg = category.icon;
+
+  return (
+    <AppCard style={s.card}>
+      <View style={s.iconCircle}>
+        <IconSvg width={90} height={90} fill={theme.colors.primary} />
+      </View>
+
+      <AppText weight="semibold" style={s.label}>
+        {category.label}
+      </AppText>
+    </AppCard>
+  );
+};
+
+const PopularServiceCard: React.FC<{ service: PopularService }> = ({
+  service,
+}) => {
+  const { theme } = useTheme();
+  const s = popularServiceStyles(theme);
+  const IconSvg = service.icon;
+
+  return (
+    <AppCard style={s.card}>
+      <View style={s.imagePlaceholder} >
+        <IconSvg width='100%' fill={theme.colors.primary} />
+      </View>
+      <View style={s.textContainer}>
+        <AppText weight="semibold" numberOfLines={1}>
+          {service.title}
+        </AppText>
+        <AppText
+          size="small"
+          color="textMuted"
+          numberOfLines={1}
+          style={{ marginTop: 2 }}
+        >
+          {service.subtitle}
+        </AppText>
+      </View>
+    </AppCard>
+  );
+};
+
+const RecentServiceCard: React.FC<{ service: RecentService }> = ({ service }) => {
+  const { theme } = useTheme();
+  const s = recentCardStyles(theme);
+
+  const IconSvg = service.icon;
+
+  return (
+    <TouchableOpacity activeOpacity={0.9}>
+      <View style={s.card}>
+        <View style={s.iconContainer}>
+          <IconSvg width={32} height={32} fill={theme.colors.primary} />
+        </View>
+
+        <AppText weight="semibold" style={s.serviceName}>
+          {service.name}
+        </AppText>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+
+/* -------------------------------------------------------------------------- */
+/*                                   STYLES                                   */
+/* -------------------------------------------------------------------------- */
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+    },
+    scroll: {
+      paddingHorizontal: 20,
+      paddingBottom: 16,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      marginTop: 4,
+    },
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    iconCircle: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      marginRight: 8,
+    },
+    avatarCircle: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primary,
+    },
+    searchWrapper: {
+      marginBottom: 16,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 16,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+    },
+    heroCard: {
+      flexDirection: 'row',
+      padding: 16,
+      borderRadius: 18,
+      marginBottom: 20,
+      alignItems: 'center',
+    },
+    exploreButton: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 18,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surface,
+
+
+    },
+    heroIllustration: {
+      width: 110,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroBoxOuter: {
+      width: 84,
+      height: 70,
+      borderRadius: 16,
+      borderWidth: 1.4,
+      borderColor: '#EAF5F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroBoxInner: {
+      width: 54,
+      height: 32,
+      borderRadius: 10,
+      borderWidth: 1.2,
+      borderColor: '#EAF5F6',
+    },
+    heroLine: {
+      width: 54,
+      height: 2,
+      backgroundColor: '#EAF5F6',
+      marginTop: 6,
+    },
+    heroDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: '#EAF5F6',
+      marginTop: 4,
+    },
+    categoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      rowGap: 12,
+      marginBottom: 8,
+    },
+  });
+
+const sectionHeaderStyles = StyleSheet.create({
+  container: {
+    marginTop: 4,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 });
+
+// const categoryCardStyles = (theme: any) =>
+//   StyleSheet.create({
+//     card: {
+//       width: '48%',
+//       paddingVertical: 14,
+//       paddingHorizontal: 12,
+//       borderRadius: 16,
+//       backgroundColor: theme.colors.surface,
+//     },
+//     iconCircle: {
+//       width: 32,
+//       height: 32,
+//       borderRadius: 16,
+//       alignItems: 'center',
+//       justifyContent: 'center',
+//       backgroundColor: theme.colors.background,
+//       marginBottom: 8,
+//     },
+//     label: {},
+//   });
+
+const categoryCardStyles = (theme: any) =>
+  StyleSheet.create({
+    card: {
+      width: '48%',
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      borderRadius: 18,
+      backgroundColor: theme.colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 3,
+      alignItems: 'center',
+    },
+    iconCircle: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: theme.colors.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    label: {
+      fontSize: 15,
+    },
+  });
+
+const popularServiceStyles = (theme: any) =>
+  StyleSheet.create({
+    card: {
+      width: 220,
+      borderRadius: 16,
+      marginRight: 12,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.surface,
+    },
+    imagePlaceholder: {
+      height: 90,
+      width: '100%',
+      backgroundColor: theme.colors.background,
+    },
+    textContainer: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+  });
+
+const recentCardStyles = (theme: any) =>
+  StyleSheet.create({
+    card: {
+      width: 120,
+      paddingVertical: 18,
+      paddingHorizontal: 10,
+      borderRadius: 18,
+      backgroundColor: theme.colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      elevation: 4,
+      marginRight: 14,
+    },
+    iconContainer: {
+      width: 58,
+      height: 58,
+      borderRadius: 16,
+      backgroundColor: theme.colors.surface2 || "#F4F4F4",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 10,
+    },
+    serviceName: {
+      fontSize: 13,
+      textAlign: "center",
+    },
+  });
 

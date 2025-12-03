@@ -27,12 +27,7 @@ const PhoneNumScreen: React.FC = () => {
   const [isValid, setIsValid] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
-  useEffect(() => {
-    // force light for auth if you want
-    setMode?.('light');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  
   const handlePhoneChange = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, 10);
     setPhone(digits);

@@ -1,9 +1,10 @@
 import AppText from '@/src/components/ui/AppText';
-import BookingCard from '@/src/components/ui/BookingCard';
+//import BookingCard from '@/src/components/ui/BookingCard';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import BookingCard from '../components/BookingCard';
 
 // Mock Data matching the design image fields
 const TRANSACTIONS = [
