@@ -310,7 +310,7 @@ const ServiceCategoryCard: React.FC<{ category: ServiceCategory }> = ({
   return (
     <AppCard style={s.card}>
       <View style={s.iconCircle}>
-        <IconSvg width={wp(90)} height={wp(90)} fill={theme.colors.primary} />
+        <IconSvg width={90} height={90} fill={theme.colors.primary} />
       </View>
 
       <AppText weight="semibold" style={s.label}>
@@ -359,7 +359,7 @@ const RecentServiceCard: React.FC<{ service: RecentService }> = ({ service }) =>
     <TouchableOpacity activeOpacity={0.9}>
       <View style={s.card}>
         <View style={s.iconContainer}>
-          <IconSvg width={wp(32)} height={(32)} fill={theme.colors.primary} />
+          <IconSvg width={32} height={32} fill={theme.colors.primary} />
         </View>
 
         <AppText weight="semibold" style={s.serviceName}>
