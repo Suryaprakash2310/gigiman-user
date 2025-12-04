@@ -19,6 +19,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { AppTabsParamList } from '../navigation/AppStack';
 import AppHeader from '../components/ui/AppHeader';
+import { hp, wp } from '../utils/responsive';
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
 
 /* -------------------------------------------------------------------------- */
@@ -189,6 +190,25 @@ const HomeScreen: React.FC = () => {
           </View>
         </AppCard>
 
+        {/* ------------------------ RECENT BOOKINGS ------------------------ */}
+        <SectionHeader
+          title="Your Recent Bookings"
+          onPressViewAll={() => { }}
+        />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: 20 }}
+        >
+          {RECENT_SERVICES.map(s => (
+            <RecentServiceCard key={s.id} service={s} />
+          ))}
+        </ScrollView>
+
+
+        <View style={{ height: wp(7) }} />
+
         {/* ----------------------- SERVICE CATEGORIES ---------------------- */}
         <SectionHeader
           title="Service Categories"
@@ -217,24 +237,7 @@ const HomeScreen: React.FC = () => {
           ))}
         </ScrollView>
 
-        {/* ------------------------ RECENT BOOKINGS ------------------------ */}
-        <SectionHeader
-          title="Your Recent Bookings"
-          onPressViewAll={() => { }}
-        />
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: 20 }}
-        >
-          {RECENT_SERVICES.map(s => (
-            <RecentServiceCard key={s.id} service={s} />
-          ))}
-        </ScrollView>
-
-
-        <View style={{ height: 24 }} />
+        
       </ScrollView>
     </SafeAreaView>
   );
@@ -307,7 +310,7 @@ const ServiceCategoryCard: React.FC<{ category: ServiceCategory }> = ({
   return (
     <AppCard style={s.card}>
       <View style={s.iconCircle}>
-        <IconSvg width={90} height={90} fill={theme.colors.primary} />
+        <IconSvg width={wp(90)} height={wp(90)} fill={theme.colors.primary} />
       </View>
 
       <AppText weight="semibold" style={s.label}>
