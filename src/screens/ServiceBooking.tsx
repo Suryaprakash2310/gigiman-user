@@ -11,6 +11,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/theme/useTheme";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { AppTabsParamList } from "../navigation/AppStack";
+import { useBooking } from "../context/BookingContext";
+import { useNavigation } from "@react-navigation/native";
+import AppHeader from "../components/ui/AppHeader";
 type Nav = BottomTabNavigationProp<AppTabsParamList, "BookingTab">;
 interface ServiceBookingProps {
     route: {
@@ -36,18 +39,35 @@ const ServiceBookingScreen: React.FC<ServiceBookingProps> = ({
         route.params;
 
     const { theme } = useTheme();
-
+    const { createBooking } = useBooking();
+    const tabNav = useNavigation<Nav>();
     const styles = createStyles(theme);
 
     const [count, setCount] = useState(1);
 
     const increase = () => setCount((p) => p + 1);
     const decrease = () => setCount((p) => (p > 1 ? p - 1 : 1));
+    const handleBookNow = () => {
+        const totalAmount = price * count;
+        const booking = createBooking({
+            serviceName,
+            amount: totalAmount,
+            dateLabel: "Today",
+            timeLabel: time,
+            address: "Default saved address", // later replace from address context
+        });
+
+        tabNav.navigate("BookingTab", {
+            screen: "Searching",
+            params: { bookingId: booking.id },
+        } as any);
+    };
 
     return (
         <View style={styles.container}>
             {/* Scrollable Content */}
             <ScrollView showsVerticalScrollIndicator={false}>
+                <AppHeader showBack={true} />
 
                 {/* --- IMAGE BANNER --- */}
                 <Image source={image} style={styles.image} />
@@ -116,22 +136,10 @@ const ServiceBookingScreen: React.FC<ServiceBookingProps> = ({
                 {/* PRIMARY BUTTON */}
                 <TouchableOpacity
                     style={[styles.primaryBtn, { backgroundColor: theme.colors.primary }]}
-                    onPress={() =>
-                        navigation.navigate("BookingTab", {
-                            screen: "Searching",
-                            params: {
-                                serviceName: "Fan Installation",
-                                amount: "149",
-                                date: "Today",
-                                time: "4:30–5:00 PM",
-                            },
-                        })
-
-
-                    }
+                    onPress={handleBookNow}
                 >
                     <AppText weight="bold" style={styles.primaryText}>
-                        Book Now – ₹{price}
+                        Book Now – ₹{price * count}
                     </AppText>
                 </TouchableOpacity>
 

@@ -7,12 +7,7 @@ import BookingOtp from "@/src/screens/BookingOtp";
 
 export type BookingParamList = {
   BookingsMain: undefined;
-  Searching: {
-    serviceName: string;
-    amount: string;
-    time: string;
-    date: string;
-  };
+  Searching: { bookingId: string };
   BookingDetails: { bookingId: string };
 };
 

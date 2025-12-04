@@ -1,108 +1,73 @@
 import React, { useState } from "react";
-import { View, StyleSheet, FlatList, TouchableOpacity } from "react-native";
-
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+} from "react-native";
 import AppText from "@/src/components/ui/AppText";
+import AppCard from "@/src/components/ui/AppCard";
 import { useTheme } from "@/src/theme/useTheme";
-import BookingCard from "../components/BookingCard";
+import { useBooking, BookingItem } from "@/src/context/BookingContext";
+import { useNavigation } from "@react-navigation/native";
 import AppHeader from "../components/ui/AppHeader";
 
-// -------------------------------------
-// 1) TYPE
-// -------------------------------------
-type BookingItem = {
-  id: string;
-  serviceName: string;
-  date: string;
-  time: string;
-  amount: string;
-  technicianName?: string;
-  paymentMode?: string;
-};
-
-// -------------------------------------
-// 2) MOCK DATA (Replace with API later)
-// -------------------------------------
-const MOCK_DATA: Record<"upcoming" | "ongoing", BookingItem[]> = {
-  upcoming: [
-    {
-      id: "1",
-      serviceName: "Home Cleaning",
-      technicianName: "Raj",
-      amount: "149",
-      date: "Wed, Oct 10",
-      time: "10:00 AM",
-    },
-  ],
-
-  ongoing: [
-    // when search+assign flow is ready, push current booking here
-    {
-      id: "2",
-      serviceName: "Fan Installation",
-      technicianName: "Arun Kumar",
-      amount: "199",
-      date: "Today",
-      time: "4:30 PM",
-    },
-  ],
-};
-
-// -------------------------------------
-const FILTERS = ["Ongoing", "Upcoming"] as const;
-type FilterType = (typeof FILTERS)[number];
+type TabType = "ongoing" | "upcoming";
 
 export default function BookingScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const navigation = useNavigation<any>();
+  const { ongoing, upcoming } = useBooking();
 
-  const [activeFilter, setActiveFilter] = useState<FilterType>("Ongoing");
+  const [activeTab, setActiveTab] = useState<TabType>("ongoing");
 
-  const getData = () => {
-    if (activeFilter === "Upcoming") return MOCK_DATA.upcoming;
-    return MOCK_DATA.ongoing;
-  };
-
-  const data = getData();
+  const data = activeTab === "ongoing" ? ongoing : upcoming;
   const empty = data.length === 0;
 
-  const renderCard = (item: BookingItem) => {
-    // For now we treat both as "assigned" style; you can later add type="upcoming"
-    return (
-      <BookingCard
-        type="assigned"
-        serviceName={item.serviceName}
-        amount={item.amount}
-        date={item.date}
-        time={item.time}
-        technicianName={item.technicianName}
-      />
-    );
+  const handleCardPress = (booking: BookingItem) => {
+    if (booking.status === "searching") {
+      navigation.navigate("Searching", { bookingId: booking.id });
+      return;
+    }
+
+    // assigned or upcoming → open details
+    navigation.navigate("BookingDetails", { bookingId: booking.id });
   };
 
   return (
     <View style={styles.container}>
-      <AppHeader title='Bookings'/>
-      {/* FILTER BUTTONS */}
-      <View style={styles.filterRow}>
-        {FILTERS.map((label) => {
-          const active = activeFilter === label;
+      {/* HEADER */}
+      <View style={styles.headerRow}>
+        <AppHeader title="Your Bookings" />
+      </View>
+
+      {/* TABS */}
+      <View style={styles.tabRow}>
+        {(["ongoing", "upcoming"] as TabType[]).map((tab) => {
+          const label = tab === "ongoing" ? "Ongoing" : "Upcoming";
+          const active = tab === activeTab;
           return (
             <TouchableOpacity
-              key={label}
-              onPress={() => setActiveFilter(label)}
+              key={tab}
+              onPress={() => setActiveTab(tab)}
               style={[
-                styles.filterButton,
+                styles.tabButton,
                 {
-                  borderColor: active ? theme.colors.primary : theme.colors.border,
                   backgroundColor: active
-                    ? theme.colors.primary + "15"
+                    ? theme.colors.primary
                     : theme.colors.surface,
+                  borderColor: active
+                    ? theme.colors.primary
+                    : theme.colors.border,
                 },
               ]}
             >
               <AppText
                 weight={active ? "bold" : "medium"}
-                style={{ color: active ? theme.colors.primary : theme.colors.text }}
+                style={{
+                  color: active ? "#fff" : theme.colors.text,
+                }}
               >
                 {label}
               </AppText>
@@ -114,76 +79,171 @@ export default function BookingScreen() {
       {/* EMPTY STATE */}
       {empty && (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIcon} />
+          <View style={styles.emptyCircle} />
           <AppText weight="bold" size="h3" style={{ marginTop: 12 }}>
-            {activeFilter === "Ongoing"
+            {activeTab === "ongoing"
               ? "No Ongoing Services"
-              : "No Scheduled Services"}
+              : "No Upcoming Services"}
           </AppText>
           <AppText
             color="textMuted"
             style={{ marginTop: 6, textAlign: "center", width: "70%" }}
           >
-            {activeFilter === "Ongoing"
-              ? "Book a service now and track its live status here."
-              : "When you schedule a service for later, it will appear here."}
+            {activeTab === "ongoing"
+              ? "Book a service and track its live status here."
+              : "Your scheduled services will show here."}
           </AppText>
         </View>
       )}
 
       {/* LIST */}
       {!empty && (
-        <FlatList<BookingItem>
+        <FlatList
           data={data}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => renderCard(item)}
           showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <BookingListCard
+              booking={item}
+              onPress={() => handleCardPress(item)}
+            />
+          )}
         />
       )}
     </View>
   );
 }
 
+/* ------------ SMALL CARD COMPONENT ------------- */
+
+const BookingListCard = ({
+  booking,
+  onPress,
+}: {
+  booking: BookingItem;
+  onPress: () => void;
+}) => {
+  const { theme } = useTheme();
+  const s = cardStyles(theme);
+
+  const isSearching = booking.status === "searching";
+  const statusLabel = isSearching ? "Searching technician…" : "Technician assigned";
+
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
+      <AppCard style={s.card}>
+        <View style={s.rowTop}>
+          <AppText weight="bold" size="body">
+            {booking.serviceName}
+          </AppText>
+          <AppText weight="bold" size="body" style={{ color: theme.colors.primary }}>
+            ₹{booking.amount}
+          </AppText>
+        </View>
+
+        <View style={s.rowMid}>
+          <AppText size="small" color="textMuted">
+            {booking.dateLabel} • {booking.timeLabel}
+          </AppText>
+          <AppText size="small" color="textMuted">
+            {booking.address}
+          </AppText>
+        </View>
+
+        <View style={s.rowBottom}>
+          <View
+            style={[
+              s.pill,
+              { backgroundColor: isSearching ? "#FEF3C7" : "#DCFCE7" },
+            ]}
+          >
+            <AppText
+              size="small"
+              weight="semibold"
+              style={{
+                color: isSearching ? "#B45309" : "#166534",
+              }}
+            >
+              {statusLabel}
+            </AppText>
+          </View>
+
+          {booking.status === "assigned" && booking.technicianName && (
+            <AppText size="small" color="textMuted">
+              With {booking.technicianName}
+            </AppText>
+          )}
+        </View>
+      </AppCard>
+    </TouchableOpacity>
+  );
+};
+
+/* ------------ STYLES ------------- */
+
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      paddingHorizontal: 12,
+      paddingHorizontal: 16,
+      paddingTop: 16,
     },
-
-    filterRow: {
+    headerRow: {
+      marginBottom: 12,
+    },
+    tabRow: {
       flexDirection: "row",
-      justifyContent: "flex-start",
-      marginVertical: 12,
-      flexWrap: "wrap",
-      columnGap: 12,
+      gap: 8,
+      marginBottom: 12,
     },
-
-    filterButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 24,
-      borderWidth: 1.5,
-      marginBottom: 8,
+    tabButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
     },
-
     listContent: {
-      paddingBottom: 60,
+      paddingBottom: 40,
     },
-
-    // ----- NO RECORD UI -----
     emptyContainer: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
     },
-    emptyIcon: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: "#EEF1F5",
-      opacity: 0.6,
+    emptyCircle: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      backgroundColor: "#E5E7EB",
+      opacity: 0.5,
+    },
+  });
+
+const cardStyles = (theme: any) =>
+  StyleSheet.create({
+    card: {
+      padding: 14,
+      marginBottom: 12,
+      borderRadius: 16,
+    },
+    rowTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    rowMid: {
+      marginBottom: 8,
+    },
+    rowBottom: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    pill: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
     },
   });
