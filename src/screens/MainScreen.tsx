@@ -359,7 +359,7 @@ const RecentServiceCard: React.FC<{ service: RecentService }> = ({ service }) =>
     <TouchableOpacity activeOpacity={0.9}>
       <View style={s.card}>
         <View style={s.iconContainer}>
-          <IconSvg width={32} height={32} fill={theme.colors.primary} />
+          <IconSvg width={wp(32)} height={(32)} fill={theme.colors.primary} />
         </View>
 
         <AppText weight="semibold" style={s.serviceName}>
