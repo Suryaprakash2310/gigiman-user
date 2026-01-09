@@ -1,19 +1,19 @@
+import AppText from "@/src/components/ui/AppText";
+import { useTheme } from "@/src/theme/useTheme";
+import { Ionicons } from "@expo/vector-icons";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
-    View,
-    StyleSheet,
     Image,
     ScrollView,
+    StyleSheet,
     TouchableOpacity,
+    View,
 } from "react-native";
-import AppText from "@/src/components/ui/AppText";
-import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/src/theme/useTheme";
-import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { AppTabsParamList } from "../navigation/AppStack";
-import { useBooking } from "../context/BookingContext";
-import { useNavigation } from "@react-navigation/native";
 import AppHeader from "../components/ui/AppHeader";
+import { useBooking } from "../context/BookingContext";
+import { AppTabsParamList } from "../navigation/AppStack";
 type Nav = BottomTabNavigationProp<AppTabsParamList, "BookingTab">;
 interface ServiceBookingProps {
     route: {
@@ -146,12 +146,8 @@ const ServiceBookingScreen: React.FC<ServiceBookingProps> = ({
                 {/* SECONDARY */}
                 <TouchableOpacity
                     onPress={() =>
-                        navigation.navigate("BookingTab", {
-                            screen: "Searching",
-                            params: {
-                                serviceName: "Fan Installation",
-                                amount: "149",
-                            },
+                        navigation.navigate("ScheduleBooking", {
+                            serviceName: serviceName
                         })
                     }
 

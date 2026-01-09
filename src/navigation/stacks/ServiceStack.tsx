@@ -1,9 +1,10 @@
 // src/navigation/stacks/WalletStack.tsx
-import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import ScheduleBooking from '@/src/screens/ScheduleBooking';
 import ServiceCategory from '@/src/screens/service/ServiceCategory';
 import ServicesScreen from '@/src/screens/service/ServiceScreen';
 import ServiceBookingScreen from '@/src/screens/ServiceBooking';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
 
 // Placeholder
 const WalletScreen = () => null;
@@ -24,6 +25,9 @@ export type ServiceParamList = {
     rating?: number;
     reviews?: number;
   };
+  ScheduleBooking: {
+    serviceName: string;
+  };
 };
 
 
@@ -33,6 +37,7 @@ export default function ServiceStack() {
       <Stack.Screen name="MainServiceScreen" component={ServicesScreen} />
       <Stack.Screen name="SubServiceScreen" component={ServiceCategory} />
       <Stack.Screen name="Booking" component={ServiceBookingScreen} />
+      <Stack.Screen name="ScheduleBooking" component={ScheduleBooking} />
     </Stack.Navigator>
   );
 }
