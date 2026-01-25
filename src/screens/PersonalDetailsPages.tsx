@@ -2,8 +2,9 @@ import AppText from '@/src/components/ui/AppText';
 import PersonalDetailsCard from '@/src/components/ui/PersonalDetailsCard';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { getProfileAPI } from '../api/profile.api';
 
 export default function PersonalDetailsPage() {
     // Force light theme colors as per requirement
@@ -25,6 +26,14 @@ export default function PersonalDetailsPage() {
         console.log('Submitted values:', values);
         // Here you would typically make an API call to save the data
     };
+    const [profile, setProfile] = useState<any>(null);
+
+    useEffect(() => {
+        getProfileAPI().then(res => {
+            setProfile(res.data.user);
+        });
+    }, []);
+
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
@@ -61,7 +70,17 @@ export default function PersonalDetailsPage() {
                     Manage your details
                 </AppText>
 
-                <PersonalDetailsCard onSubmit={handleSubmit} />
+                {profile && (
+                    <PersonalDetailsCard
+                        initialValues={{
+                            fullName: profile.fullName,
+                            email: profile.email,
+                            phone: profile.phone,
+                        }}
+                        onSubmit={handleSubmit}
+                    />
+                )}
+
 
             </ScrollView>
         </SafeAreaView>

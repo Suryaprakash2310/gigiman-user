@@ -1,5 +1,5 @@
 // OtpScreen.tsx
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import AppText from '../components/ui/AppText';
 import AppButton from '../components/ui/AppButton';
 import OtpInput, { OtpInputRef } from '../components/ui/OtpInput';
 import AppHeader from '../components/ui/AppHeader';
+import { verifyOtpApi } from "../api/auth";
 
 type OtpRouteParams = {
   phone?: string;
@@ -25,6 +26,9 @@ const OtpScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { login } = useAuthContext();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
 
   const route =
     useRoute<RouteProp<Record<string, OtpRouteParams>, string>>();
@@ -37,48 +41,126 @@ const OtpScreen: React.FC = () => {
   const otpRef = useRef<OtpInputRef>(null);
 
   /** Called when OTP fully typed */
-  const handleOtpComplete = async(otp: string) => {
-    console.log("OTP entered:", otp);
+  // const handleOtpComplete = async(otp: string) => {
+  //   console.log("OTP entered:", otp);
 
-    // TODO → Call your backend verify API here
-      // 1️⃣ Mock backend response for now
-  const mockResponse = {
+  //   // TODO → Call your backend verify API here
+  //     // 1️⃣ Mock backend response for now
+  // const mockResponse = {
+  //     user: {
+  //       id: "12345",
+  //       phone,
+  //       name: "",           // empty → new user
+  //     },
+  //     accessToken: "mock_access",
+  //     refreshToken: "mock_refresh",
+  //     isNewUser: false,      // backend sends this normally
+  //     hasAddress: false,
+  // };
+
+  // // 2️⃣ Store user + tokens securely
+  // await login({
+  //   user: mockResponse.user,
+  //   accessToken: mockResponse.accessToken,
+  //   refreshToken: mockResponse.refreshToken,
+  // });
+
+  // // 3️⃣ Continue onboarding flow
+  // if (mockResponse.isNewUser || !mockResponse.user.name) {
+  //   navigation.replace("SetupProfile");
+  // } 
+  // else if (!mockResponse.hasAddress) {
+  //   navigation.replace("AddressScreen");
+  // } 
+  // else {
+  //   navigation.reset({ index: 0, routes: [{ name: "HomeTab" }] });
+  // }
+
+
+  //   // navigation.reset({
+  //   //   index: 0,
+  //   //   routes: [{ name: 'SetupProfile' }],
+  //   // });
+  // };
+  // const handleOtpComplete = async (otp: any) => {
+  //   try {
+  //     setLoading(true);
+  //     setError(null);
+
+  //     const res = await verifyOtpApi(phone, otp);
+  //     console.log("verifyOtpApi response:", res);
+
+ const handleOtpComplete = async (otp: string) => {
+  try {
+    setLoading(true);
+    setError(null);
+
+    const res = await verifyOtpApi(phone, otp);
+    const data = res.data;
+
+    // 🟡 NEW USER
+    if (data.next === "COMPLETE_PROFILE") {
+      await login({
+        user: {
+          _id: "temp",
+          phone,
+          profileCompleted: false,
+        },
+        accessToken: data.tempToken, // 👈 VERY IMPORTANT
+      });
+      return;
+    }
+
+    // 🟢 EXISTING USER
+    await login({
       user: {
-        id: "12345",
-        phone,
-        name: "",           // empty → new user
+        ...data.user,
+        profileCompleted: true,
       },
-      accessToken: "mock_access",
-      refreshToken: "mock_refresh",
-      isNewUser: false,      // backend sends this normally
-      hasAddress: false,
-  };
+      accessToken: data.token,
+    });
 
-  // 2️⃣ Store user + tokens securely
-  await login({
-    user: mockResponse.user,
-    accessToken: mockResponse.accessToken,
-    refreshToken: mockResponse.refreshToken,
-  });
-
-  // 3️⃣ Continue onboarding flow
-  if (mockResponse.isNewUser || !mockResponse.user.name) {
-    navigation.replace("SetupProfile");
-  } 
-  else if (!mockResponse.hasAddress) {
-    navigation.replace("AddressScreen");
-  } 
-  else {
-    navigation.reset({ index: 0, routes: [{ name: "HomeTab" }] });
+  } catch (err: any) {
+    setError(err?.response?.data?.message || "Invalid OTP");
+    otpRef.current?.reset();
+  } finally {
+    setLoading(false);
   }
+};
 
 
-    // navigation.reset({
-    //   index: 0,
-    //   routes: [{ name: 'SetupProfile' }],
-    // });
-  };
 
+
+  //const { token, user } = res.data;
+
+  // await login({
+  //   user: {
+  //     id: user._id,
+  //     phone: user.phoneMasked,
+  //     name: user.fullName,
+  //   },
+  //   accessToken: token,
+  //   refreshToken: token, // same for now
+  // });
+  // // Navigation decision
+  // if (!user.fullName) {
+  //   navigation.replace("SetupProfile");
+  // } else if (!user.address) {
+  //   navigation.replace("AddressScreen");
+  // } else {
+  //   navigation.reset({
+  //     index: 0,
+  //     routes: [{ name: "HomeTab" }],
+  //   });
+  // }
+  //   } catch (err: any) {
+  //     setError(err?.response?.data?.message || "Invalid OTP");
+  //     console.error("OTP error:", err?.message, err?.response?.data);
+  //     otpRef.current?.reset();
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   /** Called when resend pressed */
   const handleResend = () => {
     console.log("Resend pressed");
@@ -91,50 +173,57 @@ const OtpScreen: React.FC = () => {
 
   return (
     <>
-    <AppHeader showBack={true}/>
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-    >
-      
-      {/* TOP SECTION */}
-      <View style={styles.content}>
-        <AppText weight="bold" size="h2">Enter OTP</AppText>
+      <AppHeader showBack={true} />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      >
 
-        <AppText color="textMuted" style={{ marginTop: theme.spacing.xs }}>
-          We have sent a 4-digit code to
-        </AppText>
+        {/* TOP SECTION */}
+        <View style={styles.content}>
+          <AppText weight="bold" size="h2">Enter OTP</AppText>
 
-        <AppText weight="semibold" style={{ marginTop: theme.spacing.xs }}>
-          {phone}
-        </AppText>
+          <AppText color="textMuted" style={{ marginTop: theme.spacing.xs }}>
+            We have sent a 4-digit code to
+          </AppText>
 
-        {/* New clean reusable OTP component */}
-        <View style={{ marginTop: theme.spacing.lg }}>
-          <OtpInput
-            ref={otpRef}
-            otpLength={4}
-            resendTime={30}
-            onOtpComplete={handleOtpComplete}
-            onResend={handleResend}
+          <AppText weight="semibold" style={{ marginTop: theme.spacing.xs }}>
+            {phone}
+          </AppText>
+
+          {/* New clean reusable OTP component */}
+          <View style={{ marginTop: theme.spacing.lg }}>
+            <OtpInput
+              ref={otpRef}
+              otpLength={4}
+              resendTime={30}
+              onOtpComplete={handleOtpComplete}
+              onResend={handleResend}
+            />
+          </View>
+          {error && (
+            <AppText color="danger" style={{ marginTop: 12 }}>
+              {error}
+            </AppText>
+          )}
+
+        </View>
+
+        {/* FIXED BOTTOM BUTTON */}
+        <View
+          style={{
+            paddingHorizontal: 24,
+            paddingBottom: insets.bottom + theme.spacing.xxl,
+          }}
+        >
+          <AppButton
+            title={loading ? "Verifying..." : "Verify"}
+            onPress={() => otpRef.current?.focus()}
+            disabled={loading}
           />
         </View>
-      </View>
-
-      {/* FIXED BOTTOM BUTTON */}
-      <View
-        style={{
-          paddingHorizontal: 24,
-          paddingBottom: insets.bottom + theme.spacing.xxl,
-        }}
-      >
-        <AppButton
-          title="Verify"
-          onPress={() => otpRef.current?.focus()} // Focus otp if user taps verify
-        />
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
     </>
   );
 };

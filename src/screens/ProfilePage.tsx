@@ -48,10 +48,13 @@ export default function ProfileScreen() {
           <AppText weight="bold" size="h2" style={{ marginTop: 12 }}>
             Alex Martinez
           </AppText>
-
+        {/*
           <AppText color="textMuted" size="body" style={{ marginTop: 4 }}>
             alex.math@gmail.com
           </AppText>
+        
+        */}
+
         </View>
 
         {/* MAIN MENU */}

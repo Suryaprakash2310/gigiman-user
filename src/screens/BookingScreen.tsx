@@ -27,12 +27,12 @@ export default function BookingScreen() {
 
   const handleCardPress = (booking: BookingItem) => {
     if (booking.status === "searching") {
-      navigation.navigate("Searching", { bookingId: booking.id });
+      navigation.navigate("Searching", { bookingId: booking._id });
       return;
     }
-
+  
     // assigned or upcoming → open details
-    navigation.navigate("BookingDetails", { bookingId: booking.id });
+    navigation.navigate("BookingDetails", { bookingId: booking._id });
   };
 
   return (
@@ -100,7 +100,7 @@ export default function BookingScreen() {
       {!empty && (
         <FlatList
           data={data}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (

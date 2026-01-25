@@ -1,161 +1,84 @@
-import React, { useEffect } from 'react';
-import {
-  Image,
-  ImageSourcePropType,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import AppText from '../../components/ui/AppText';
-//import ServiceCategoryCard from '../components/ui/ServiceCategoryCard';
-import { useTheme } from '../../theme/useTheme';
-import ServiceCategoryCard from '../../components/ServiceCategoryCard';
-import { useNavigation } from '@react-navigation/native';
-import AppHeader from '@/src/components/ui/AppHeader';
+import React, { useEffect, useState } from "react";
+import { ScrollView, View } from "react-native";
+import AppHeader from "@/src/components/ui/AppHeader";
+import AppText from "@/src/components/ui/AppText";
+import ServiceCategoryCard from "@/src/components/ServiceCategoryCard";
+import { ServiceAPI } from "@/src/api/service.api";
 
-interface Service {
-  id: string;
-  image?: ImageSourcePropType;
-  icon?: string;
-  title: string;
-  subtitle: string;
-  amount: string | number;
-  points?: string[];
-}
+export default function ServiceCategory({ route, navigation }: any) {
+  const { serviceName } = route.params;
+  const [categories, setCategories] = useState<any[]>([]);
+  //const styles = createStyles(theme);
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
-// Example services data — replace with actual API data
-const servicesData: Service[] = [
-  {
-    id: '1',
-    title: 'Fan Installation',
-    subtitle: 'Install any type of ceiling or wall fan',
-    amount: 149,
-    points: ['Certified electricians', '30-day warranty'],
-  },
-  {
-    id: '2',
-    title: 'Switch Repair',
-    subtitle: 'Replace or fix switch issues',
-    amount: 79,
-    points: ['All major brands supported'],
-  },
-  {
-    id: '3',
-    title: 'Inverter Service',
-    subtitle: 'Maintenance, wiring & troubleshooting',
-    amount: 199,
-    points: ['24/7 emergency service', 'Expert technicians'],
-  },
-  {
-    id: '4',
-    title: 'MCB Fuse Repair',
-    subtitle: 'Fuse box repair and wiring checks',
-    amount: 149,
-    points: ['Safety inspection included', 'Quick diagnosis'],
-  },
-];
-
-export default function ServiceCategory() {
-  const { theme } = useTheme();
-  const navigation = useNavigation<any>();
-
-  const handleServicePress = (serviceId: string) => {
-    // TODO: Navigate to service detail or booking flow
-    console.log(`Service pressed: ${serviceId}`);
-    navigation.navigate("Booking", {
-  serviceName: "Fan Installation",
-  price: 149,
-  time: "30–40 mins",
-  image: require("../../../assets/images/SampleService.png"),
-  description: [
-    "Technician visit",
-    "Tools included",
-    "Installation support"
-  ],
-  rating: 4.9,
-  reviews: 1500
-});
-
+  const loadCategories = async () => {
+    const res = await ServiceAPI.getSubServicesAPI();
+    const filtered = res.categoriesservices.filter(
+      (c) => c.parentServiceName === serviceName
+    );
+    setCategories(filtered);
   };
 
   return (
-    <View style={[styles.safe, { backgroundColor: theme.colors.background }]}>
-      <AppHeader showBack={true} />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero Card */}
-        <View style={[styles.heroCard, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.cardShadow }]}>
-          {/* Hero image placeholder */}
-          <Image
-            source={require('../../../assets/images/SampleService.png')}
-            style={styles.heroImagePlaceholder}
-            resizeMode="cover"
-          />
-          <View style={styles.heroContent}>
-            <AppText weight="bold" size="h2" style={styles.heroTitle}>
-              Fan Installation
-            </AppText>
-            <AppText color="textMuted" size="body">
-              Install any type of ceiling or wall fan
-            </AppText>
-          </View>
-        </View>
+    <View style={{ flex: 1 }}>
+      <AppHeader showBack title={serviceName} />
 
-        {/* Services List */}
-        <View style={styles.servicesList}>
-          {servicesData.map((service) => (
-            <ServiceCategoryCard
-              key={service.id}
-              image={service.image}
-              icon={service.icon}
-              title={service.title}
-              subtitle={service.subtitle}
-              amount={service.amount}
-              onPress={() => handleServicePress(service.id)}
-              points={service.points}
-            />
-          ))}
-        </View>
+      <ScrollView>
+        {categories.map((cat) => (
+          <ServiceCategoryCard
+            key={cat._id}
+            title={cat.serviceCategoryName}
+            subtitle={cat.description}
+            amount={cat.price}
+            onPress={() =>
+              navigation.navigate("Booking", {
+                serviceCategoryId: cat._id,
+              })
+            }
+          />
+
+        ))}
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
-  scroll: {
-    paddingBottom: 40,
-  },
-  heroCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 24,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-    // --- Corrected Shadow ---
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 7,
-  },
-  heroImagePlaceholder: {
-    height: 160,
-    width: '100%',
-  },
-  heroContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  heroTitle: {
-    marginBottom: 4,
-  },
-  servicesList: {
-    paddingHorizontal: 16,
-  },
-});
+
+// const styles = StyleSheet.create({
+//   safe: {
+//     flex: 1,
+//   },
+//   scroll: {
+//     paddingBottom: 40,
+//   },
+//   heroCard: {
+//     marginHorizontal: 16,
+//     marginTop: 16,
+//     marginBottom: 24,
+//     borderRadius: 24,
+//     borderWidth: 1,
+//     borderColor: 'transparent',
+//     overflow: 'hidden',
+//     // --- Corrected Shadow ---
+//     shadowOffset: { width: 0, height: 4 },
+//     shadowOpacity: 0.8,
+//     shadowRadius: 20,
+//     elevation: 7,
+//   },
+//   heroImagePlaceholder: {
+//     height: 160,
+//     width: '100%',
+//   },
+//   heroContent: {
+//     paddingHorizontal: 20,
+//     paddingVertical: 24,
+//   },
+//   heroTitle: {
+//     marginBottom: 4,
+//   },
+//   servicesList: {
+//     paddingHorizontal: 16,
+//   },
+// });

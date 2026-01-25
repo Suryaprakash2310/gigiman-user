@@ -1,25 +1,22 @@
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
+import { useAuthContext } from "@/src/context/AuthContext";
+
 import React from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet } from "react-native";
 
-
-export default function AddressScreen({ navigation, route }: any) {
+export default function AddressScreen({ navigation }: any) {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
-
-  const { name, email } = route.params;
-
-  const defaultAddress = {
-    label: "Home",
-    addressLine: "12, Sample Street, K.K Nagar",
-    city: "Trichy",
-    pincode: "620021",
-  };
+  const { setUser } = useAuthContext();
 
   const handleContinue = () => {
-    // later: save to backend
+    setUser((prev: any) => ({
+      ...prev,
+      isVerified: true,
+    }));
+
     navigation.reset({
       index: 0,
       routes: [{ name: "HomeTab" }],
@@ -32,10 +29,9 @@ export default function AddressScreen({ navigation, route }: any) {
       <AppText color="textMuted">You can change this later</AppText>
 
       <View style={styles.card}>
-        <AppText weight="semibold">{defaultAddress.label}</AppText>
-        <AppText style={styles.addr}>{defaultAddress.addressLine}</AppText>
+        <AppText weight="semibold">Home</AppText>
         <AppText style={styles.addr}>
-          {defaultAddress.city} - {defaultAddress.pincode}
+          Location will be detected automatically
         </AppText>
       </View>
 

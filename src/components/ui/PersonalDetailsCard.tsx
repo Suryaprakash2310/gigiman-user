@@ -5,10 +5,9 @@ import AppInput from './AppInput';
 import AppText from './AppText';
 
 interface PersonalDetails {
-    name: string;
+    fullName: string;
     email: string;
-    phone: string;
-    address: string;
+    phoneNo: string;
 }
 
 interface Props {
@@ -18,10 +17,9 @@ interface Props {
 
 export default function PersonalDetailsCard({
     initialValues = {
-        name: 'Alex Martinez',
+        fullName: 'Alex Martinez',
         email: 'alex.math@gmail.com',
-        phone: '7892233780',
-        address: '123,north street, Norway',
+        phoneNo: '7892233780',
     },
     onSubmit,
 }: Props) {
@@ -34,28 +32,26 @@ export default function PersonalDetailsCard({
         success: '#10B981',
         danger: '#EF4444',
         cardShadow: 'rgba(0,0,0,0.06)',
-        primary: '#3B82F6', // Blue for Edit button
+        primary: '#3B82F6',
     };
 
     const [values, setValues] = useState<PersonalDetails>(initialValues);
     const [editingField, setEditingField] = useState<keyof PersonalDetails | null>(null);
     const [errors, setErrors] = useState<Partial<Record<keyof PersonalDetails, string>>>({});
 
+    const editableFields: Array<keyof PersonalDetails> = ['fullName'];
+
     const validate = (field: keyof PersonalDetails, value: string): string | undefined => {
         switch (field) {
-            case 'name':
-                if (value.length > 30) return 'Name must be 30 characters or less';
+            case 'fullName':
                 if (value.trim().length === 0) return 'Name is required';
+                if (value.length > 30) return 'Name must be 30 characters or less';
                 return undefined;
             case 'email':
                 if (!value.endsWith('@gmail.com')) return 'Email must be a valid @gmail.com address';
                 return undefined;
-            case 'phone':
+            case 'phoneNo':
                 if (!/^\d{10}$/.test(value)) return 'Phone number must be exactly 10 digits';
-                return undefined;
-            case 'address':
-                if (value.length > 100) return 'Address must be 100 characters or less';
-                if (value.trim().length === 0) return 'Address is required';
                 return undefined;
             default:
                 return undefined;
@@ -63,46 +59,43 @@ export default function PersonalDetailsCard({
     };
 
     const handleChange = (field: keyof PersonalDetails, text: string) => {
-        // Specific input restrictions
-        if (field === 'phone') {
-            // Only allow numbers
+        if (field === 'phoneNo') {
             if (!/^\d*$/.test(text)) return;
-            // Limit to 10 digits
             if (text.length > 10) return;
         }
 
-        setValues((prev) => ({ ...prev, [field]: text }));
+        setValues(prev => ({ ...prev, [field]: text }));
 
-        // Real-time validation clearing
         const error = validate(field, text);
-        setErrors((prev) => ({ ...prev, [field]: error }));
+        setErrors(prev => ({ ...prev, [field]: error }));
     };
 
     const handleEdit = (field: keyof PersonalDetails) => {
+        if (!editableFields.includes(field)) return;
         setEditingField(field);
     };
 
     const handleSave = () => {
-        // Validate all fields
         const newErrors: Partial<Record<keyof PersonalDetails, string>> = {};
         let isValid = true;
 
-        (Object.keys(values) as Array<keyof PersonalDetails>).forEach((key) => {
-            const error = validate(key, values[key]);
+        editableFields.forEach(field => {
+            const error = validate(field, values[field]);
             if (error) {
-                newErrors[key] = error;
+                newErrors[field] = error;
                 isValid = false;
             }
         });
 
         setErrors(newErrors);
 
-        if (isValid) {
-            setEditingField(null);
-            onSubmit(values);
-        } else {
+        if (!isValid) {
             Alert.alert('Invalid Details', 'Please correct the errors before saving.');
+            return;
         }
+
+        setEditingField(null);
+        onSubmit(values);
     };
 
     const renderField = (
@@ -123,17 +116,27 @@ export default function PersonalDetailsCard({
 
                     {isEditing ? (
                         <View>
-                            {field === 'phone' && (
-                                <AppText style={{ position: 'absolute', top: 12, left: 12, zIndex: 1, color: themeColors.text }}>+91</AppText>
+                            {field === 'phoneNo' && (
+                                <AppText
+                                    style={{
+                                        position: 'absolute',
+                                        top: 12,
+                                        left: 12,
+                                        zIndex: 1,
+                                        color: themeColors.text,
+                                    }}
+                                >
+                                    +91
+                                </AppText>
                             )}
                             <AppInput
                                 value={value}
                                 onChangeText={(text) => handleChange(field, text)}
                                 placeholder={placeholder}
                                 autoFocus
-                                keyboardType={field === 'phone' ? 'numeric' : 'default'}
+                                keyboardType={field === 'phoneNo' ? 'numeric' : 'default'}
                                 style={{
-                                    paddingLeft: field === 'phone' ? 45 : 16,
+                                    paddingLeft: field === 'phoneNo' ? 45 : 16,
                                     height: 45,
                                     paddingVertical: 0,
                                     color: themeColors.text,
@@ -145,12 +148,12 @@ export default function PersonalDetailsCard({
                         </View>
                     ) : (
                         <AppText size="body" style={[styles.valueText, { color: themeColors.textMuted }]}>
-                            {field === 'phone' ? `+91 ${value}` : value}
+                            {field === 'phoneNo' ? `+91 ${value}` : value}
                         </AppText>
                     )}
                 </View>
 
-                {!isEditing && (
+                {!isEditing && editableFields.includes(field) && (
                     <TouchableOpacity onPress={() => handleEdit(field)} style={styles.editButton}>
                         <AppText size="body" weight="medium" style={{ color: themeColors.primary }}>
                             Edit
@@ -163,10 +166,9 @@ export default function PersonalDetailsCard({
 
     return (
         <View style={[styles.card, { backgroundColor: themeColors.surface, shadowColor: themeColors.cardShadow }]}>
-            {renderField('Name', 'name', values.name, 'Enter your name')}
+            {renderField('Name', 'fullName', values.fullName, 'Enter your name')}
             {renderField('Email', 'email', values.email, 'Enter your email')}
-            {renderField('Phone Number', 'phone', values.phone, 'Enter phone number')}
-            {renderField('Address', 'address', values.address, 'Enter your address')}
+            {renderField('Phone Number', 'phoneNo', values.phoneNo, 'Enter phone number')}
 
             <View style={styles.buttonContainer}>
                 <AppButton
@@ -211,5 +213,5 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         marginTop: 24,
-    }
+    },
 });

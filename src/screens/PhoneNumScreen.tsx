@@ -17,6 +17,7 @@ import AppCard from '../components/ui/AppCard';
 import AppText from '../components/ui/AppText';
 import AppButton from '../components/ui/AppButton';
 import { useTheme } from '../theme/useTheme';
+import { sendOtpApi } from "../api/auth";
 
 const PhoneNumScreen: React.FC = () => {
   const { theme, setMode } = useTheme();
@@ -26,6 +27,9 @@ const PhoneNumScreen: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [isValid, setIsValid] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
 
   
   const handlePhoneChange = (text: string) => {
@@ -34,11 +38,20 @@ const PhoneNumScreen: React.FC = () => {
     setIsValid(digits.length === 10);
   };
 
-  const handleContinue = () => {
-    if (!isValid) return;
-    // TODO: call request OTP API here before navigating
-    navigation.navigate('OtpScreen', { phone });
-  };
+  const handleContinue = async () => {
+ // if (!isValid || loading) return;
+
+  try {
+    setLoading(true);
+    setError(null);
+    await sendOtpApi(phone);
+    navigation.navigate("OtpScreen", { phone });
+  } catch (err: any) {
+    setError(err?.response?.data?.message || "Failed to send OTP");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     // <View
@@ -156,6 +169,12 @@ const PhoneNumScreen: React.FC = () => {
               ? 'Looks good. We’ll send an OTP to this number.'
               : 'Enter a valid 10-digit mobile number.'}
           </AppText>
+          {error && (
+  <AppText color="danger" style={{ marginTop: theme.spacing.sm }}>
+    {error}
+  </AppText>
+)}
+
         </AppCard>
 
         <View style={{ flex: 1 }} />
@@ -168,9 +187,9 @@ const PhoneNumScreen: React.FC = () => {
           }}
         >
           <AppButton
-            title="Continue"
+             title={loading ? "Sending OTP..." : "Continue"}
             onPress={handleContinue}
-            disabled={!isValid}
+            disabled={!isValid || loading}
           />
         </View>
       </KeyboardAvoidingView>

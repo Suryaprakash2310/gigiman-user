@@ -15,15 +15,9 @@ const Stack = createNativeStackNavigator<ServiceParamList>();
 
 export type ServiceParamList = {
   MainServiceScreen: undefined;
-  SubServiceScreen: undefined;
+  ServiceCategory: {serviceName: string;}
   Booking: {
-    serviceName: string;
-    price: number;
-    time: string;
-    image: any;
-    description?: string[];
-    rating?: number;
-    reviews?: number;
+    serviceCategoryId: string;
   };
   ScheduleBooking: {
     serviceName: string;
@@ -35,7 +29,7 @@ export default function ServiceStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainServiceScreen" component={ServicesScreen} />
-      <Stack.Screen name="SubServiceScreen" component={ServiceCategory} />
+      <Stack.Screen name="ServiceCategory" component={ServiceCategory} />
       <Stack.Screen name="Booking" component={ServiceBookingScreen} />
       <Stack.Screen name="ScheduleBooking" component={ScheduleBooking} />
     </Stack.Navigator>

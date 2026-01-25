@@ -1,65 +1,121 @@
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
-import { useAuthContext } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/theme/useTheme";
-
+import { useAuthContext } from "@/src/context/AuthContext";
+import { getCurrentLocation } from "@/src/utils/location";
 
 import React, { useState } from "react";
-import { View, StyleSheet, TextInput, TouchableOpacity } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { completeProfileAPI } from "@/src/api/auth";
 
-
-export default function SetupProfileScreen({ navigation }: any) {
+export default function CompleteProfileScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
-//   const { user,setUser } = useAuthContext();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const { user, setUser } = useAuthContext();
+  const { accessToken, refreshToken, login } = useAuthContext();
 
-  const handleContinue = () => {
-    if (!name.trim()) return;
-//    setUser({
-//     ...user!,
-//     name,
-//     email,
-//   });
+  const [fullName, setFullName] = useState(user?.fullName || "");
+  const [coords, setCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [locLoading, setLocLoading] = useState(false);
 
-    navigation.navigate("AddressScreen", {
-      name,
-      email,
-    });
+  const detectLocation = async () => {
+    try {
+      setLocLoading(true);
+      const location = await getCurrentLocation();
+      setCoords(location);
+      Alert.alert("Location detected");
+    } catch (err: any) {
+      Alert.alert("Location Error", err.message);
+    } finally {
+      setLocLoading(false);
+    }
   };
+
+  const submitProfile = async () => {
+  if (!fullName.trim()) {
+    Alert.alert("Error", "Please enter your full name");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await completeProfileAPI({
+      fullName,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
+    });
+
+    await login({
+  user: res.data.user,
+  accessToken: res.data.token,
+  refreshToken: res.data.token,
+});
+
+
+    // ❌ No navigation here
+    // RootNavigator will switch automatically
+
+  } catch (err: any) {
+    Alert.alert(
+      "Error",
+      err.response?.data?.message || "Profile update failed"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <View style={styles.container}>
       <AppText size="h2" weight="bold">Complete Profile</AppText>
-      <AppText color="textMuted" style={{ marginBottom: 20 }}>
-        Just one step to continue using GigiMan
-      </AppText>
 
-      <AppText weight="semibold">Your Name</AppText>
+      <AppText weight="semibold">Full Name</AppText>
       <TextInput
-        value={name}
-        onChangeText={setName}
-        placeholder="Enter your full name"
+        value={fullName}
+        onChangeText={setFullName}
         style={styles.input}
-        placeholderTextColor={theme.colors.textMuted}
-      />
-
-      <AppText weight="semibold" style={{ marginTop: 16 }}>Email (Optional)</AppText>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="example@gmail.com"
-        style={styles.input}
-        placeholderTextColor={theme.colors.textMuted}
+        placeholder="Your full name"
       />
 
       <AppButton
-        title="Continue"
-        disabled={!name.trim()}
-        onPress={handleContinue}
+        title={locLoading ? "Detecting location..." : "Use Current Location"}
+        onPress={detectLocation}
+        disabled={locLoading}
+        style={{ marginTop: 20 }}
+      />
+
+      {coords && (
+        <AppText color="textMuted" style={{ marginTop: 8 }}>
+          Location captured ✔
+        </AppText>
+      )}
+
+      <AppButton
+        title={loading ? "Saving..." : "Continue"}
+        onPress={submitProfile}
+        disabled={loading}
         style={{ marginTop: 30 }}
       />
+
+      {(loading || locLoading) && (
+        <ActivityIndicator
+          size="small"
+          color={theme.colors.primary}
+          style={{ marginTop: 12 }}
+        />
+      )}
     </View>
   );
 }

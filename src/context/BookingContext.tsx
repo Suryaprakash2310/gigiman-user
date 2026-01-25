@@ -14,39 +14,25 @@ export type BookingStatus =
   | "cancelled";
 
 export type BookingItem = {
-  id: string;
+  _id: string;
   serviceName: string;
   amount: number;
   dateLabel: string;
   timeLabel: string;
   address: string;
   status: BookingStatus;
-
-  // technician data once assigned
   otp?: string;
   technicianName?: string;
   technicianPhone?: string;
   technicianRating?: number;
 };
 
-type CreateBookingInput = {
-  serviceName: string;
-  amount: number;
-  dateLabel: string;
-  timeLabel: string;
-  address: string;
-};
-
 type BookingContextType = {
   bookings: BookingItem[];
-
-  // derived lists
-  ongoing: BookingItem[];   // searching + assigned
-  upcoming: BookingItem[];  // upcoming
+  ongoing: BookingItem[];
+  upcoming: BookingItem[];
   completed: BookingItem[];
-
-  createBooking: (input: CreateBookingInput) => BookingItem;
-  updateBooking: (id: string, patch: Partial<BookingItem>) => void;
+  upsertBooking: (booking: BookingItem) => void;
   cancelBooking: (id: string) => void;
   getBookingById: (id: string) => BookingItem | null;
 };
@@ -56,48 +42,44 @@ const BookingContext = createContext<BookingContextType | null>(null);
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
 
-  const createBooking: BookingContextType["createBooking"] = (input) => {
-    const booking: BookingItem = {
-      id: Date.now().toString(),
-      serviceName: input.serviceName,
-      amount: input.amount,
-      dateLabel: input.dateLabel,
-      timeLabel: input.timeLabel,
-      address: input.address,
-      status: "searching",
-    };
-
-    setBookings((prev) => [booking, ...prev]);
-    return booking;
+  /** ✅ SINGLE SOURCE OF TRUTH */
+  const upsertBooking = (booking: BookingItem) => {
+    setBookings(prev => {
+      const exists = prev.find(b => b._id === booking._id);
+      if (exists) {
+        return prev.map(b =>
+          b._id === booking._id ? booking : b
+        );
+      }
+      return [booking, ...prev];
+    });
   };
 
-  const updateBooking: BookingContextType["updateBooking"] = (id, patch) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, ...patch } : b))
-    );
-  };
-
-  const cancelBooking: BookingContextType["cancelBooking"] = (id) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === id ? { ...b, status: "cancelled" } : b
+  const cancelBooking = (id: string) => {
+    setBookings(prev =>
+      prev.map(b =>
+        b._id === id ? { ...b, status: "cancelled" } : b
       )
     );
   };
 
-  const getBookingById: BookingContextType["getBookingById"] = (id) =>
-    bookings.find((b) => b.id === id) ?? null;
+  const getBookingById = (id: string) =>
+    bookings.find(b => b._id === id) ?? null;
 
   const ongoing = useMemo(
-    () => bookings.filter((b) => b.status === "searching" || b.status === "assigned"),
+    () => bookings.filter(b =>
+      b.status === "searching" || b.status === "assigned"
+    ),
     [bookings]
   );
+
   const upcoming = useMemo(
-    () => bookings.filter((b) => b.status === "upcoming"),
+    () => bookings.filter(b => b.status === "upcoming"),
     [bookings]
   );
+
   const completed = useMemo(
-    () => bookings.filter((b) => b.status === "completed"),
+    () => bookings.filter(b => b.status === "completed"),
     [bookings]
   );
 
@@ -108,8 +90,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         ongoing,
         upcoming,
         completed,
-        createBooking,
-        updateBooking,
+        upsertBooking,
         cancelBooking,
         getBookingById,
       }}
@@ -122,7 +103,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 export function useBooking() {
   const ctx = useContext(BookingContext);
   if (!ctx) {
-    throw new Error("useBooking must be used inside <BookingProvider />");
+    throw new Error("useBooking must be used inside BookingProvider");
   }
   return ctx;
 }

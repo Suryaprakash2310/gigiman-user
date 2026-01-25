@@ -6,14 +6,21 @@ import React, {
   useState,
   ReactNode,
 } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { socket } from "@/src/socket/socket";
 
-// Types
 export type AuthUser = {
-  id: string;
-  name?: string;
+  _id: string;
+  fullName?: string;
   phone: string;
   avatar?: string;
+  address?: string;
+  isVerified?: boolean;
+  profileCompleted?: boolean;
+  location?: {
+    type: "Point";
+    coordinates: [number, number]; // [lng, lat]
+  };
 };
 
 type AuthContextType = {
@@ -21,19 +28,17 @@ type AuthContextType = {
   accessToken: string | null;
   refreshToken: string | null;
   isLoading: boolean;
-
-  setUser: (user: AuthUser | null) => void;
+  setUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
   login: (params: {
     user: AuthUser;
     accessToken: string;
-    refreshToken: string;
+    refreshToken?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Storage Keys
 const ACCESS_KEY = 'gg_access_token';
 const REFRESH_KEY = 'gg_refresh_token';
 const USER_KEY = 'gg_user';
@@ -44,67 +49,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load persisted session
+  // 🔁 Restore session
   useEffect(() => {
-    (async () => {
+    const restoreSession = async () => {
       try {
-        const savedUser = await SecureStore.getItemAsync(USER_KEY);
-        const savedAccess = await SecureStore.getItemAsync(ACCESS_KEY);
-        const savedRefresh = await SecureStore.getItemAsync(REFRESH_KEY);
+        const savedUser = await AsyncStorage.getItem(USER_KEY);
+        const savedAccess = await AsyncStorage.getItem(ACCESS_KEY);
+        const savedRefresh = await AsyncStorage.getItem(REFRESH_KEY);
 
         if (savedUser) setUser(JSON.parse(savedUser));
         if (savedAccess) setAccessToken(savedAccess);
         if (savedRefresh) setRefreshToken(savedRefresh);
-      } catch (e) {
-        console.error('Error restoring session:', e);
+      } catch (err) {
+        console.error('Auth restore failed:', err);
       } finally {
         setIsLoading(false);
       }
-    })();
+    };
+
+    restoreSession();
   }, []);
 
-  // Login (store user + tokens)
+
+
+useEffect(() => {
+  if (!accessToken || !user?._id) return;
+
+  socket.connect();
+
+  const onConnect = () => {
+    console.log("✅ USER socket connected:", socket.id);
+
+    socket.emit("register-user", {
+      userId: user._id,
+    });
+
+    console.log("📨 register-user emitted");
+  };
+
+  socket.on("connect", onConnect);
+
+  return () => {
+    socket.off("connect", onConnect);
+    socket.disconnect();
+  };
+}, [accessToken, user?._id]);
+
+
+// useEffect(() => {
+//   socket.on("connect", () => {
+//     console.log("✅ Socket connected:", socket.id);
+//   });
+
+//   socket.on("disconnect", () => {
+//     console.log("❌ Socket disconnected");
+//   });
+
+//   return () => {
+//     socket.off("connect");
+//     socket.off("disconnect");
+//   };
+// }, []);
+
+
+
+  // 🔐 Login
   const login: AuthContextType['login'] = async ({
     user,
     accessToken,
     refreshToken,
   }) => {
-    try {
-      setUser(user);
-      setAccessToken(accessToken);
-      setRefreshToken(refreshToken);
+    setUser(user);
+  setAccessToken(accessToken);
+    if (refreshToken) setRefreshToken(refreshToken);
+    console.log("user coordinates:", user);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+    await AsyncStorage.setItem(ACCESS_KEY, accessToken);
 
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
-      await SecureStore.setItemAsync(ACCESS_KEY, accessToken);
-      await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
-    } catch (err) {
-      console.error('Error during login:', err);
-    }
+  if (refreshToken) {
+      await AsyncStorage.setItem(REFRESH_KEY, refreshToken);
+  }
   };
 
-  // Logout
+  // 🚪 Logout
   const logout = async () => {
-    try {
-      setUser(null);
-      setAccessToken(null);
-      setRefreshToken(null);
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
 
-      await SecureStore.deleteItemAsync(USER_KEY);
-      await SecureStore.deleteItemAsync(ACCESS_KEY);
-      await SecureStore.deleteItemAsync(REFRESH_KEY);
-    } catch (err) {
-      console.error('Error during logout:', err);
-    }
+    await AsyncStorage.removeItem(USER_KEY);
+    await AsyncStorage.removeItem(ACCESS_KEY);
+    await AsyncStorage.removeItem(REFRESH_KEY);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        setUser,
         accessToken,
         refreshToken,
         isLoading,
-        setUser,
         login,
         logout,
       }}
@@ -116,7 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
-  if (!ctx)
-    throw new Error('useAuthContext must be used inside <AuthProvider />');
+  if (!ctx) {
+    throw new Error('useAuthContext must be used inside AuthProvider');
+  }
   return ctx;
 }
