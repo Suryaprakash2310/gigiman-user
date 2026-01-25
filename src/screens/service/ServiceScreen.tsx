@@ -1,25 +1,25 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  SafeAreaView,
-  TextInput,
-  Platform,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  FlatList,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/src/theme/useTheme";
-import AppText from "@/src/components/ui/AppText";
-import AppHeader from "@/src/components/ui/AppHeader";
 import AppBottomSheet, {
   AppBottomSheetRef,
 } from "@/src/components/ui/AppBottomSheet";
+import AppHeader from "@/src/components/ui/AppHeader";
+import AppText from "@/src/components/ui/AppText";
+import { useTheme } from "@/src/theme/useTheme";
 
-import { ServiceAPI, DomainService } from "@/src/api/service.api";
+import { DomainService, ServiceAPI } from "@/src/api/service.api";
 
 export default function ServicesScreen({ navigation }: any) {
   const { theme } = useTheme();
@@ -33,22 +33,28 @@ export default function ServicesScreen({ navigation }: any) {
   const [search, setSearch] = useState("");
   const [serviceNames, setServiceNames] = useState<string[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>("");
+  const [selectedDomainId, setSelectedDomainId] = useState<string>("");
 
   useEffect(() => {
     loadServices();
   }, []);
-
-  const loadServices = async () => {
+   const loadServices = async () => {
     const res = await ServiceAPI.getServicesAPI();
     setServices(res.services || []);
   };
+ // ...existing code...
+  const openBottomSheet = async (domain: DomainService) => {
+    setSelectedDomain(domain.domainName);
 
-  const openBottomSheet = async (domainName: string) => {
-    setSelectedDomain(domainName);
-    const res = await ServiceAPI.getSubServicesAPI();
-    setServiceNames(res.serviceNames || []);
+    const res = await ServiceAPI.getSubServicesAPI(domain._id);
+
+    // Backend returns `services`
+    const names = res.services.map((s: any) => s.serviceName);
+    setServiceNames(names);
+
     sheetRef.current?.expand();
   };
+
 
   const filteredServices = services.filter((s) =>
     s.domainName.toLowerCase().includes(search.toLowerCase())
@@ -96,7 +102,7 @@ export default function ServicesScreen({ navigation }: any) {
             <TouchableOpacity
               activeOpacity={0.85}
               style={cardStyles.card}
-              onPress={() => openBottomSheet(item.domainName)}
+              onPress={() => openBottomSheet(item)}
             >
               <View style={cardStyles.iconWrap}>
                 <MaterialIcons
@@ -147,6 +153,7 @@ export default function ServicesScreen({ navigation }: any) {
                 sheetRef.current?.close();
                 navigation.navigate("ServiceCategory", {
                   serviceName: name,
+                  domainServiceId: selectedDomainId,
                 });
               }}
             >

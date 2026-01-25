@@ -1,12 +1,12 @@
+import { ServiceAPI } from "@/src/api/service.api";
+import ServiceCategoryCard from "@/src/components/ServiceCategoryCard";
+import AppHeader from "@/src/components/ui/AppHeader";
 import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-import AppHeader from "@/src/components/ui/AppHeader";
-import AppText from "@/src/components/ui/AppText";
-import ServiceCategoryCard from "@/src/components/ServiceCategoryCard";
-import { ServiceAPI } from "@/src/api/service.api";
 
+// ...existing code...
 export default function ServiceCategory({ route, navigation }: any) {
-  const { serviceName } = route.params;
+  const { serviceName, domainServiceId } = route.params;
   const [categories, setCategories] = useState<any[]>([]);
   //const styles = createStyles(theme);
   useEffect(() => {
@@ -14,12 +14,15 @@ export default function ServiceCategory({ route, navigation }: any) {
   }, []);
 
   const loadCategories = async () => {
-    const res = await ServiceAPI.getSubServicesAPI();
-    const filtered = res.categoriesservices.filter(
-      (c) => c.parentServiceName === serviceName
+    if (!domainServiceId) return; // guard
+    const res = await ServiceAPI.getSubServicesAPI(domainServiceId);
+    // backend returns { success: true, services: [...] }
+    const filtered = (res.services || []).filter(
+      (c: any) => c.parentServiceName === serviceName
     );
     setCategories(filtered);
   };
+// ...existing code...
 
   return (
     <View style={{ flex: 1 }}>

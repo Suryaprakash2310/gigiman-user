@@ -1,4 +1,4 @@
-import { api } from "@/src/api/client";                                        
+import { api } from "@/src/api/client";
 export interface DomainService {
   _id: string;
   domainName: string;
@@ -24,9 +24,10 @@ export interface ShowSubServiceResponse {
   categoriesservices: CategoryService[];
 }
 
-export interface SubServiceResponse { 
-    serviceNames: string[]; 
-    categoriesservices: { _id: string; parentServiceName: string; serviceCategoryName: string; servicecategroyImage?: string; description?: string; price?: number; durationInMinutes?: number; employeeCount?: number; }[]; }
+export interface SubServiceResponse {
+  serviceNames: string[];
+  categoriesservices: { _id: string; parentServiceName: string; serviceCategoryName: string; servicecategroyImage?: string; description?: string; price?: number; durationInMinutes?: number; employeeCount?: number; }[];
+}
 
 export const ServiceAPI = {
   getServicesAPI: async () => {
@@ -34,8 +35,8 @@ export const ServiceAPI = {
     return res.data;
   },
 
-   getSubServicesAPI: async () => {
-    const res = await api.get<SubServiceResponse>("/auth/showServices");
+  getSubServicesAPI: async (domainServiceId: string) => {
+    const res = await api.get(`auth/showsubservice/${domainServiceId}`);
     console.log(res.data);
     return res.data;
   },
