@@ -20,6 +20,7 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { AppTabsParamList } from '../navigation/AppStack';
 import AppHeader from '../components/ui/AppHeader';
 import { hp, wp } from '../utils/responsive';
+import { getPopularServices } from '../api/dashboard.api';
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
 
 /* -------------------------------------------------------------------------- */
@@ -53,17 +54,14 @@ const SERVICE_CATEGORIES: ServiceCategory[] = [
   { id: 'cook', label: 'Plumbing', icon: FanInstall },
 ];
 
-const POPULAR_SERVICES: PopularService[] = [
-  { id: 'ps1', title: 'Home Deep Cleaning', subtitle: 'Full home • 2-3 hrs', icon: FanInstall },
-  { id: 'ps2', title: 'Kitchen Cleanup', subtitle: 'Oil & stain removal', icon: FanInstall },
-  { id: 'ps3', title: 'AC Service', subtitle: 'Cooling issues fixed', icon: FanInstall },
-];
+
 
 export const RECENT_SERVICES: RecentService[] = [
   { id: '1', name: 'AC Repair', icon: FanInstall },
   { id: '2', name: 'Fan Installation', icon: FanInstall },
   { id: '3', name: 'Home Cleaning', icon: FanInstall },
 ];
+
 
 /* -------------------------------------------------------------------------- */
 /*                                  SCREEN                                     */
@@ -74,6 +72,26 @@ const HomeScreen: React.FC = () => {
   const styles = createStyles(theme);
   const [search, setSearch] = useState('');
   const navigation = useNavigation<Nav>();
+  
+const [popularServices, setPopularServices] = useState<any[]>([]);
+const [loadingPopular, setLoadingPopular] = useState(true);
+
+
+useEffect(() => {
+  const fetchPopular = async () => {
+    try {
+      const data = await getPopularServices();
+      setPopularServices(data);
+    } catch (err) {
+      console.log("Popular service error:", err);
+    } finally {
+      setLoadingPopular(false);
+    }
+  };
+
+  fetchPopular();
+}, []);
+
 
 
   useEffect(() => {
@@ -174,7 +192,7 @@ const HomeScreen: React.FC = () => {
             <AppButton
               title="Explore"
               variant="outline"
-              onPress={() => {navigation.navigate("ServiceTab")}}
+              onPress={() => { navigation.navigate("ServiceTab") }}
               //size="small"
               style={styles.exploreButton}
             />
@@ -212,7 +230,7 @@ const HomeScreen: React.FC = () => {
         {/* ----------------------- SERVICE CATEGORIES ---------------------- */}
         <SectionHeader
           title="Service Categories"
-          onPressViewAll={() => {navigation.navigate("ServiceTab")}}
+          onPressViewAll={() => { navigation.navigate("ServiceTab") }}
         />
 
         <View style={styles.categoryGrid}>
@@ -224,7 +242,7 @@ const HomeScreen: React.FC = () => {
         {/* ------------------------ POPULAR SERVICES ----------------------- */}
         <SectionHeader
           title="Popular Services"
-          onPressViewAll={() => {navigation.navigate("ServiceTab")}}
+          onPressViewAll={() => { navigation.navigate("ServiceTab") }}
         />
 
         <ScrollView
@@ -232,12 +250,37 @@ const HomeScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: 8 }}
         >
-          {POPULAR_SERVICES.map((service) => (
-            <PopularServiceCard key={service.id} service={service} />
+
+          {loadingPopular && (
+            <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
+              Loading popular services...
+            </AppText>
+          )}
+
+          {!loadingPopular && popularServices.length === 0 && (
+            <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
+              No popular services yet
+            </AppText>
+          )}
+
+
+
+
+          {popularServices.map((service, index) => (
+            <PopularServiceCard
+              key={index}
+              service={{
+                id: index.toString(),
+                title: service._id,
+                subtitle: `${service.totalBookings} bookings • ₹${service.totalRevenue}`,
+                icon: FanInstall
+              }}
+            />
           ))}
+
         </ScrollView>
 
-        
+
       </ScrollView>
     </SafeAreaView>
   );

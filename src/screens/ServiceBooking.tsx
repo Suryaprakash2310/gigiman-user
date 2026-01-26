@@ -8,6 +8,7 @@ import {
   Alert,
 } from "react-native";
 import AppText from "@/src/components/ui/AppText";
+import AppLoader from "@/src/components/ui/AppLoader";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/theme/useTheme";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
@@ -60,8 +61,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <AppText>Loading service details...</AppText>
+      <View style={{ flex: 1 }}>
+        <AppLoader visible={true} text={"Loading service details..."} />
       </View>
     );
   }
@@ -78,6 +79,28 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const price = category.price;
   const time = `${category.durationInMinutes} mins`;
   const description = category.description;
+
+  const parseDescription = (html?: string) => {
+    if (!html) return [] as string[];
+    // Convert paragraph and <br> tags to newlines
+    let text = html.replace(/<\/p>\s*<p>/gi, '\n');
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+    // Remove remaining tags
+    text = text.replace(/<[^>]+>/g, '');
+    // Decode common HTML entities
+    text = text
+      .replace(/&amp;/g, '&')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+    // Split into non-empty trimmed lines
+    return text
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
 
   const image = category.servicecategoryImage
     ? { uri: category.servicecategoryImage }
@@ -171,13 +194,17 @@ const handleBookNow = async () => {
         <View style={styles.section}>
           <AppText weight="bold" size="h3">Description</AppText>
 
-          <View style={styles.bulletRow}>
-            <Ionicons
-              name="checkmark-circle"
-              size={18}
-              color={theme.colors.primary}
-            />
-            <AppText style={{ marginLeft: 8 }}>{description}</AppText>
+          <View style={{ marginTop: 8 }}>
+            {parseDescription(description).map((line, idx) => (
+              <View key={idx} style={styles.bulletRow}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={theme.colors.primary}
+                />
+                <AppText style={{ marginLeft: 8 }}>{line}</AppText>
+              </View>
+            ))}
           </View>
         </View>
 

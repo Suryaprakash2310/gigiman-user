@@ -20,8 +20,20 @@ export interface CategoryService {
 
 export interface ShowSubServiceResponse {
   success: boolean;
-  serviceNames: string[];
-  categoriesservices: CategoryService[];
+  // backend returns `services: [...]` where each item contains a `serviceName` and `serviceCategory`
+  services: Array<{
+    _id: string;
+    DomainServiceId?: string;
+    serviceName?: string;
+    serviceCategory?: CategoryService[];
+    createdAt?: string;
+    updatedAt?: string;
+    __v?: number;
+    [key: string]: any;
+  }>;
+  // optional legacy shapes
+  serviceNames?: string[];
+  categoriesservices?: CategoryService[];
 }
 
 export interface SubServiceResponse { 
@@ -36,7 +48,11 @@ export const ServiceAPI = {
 
    getSubServicesAPI: async () => {
     const res = await api.get<SubServiceResponse>("/auth/showServices");
-    console.log(res.data);
+    return res.data;
+  },
+
+  getSubServicesByDomainId: async (domainServiceId: string) => {
+    const res = await api.get<ShowSubServiceResponse>(`/auth/showsubservice/${domainServiceId}`);
     return res.data;
   },
 

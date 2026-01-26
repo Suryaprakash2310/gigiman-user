@@ -33,6 +33,7 @@ export default function ServicesScreen({ navigation }: any) {
   const [search, setSearch] = useState("");
   const [serviceNames, setServiceNames] = useState<string[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>("");
+  const [selectedDomainId, setSelectedDomainId] = useState<string>("");
 
   useEffect(() => {
     loadServices();
@@ -43,10 +44,18 @@ export default function ServicesScreen({ navigation }: any) {
     setServices(res.services || []);
   };
 
-  const openBottomSheet = async (domainName: string) => {
+  const openBottomSheet = async (domainName: string, domainId: string) => {
     setSelectedDomain(domainName);
-    const res = await ServiceAPI.getSubServicesAPI();
-    setServiceNames(res.serviceNames || []);
+    setSelectedDomainId(domainId);
+    const res = await ServiceAPI.getSubServicesByDomainId(domainId);
+    console.log("subservices::", res);
+    // API returns { success: true, services: [...] } where each item has `serviceName`.
+    // Fallback to other shapes if present (categoriesservices, etc.).
+    const list = res?.services || res?.categoriesservices || [];
+    const names = (list as any[])
+      .map((s) => s?.serviceName || s?.parentServiceName || s?.serviceCategoryName)
+      .filter(Boolean);
+    setServiceNames(names);
     sheetRef.current?.expand();
   };
 
@@ -96,7 +105,7 @@ export default function ServicesScreen({ navigation }: any) {
             <TouchableOpacity
               activeOpacity={0.85}
               style={cardStyles.card}
-              onPress={() => openBottomSheet(item.domainName)}
+              onPress={() => openBottomSheet(item.domainName, item._id)}
             >
               <View style={cardStyles.iconWrap}>
                 <MaterialIcons
@@ -143,10 +152,11 @@ export default function ServicesScreen({ navigation }: any) {
             <TouchableOpacity
               key={name}
               style={styles.sheetItem}
-              onPress={() => {
+                onPress={() => {
                 sheetRef.current?.close();
                 navigation.navigate("ServiceCategory", {
                   serviceName: name,
+                  domainId: selectedDomainId,
                 });
               }}
             >

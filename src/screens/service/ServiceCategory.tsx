@@ -6,19 +6,33 @@ import ServiceCategoryCard from "@/src/components/ServiceCategoryCard";
 import { ServiceAPI } from "@/src/api/service.api";
 
 export default function ServiceCategory({ route, navigation }: any) {
-  const { serviceName } = route.params;
+  const { serviceName, domainId } = route.params;
   const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   //const styles = createStyles(theme);
   useEffect(() => {
     loadCategories();
   }, []);
 
   const loadCategories = async () => {
+    setLoading(true);
+    if (domainId) {
+      const res = await ServiceAPI.getSubServicesByDomainId(domainId);
+      const services = res?.services || [];
+      const svc = services.find((s: any) => s.serviceName === serviceName);
+      const cats = svc?.serviceCategory || [];
+      setCategories(cats);
+      setLoading(false);
+      return;
+    }
+
+    // fallback to legacy endpoint shape
     const res = await ServiceAPI.getSubServicesAPI();
-    const filtered = res.categoriesservices.filter(
-      (c) => c.parentServiceName === serviceName
+    const filtered = (res.categoriesservices || []).filter(
+      (c: any) => c.parentServiceName === serviceName
     );
     setCategories(filtered);
+    setLoading(false);
   };
 
   return (
@@ -26,12 +40,13 @@ export default function ServiceCategory({ route, navigation }: any) {
       <AppHeader showBack title={serviceName} />
 
       <ScrollView>
-        {categories.map((cat) => (
+        {loading ? null : categories.map((cat) => (
           <ServiceCategoryCard
             key={cat._id}
             title={cat.serviceCategoryName}
             subtitle={cat.description}
             amount={cat.price}
+            image={cat.servicecategoryImage}
             onPress={() =>
               navigation.navigate("Booking", {
                 serviceCategoryId: cat._id,
