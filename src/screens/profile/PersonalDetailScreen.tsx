@@ -14,9 +14,9 @@ export default function PersonalDetailsScreen() {
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme, insets);
 
-  const [name, setName] = useState("Alex Martinez");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("alex.math@gmail.com");
-  const [phone] = useState("9876543210");
+  const [phoneNo, setPhoneNo] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
 
   return (
@@ -66,7 +66,7 @@ export default function PersonalDetailsScreen() {
             Mobile Number
           </AppText>
           <TextInput
-            value={phone}
+            value={phoneNo}
             editable={false}
             style={[styles.input, { opacity: 0.6 }]}
           />

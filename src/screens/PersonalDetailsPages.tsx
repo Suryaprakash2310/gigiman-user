@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { Image, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { getProfileAPI } from '../api/profile.api';
+import { ProfileAPI } from '../api/profile.api';
 
 export default function PersonalDetailsPage() {
     // Force light theme colors as per requirement
@@ -28,10 +28,16 @@ export default function PersonalDetailsPage() {
     };
     const [profile, setProfile] = useState<any>(null);
 
-    useEffect(() => {
-        getProfileAPI().then(res => {
-            setProfile(res.data.user);
-        });
+    useEffect(() => {    
+       const load = async () => {           
+        try {
+            const res = await ProfileAPI.getProfileAPI();                
+            setProfile(res.user || null);
+            } catch (err) {
+                console.warn('Failed to load profile', err);
+            }
+        };
+        load();
     }, []);
 
 
@@ -75,7 +81,7 @@ export default function PersonalDetailsPage() {
                         initialValues={{
                             fullName: profile.fullName,
                             email: profile.email,
-                            phone: profile.phone,
+                            phoneNo: profile.phoneNo,
                         }}
                         onSubmit={handleSubmit}
                     />
