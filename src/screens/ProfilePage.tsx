@@ -1,6 +1,6 @@
 // src/screens/profile/ProfileScreen.tsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,11 +19,15 @@ import {
 } from '../configs/profileMenu';
 import ProfileMenuItem from '../components/ProfileMenuItem';
 import AvatarUpload from '../components/ui/AvatorUpload';
+import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
+import { useAuth } from '@/src/hook/useAuth';
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const styles = createStyles(theme, insets);
 
@@ -90,10 +94,22 @@ export default function ProfileScreen() {
               icon={item.icon}
               isDestructive
               showChevron={false}
-              onPress={() => console.log('LOGOUT')}
+              onPress={() => setShowLogoutDialog(true)}
             />
           ))}
         </View>
+        <ConfirmDialog
+          visible={showLogoutDialog}
+          title="Logout"
+          message="Are you sure you want to logout?"
+          confirmText="Logout"
+          cancelText="Cancel"
+          onCancel={() => setShowLogoutDialog(false)}
+          onConfirm={async () => {
+            setShowLogoutDialog(false);
+            await logout();
+          }}
+        />
       </ScrollView>
     </View>
   );
