@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useNavigation} from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AppText from '../components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
-import { useAuth } from '@/src/hook/useAuth';
+
 //import AppHeader from '@/src/components/ui/AppHeader';
+import AppText from '@/src/components/ui/AppText';
 //import Avatar from '@/src/components/ui/AvatarUpload';
 
 
@@ -16,18 +16,18 @@ import {
   PROFILE_MENU,
   SUPPORT_MENU,
   LOGOUT_MENU,
-} from '../configs/profileMenu';
-import ProfileMenuItem from '../components/ProfileMenuItem';
-import AvatarUpload from '../components/ui/AvatorUpload';
-import ConfirmDialog from '../components/ui/ConfirmDialog';
-
+} from '../../configs/profileMenu';
+import ProfileMenuItem from '../../components/ProfileMenuItem';
+import AvatarUpload from '../../components/ui/AvatorUpload';
+import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
+import { useAuth } from '@/src/hook/useAuth';
 
 export default function ProfileScreen() {
+  const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const { theme } = useTheme();
-  const { logout, user } = useAuth();
 
   const styles = createStyles(theme, insets);
 
@@ -50,7 +50,7 @@ export default function ProfileScreen() {
           <AvatarUpload size={90} />
 
           <AppText weight="bold" size="h2" style={{ marginTop: 12 }}>
-            {user?.fullName }
+            Alex Martinez
           </AppText>
         {/*
           <AppText color="textMuted" size="body" style={{ marginTop: 4 }}>

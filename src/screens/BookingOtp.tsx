@@ -8,7 +8,7 @@ import {
   View,
   Text
 } from "react-native";
-import { useRoute, RouteProp } from "@react-navigation/native";
+import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -45,7 +45,7 @@ export default function BookingOtp() {
   //part socket 
   const [PendingRequest, setPendingRequest] = useState<any | null>(null);
   const [partActionLoading, setPartActionLoading] = useState(false);
-
+  const navigation = useNavigation<any>();
 
   useEffect(() => {
     scale.value = withSpring(1, { damping: 12 });
@@ -58,6 +58,8 @@ export default function BookingOtp() {
   if (PendingRequest && !Array.isArray(PendingRequest.parts)) {
   return <Text>Loading parts...</Text>;
 }
+
+
 
 
 
@@ -84,6 +86,33 @@ export default function BookingOtp() {
       socket.off("tool-requested");
     };
   }, []);
+
+  
+
+
+useEffect(() => {
+  const onBookingCompleted = ({ bookingId: completedId }: any) => {
+    if (completedId !== bookingId) return;
+
+    console.log("✅ Booking completed, redirecting to review");
+
+    navigation.replace("Review", 
+      {
+      bookingId: completedId,
+    }
+    );
+  };
+  
+
+  socket.on("booking-completed", onBookingCompleted);
+
+  return () => {
+    socket.off("booking-completed", onBookingCompleted);
+  };
+}, [bookingId]);
+
+
+
 
   // const handleApproveParts = () => {
   //   if (!partRequest) return;

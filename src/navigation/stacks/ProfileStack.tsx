@@ -1,11 +1,12 @@
 // src/navigation/stacks/ProfileStack.tsx
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import ProfileScreen from '@/src/screens/ProfilePage';
+import ProfileScreen from '@/src/screens/profile/ProfilePage';
 import PaymentHistoryPage from '@/src/screens/PaymentHistoryPage';
 import PersonalDetailsPage from '@/src/screens/PersonalDetailsPages';
 import HelpCenterPage from '@/src/screens/HelpCenterPage';
 import SavedAddressesScreen from '@/src/screens/profile/SavedAddressesScreen';
+import MyBookingsScreen from '@/src/screens/profile/MyBookingScreen';
 
 // Placeholder
 
@@ -23,6 +24,7 @@ export default function ProfileStack() {
       <Stack.Screen name="PaymentHistoryPage" component={PaymentHistoryPage} />
       <Stack.Screen name="HelpCenterPage" component={HelpCenterPage} />
        <Stack.Screen name="SavedAddressesScreen" component={SavedAddressesScreen} />
+       <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
     </Stack.Navigator>
   );
 }

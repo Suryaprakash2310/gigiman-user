@@ -1,7 +1,7 @@
 // src/navigation/stacks/HomeStack.tsx
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import ProfileScreen from '@/src/screens/ProfilePage';
+import ProfileScreen from '@/src/screens/profile/ProfilePage';
 import BookingsScreen from '@/src/screens/BookingScreen';
 
 import MainScreen from '@/src/screens/MainScreen';
