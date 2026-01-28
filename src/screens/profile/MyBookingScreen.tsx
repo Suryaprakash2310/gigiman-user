@@ -1,15 +1,15 @@
+import { BookingAPI } from '@/src/api/booking.api';
+import AppHeader from '@/src/components/ui/AppHeader';
+import { useTheme } from '@/src/theme/useTheme';
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
   ActivityIndicator,
   Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import { BookingAPI } from '@/src/api/booking.api';
-import { useTheme } from '@/src/theme/useTheme';
-import AppHeader from '@/src/components/ui/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -25,8 +25,8 @@ const getStatusChipStyle = (status: string) => ({
     status === 'COMPLETED'
       ? '#E6F7EC'
       : status === 'CANCELLED'
-      ? '#FDECEA'
-      : '#FFF4E5',
+        ? '#FDECEA'
+        : '#FFF4E5',
 });
 
 export default function MyBookingsScreen() {
@@ -107,6 +107,7 @@ const makeStyles = (theme: any, insets: any) =>
     wrapper: {
       flex: 1,
       backgroundColor: theme.colors.background,
+      paddingTop: insets.top,
     },
     center: {
       flex: 1,

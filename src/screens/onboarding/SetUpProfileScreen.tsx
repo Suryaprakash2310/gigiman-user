@@ -1,21 +1,23 @@
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
-import { useTheme } from "@/src/theme/useTheme";
 import { useAuthContext } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/theme/useTheme";
 import { getCurrentLocation } from "@/src/utils/location";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { completeProfileAPI } from "@/src/api/auth";
 import React, { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
   StyleSheet,
   TextInput,
-  Alert,
-  ActivityIndicator,
+  View,
 } from "react-native";
-import { completeProfileAPI } from "@/src/api/auth";
 
 export default function CompleteProfileScreen() {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const { user, setUser } = useAuthContext();
   const { accessToken, refreshToken, login } = useAuthContext();
@@ -42,43 +44,43 @@ export default function CompleteProfileScreen() {
   };
 
   const submitProfile = async () => {
-  if (!fullName.trim()) {
-    Alert.alert("Error", "Please enter your full name");
-    return;
-  }
+    if (!fullName.trim()) {
+      Alert.alert("Error", "Please enter your full name");
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const res = await completeProfileAPI({
-      fullName,
-      latitude: coords?.latitude,
-      longitude: coords?.longitude,
-    });
+      const res = await completeProfileAPI({
+        fullName,
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
+      });
 
-    await login({
-  user: res.data.user,
-  accessToken: res.data.token,
-  refreshToken: res.data.token,
-});
+      await login({
+        user: res.data.user,
+        accessToken: res.data.token,
+        refreshToken: res.data.token,
+      });
 
 
-    // ❌ No navigation here
-    // RootNavigator will switch automatically
+      // ❌ No navigation here
+      // RootNavigator will switch automatically
 
-  } catch (err: any) {
-    Alert.alert(
-      "Error",
-      err.response?.data?.message || "Profile update failed"
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (err: any) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || "Profile update failed"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <AppText size="h2" weight="bold">Complete Profile</AppText>
 
       <AppText weight="semibold">Full Name</AppText>

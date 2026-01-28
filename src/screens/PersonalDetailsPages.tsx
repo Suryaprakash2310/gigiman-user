@@ -3,7 +3,8 @@ import PersonalDetailsCard from '@/src/components/ui/PersonalDetailsCard';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { Image, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileAPI } from '../api/profile.api';
 
 export default function PersonalDetailsPage() {
@@ -17,6 +18,7 @@ export default function PersonalDetailsPage() {
     };
 
     const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
 
     const handleBack = () => {
         navigation.goBack();
@@ -28,11 +30,11 @@ export default function PersonalDetailsPage() {
     };
     const [profile, setProfile] = useState<any>(null);
 
-    useEffect(() => {    
-       const load = async () => {           
-        try {
-            const res = await ProfileAPI.getProfileAPI();                
-            setProfile(res.user || null);
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const res = await ProfileAPI.getProfileAPI();
+                setProfile(res.user || null);
             } catch (err) {
                 console.warn('Failed to load profile', err);
             }
@@ -40,9 +42,8 @@ export default function PersonalDetailsPage() {
         load();
     }, []);
 
-
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <View style={[styles.container, { backgroundColor: themeColors.background, paddingTop: insets.top }]}>
             {/* Header */}
             <View style={[styles.header, { backgroundColor: themeColors.surface }]}>
                 <TouchableOpacity
@@ -89,7 +90,7 @@ export default function PersonalDetailsPage() {
 
 
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 

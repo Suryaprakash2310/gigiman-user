@@ -1,12 +1,13 @@
+import { ServiceAPI } from "@/src/api/service.api";
+import ServiceCategoryCard from "@/src/components/ServiceCategoryCard";
+import AppHeader from "@/src/components/ui/AppHeader";
 import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-import AppHeader from "@/src/components/ui/AppHeader";
-import AppText from "@/src/components/ui/AppText";
-import ServiceCategoryCard from "@/src/components/ServiceCategoryCard";
-import { ServiceAPI } from "@/src/api/service.api";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ServiceCategory({ route, navigation }: any) {
   const { serviceName, domainId } = route.params;
+  const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   //const styles = createStyles(theme);
@@ -36,7 +37,7 @@ export default function ServiceCategory({ route, navigation }: any) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingTop: insets.top }}>
       <AppHeader showBack title={serviceName} />
 
       <ScrollView>

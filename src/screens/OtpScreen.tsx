@@ -1,21 +1,21 @@
 // OtpScreen.tsx
 import React, { useRef, useState } from 'react';
 import {
-  View,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  View,
 } from 'react-native';
 
-import { useTheme } from '../theme/useTheme';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthContext } from "../context/AuthContext";
-import AppText from '../components/ui/AppText';
-import AppButton from '../components/ui/AppButton';
-import OtpInput, { OtpInputRef } from '../components/ui/OtpInput';
-import AppHeader from '../components/ui/AppHeader';
 import { verifyOtpApi } from "../api/auth";
+import AppButton from '../components/ui/AppButton';
+import AppHeader from '../components/ui/AppHeader';
+import AppText from '../components/ui/AppText';
+import OtpInput, { OtpInputRef } from '../components/ui/OtpInput';
+import { useAuthContext } from "../context/AuthContext";
+import { useTheme } from '../theme/useTheme';
 
 type OtpRouteParams = {
   phone?: string;
@@ -90,43 +90,43 @@ const OtpScreen: React.FC = () => {
   //     const res = await verifyOtpApi(phone, otp);
   //     console.log("verifyOtpApi response:", res);
 
- const handleOtpComplete = async (otp: string) => {
-  try {
-    setLoading(true);
-    setError(null);
+  const handleOtpComplete = async (otp: string) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    const res = await verifyOtpApi(phone, otp);
-    const data = res.data;
+      const res = await verifyOtpApi(phone, otp);
+      const data = res.data;
 
-    // 🟡 NEW USER
-    if (data.next === "COMPLETE_PROFILE") {
+      // 🟡 NEW USER
+      if (data.next === "COMPLETE_PROFILE") {
+        await login({
+          user: {
+            _id: "temp",
+            phone,
+            profileCompleted: false,
+          },
+          accessToken: data.tempToken, // 👈 VERY IMPORTANT
+        });
+        return;
+      }
+
+      // 🟢 EXISTING USER
       await login({
         user: {
-          _id: "temp",
-          phone,
-          profileCompleted: false,
+          ...data.user,
+          profileCompleted: true,
         },
-        accessToken: data.tempToken, // 👈 VERY IMPORTANT
+        accessToken: data.token,
       });
-      return;
+
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Invalid OTP");
+      otpRef.current?.reset();
+    } finally {
+      setLoading(false);
     }
-
-    // 🟢 EXISTING USER
-    await login({
-      user: {
-        ...data.user,
-        profileCompleted: true,
-      },
-      accessToken: data.token,
-    });
-
-  } catch (err: any) {
-    setError(err?.response?.data?.message || "Invalid OTP");
-    otpRef.current?.reset();
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
 
@@ -172,7 +172,7 @@ const OtpScreen: React.FC = () => {
   };
 
   return (
-    <>
+    <View style={{ flex: 1, paddingTop: insets.top }}>
       <AppHeader showBack={true} />
       <KeyboardAvoidingView
         style={styles.container}
@@ -224,7 +224,7 @@ const OtpScreen: React.FC = () => {
           />
         </View>
       </KeyboardAvoidingView>
-    </>
+    </View>
   );
 };
 
@@ -236,9 +236,15 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
       justifyContent: 'space-between',
+      paddingTop: 0, // We will handle this in render
     },
     content: {
       paddingHorizontal: 24,
-      paddingTop: theme.spacing.xl,
+      paddingTop: theme.spacing.xl, // Keep existing padding or add strict top padding? 
+      // User asked for padding for status bar. 
+      // But styles.content is for the middle content? 
+      // No, let's look at the structure. 
+      // <AppHeader> is outside content.
+      // So we need padding on the ROOT container or wrap AppHeader.
     },
   });

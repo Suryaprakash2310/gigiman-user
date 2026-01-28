@@ -1,23 +1,22 @@
 // PhoneNumScreen.tsx
-import React, { useEffect, useState } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import React, { useState } from 'react';
 import {
-  SafeAreaView,
-  View,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
+  View
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 
+import { sendOtpApi } from "../api/auth";
+import AppButton from '../components/ui/AppButton';
 import AppCard from '../components/ui/AppCard';
 import AppText from '../components/ui/AppText';
-import AppButton from '../components/ui/AppButton';
 import { useTheme } from '../theme/useTheme';
-import { sendOtpApi } from "../api/auth";
 
 const PhoneNumScreen: React.FC = () => {
   const { theme, setMode } = useTheme();
@@ -31,7 +30,7 @@ const PhoneNumScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
 
-  
+
   const handlePhoneChange = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, 10);
     setPhone(digits);
@@ -39,28 +38,23 @@ const PhoneNumScreen: React.FC = () => {
   };
 
   const handleContinue = async () => {
- // if (!isValid || loading) return;
+    // if (!isValid || loading) return;
 
-  try {
-    setLoading(true);
-    setError(null);
-    const res = await sendOtpApi(phone);
-    console.log("otp::",res.data.otp);
-    navigation.navigate("OtpScreen", { phone });
-  } catch (err: any) {
-    setError(err?.response?.data?.message || "Failed to send OTP");
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await sendOtpApi(phone);
+      console.log("otp::", res.data.otp);
+      navigation.navigate("OtpScreen", { phone });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    // <View
-    //   style={[
-        
-    //     { backgroundColor: theme.colors.background },
-    //   ]}
-    // >
+    <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: theme.colors.surface }}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -83,11 +77,12 @@ const PhoneNumScreen: React.FC = () => {
 
           <AppText
             weight="bold"
-            size="h2"        
-            style={{ paddingTop: theme.spacing.sm,
-               
-               color: theme.colors.primary
-             }}
+            size="h2"
+            style={{
+              paddingTop: theme.spacing.sm,
+
+              color: theme.colors.primary
+            }}
           >
             Get Started
           </AppText>
@@ -97,10 +92,10 @@ const PhoneNumScreen: React.FC = () => {
             size='h3'
             style={{
               paddingTop: theme.spacing.xs,
-             
+
               color: theme.colors.text
               //textAlign: 'center',
-             // marginHorizontal: theme.spacing.lg,
+              // marginHorizontal: theme.spacing.lg,
             }}
           >
             Enter your mobile number to continue with GigiMan.
@@ -171,10 +166,10 @@ const PhoneNumScreen: React.FC = () => {
               : 'Enter a valid 10-digit mobile number.'}
           </AppText>
           {error && (
-  <AppText color="danger" style={{ marginTop: theme.spacing.sm }}>
-    {error}
-  </AppText>
-)}
+            <AppText color="danger" style={{ marginTop: theme.spacing.sm }}>
+              {error}
+            </AppText>
+          )}
 
         </AppCard>
 
@@ -188,33 +183,33 @@ const PhoneNumScreen: React.FC = () => {
           }}
         >
           <AppButton
-             title={loading ? "Sending OTP..." : "Continue"}
+            title={loading ? "Sending OTP..." : "Continue"}
             onPress={handleContinue}
             disabled={!isValid || loading}
           />
         </View>
       </KeyboardAvoidingView>
-    // </View>
+    </View >
   );
 };
 
 export default PhoneNumScreen;
 
-const createStyles = (theme: any) =>StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   safe: {
     //flex: 1,
   },
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,
-    padding:16
-    
+    padding: 16
+
   },
   header: {
     alignItems: 'flex-start',
     paddingTop: 32,
     paddingBottom: 24,
-    gap:4
+    gap: 4
   },
   iconContainer: {
     width: 56,

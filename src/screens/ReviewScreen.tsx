@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { View, StyleSheet, Alert } from "react-native";
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import AppText from "@/src/components/ui/AppText";
+import { submitReviewApi } from "@/src/api/review.api";
 import AppButton from "@/src/components/ui/AppButton";
 import AppInput from "@/src/components/ui/AppInput";
-import { submitReviewApi } from "@/src/api/review.api";
+import AppText from "@/src/components/ui/AppText";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import React, { useState } from "react";
+import { Alert, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import StarRating from "../components/ui/StarRating";
 
 type RouteParams = {
@@ -19,6 +20,7 @@ export default function ReviewScreen() {
 
   const { bookingId } = route.params;
 
+  const insets = useSafeAreaInsets();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,7 +53,7 @@ export default function ReviewScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <AppText size="h2" weight="bold">
         Rate your experience
       </AppText>

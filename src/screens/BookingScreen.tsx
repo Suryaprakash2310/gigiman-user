@@ -1,15 +1,16 @@
+import AppCard from "@/src/components/ui/AppCard";
+import AppText from "@/src/components/ui/AppText";
+import { BookingItem, useBooking } from "@/src/context/BookingContext";
+import { useTheme } from "@/src/theme/useTheme";
+import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
-  View,
-  StyleSheet,
   FlatList,
+  StyleSheet,
   TouchableOpacity,
+  View,
 } from "react-native";
-import AppText from "@/src/components/ui/AppText";
-import AppCard from "@/src/components/ui/AppCard";
-import { useTheme } from "@/src/theme/useTheme";
-import { useBooking, BookingItem } from "@/src/context/BookingContext";
-import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppHeader from "../components/ui/AppHeader";
 
 type TabType = "ongoing" | "upcoming";
@@ -19,6 +20,7 @@ export default function BookingScreen() {
   const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const { ongoing, upcoming } = useBooking();
+  const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
 
@@ -36,7 +38,7 @@ export default function BookingScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* HEADER */}
       <View style={styles.headerRow}>
         <AppHeader title="Your Bookings" />

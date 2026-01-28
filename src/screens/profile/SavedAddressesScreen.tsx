@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/src/theme/useTheme';
 //import AppHeader from '@/src/components/ui/AppHeader';
-import AppText from '@/src/components/ui/AppText';
 import AppButton from '@/src/components/ui/AppButton';
+import AppText from '@/src/components/ui/AppText';
 
 import AddressCard, { Address } from '@/src/components/AddressCard';
 import AppHeader from '@/src/components/ui/AppHeader';
@@ -88,7 +88,7 @@ export default function SavedAddressesScreen() {
   return (
     <View style={styles.container}>
       {/* <AppHeader title="Saved Addresses" /> */}
-      <AppHeader showBack={true}/>
+      <AppHeader showBack={true} />
 
       <View style={styles.body}>
         {/* Top text */}
@@ -137,6 +137,7 @@ const createStyles = (theme: any, insets: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
       paddingBottom: insets.bottom,
+      paddingTop: insets.top,
     },
     body: {
       flex: 1,

@@ -3,7 +3,7 @@ import AppText from '@/src/components/ui/AppText';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import BookingCard from '../components/BookingCard';
 
 // Mock Data matching the design image fields
@@ -55,6 +55,9 @@ const TRANSACTIONS = [
     },
 ];
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// ... existing imports ...
+
 export default function PaymentHistoryPage() {
     // Force light theme colors
     const themeColors = {
@@ -65,13 +68,14 @@ export default function PaymentHistoryPage() {
     };
 
     const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
 
     const handleBack = () => {
         navigation.goBack();
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <View style={[styles.container, { backgroundColor: themeColors.background, paddingTop: insets.top }]}>
             {/* Header */}
             <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
                 <TouchableOpacity
@@ -92,18 +96,20 @@ export default function PaymentHistoryPage() {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <BookingCard
+                        category={item.serviceName}
+                        items={[item.serviceName]} // Treat serviceName as the item for now
                         amount={item.amount}
                         date={item.date}
-                        time={item.time}
                         status={item.status}
-                        serviceName={item.serviceName}
                         paymentInfo={item.paymentInfo}
+                        // Optional: pass time if I want to support it later, but currently unused
+                        time={item.time}
                     />
                 )}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
             />
-        </SafeAreaView>
+        </View>
     );
 }
 

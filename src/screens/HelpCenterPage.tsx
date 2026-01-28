@@ -5,12 +5,13 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/useTheme';
 
 export default function HelpCenterPage() {
     // Force light theme colors
     const { theme } = useTheme();
-
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation();
 
     const handleBack = () => {
@@ -18,7 +19,7 @@ export default function HelpCenterPage() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
             {/* Header */}
             <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
                 <TouchableOpacity

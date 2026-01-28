@@ -1,13 +1,15 @@
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
-import { useTheme } from "@/src/theme/useTheme";
 import { useAuthContext } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/theme/useTheme";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 export default function AddressScreen({ navigation }: any) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const { setUser } = useAuthContext();
 
@@ -24,7 +26,7 @@ export default function AddressScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <AppText size="h2" weight="bold">Confirm Address</AppText>
       <AppText color="textMuted">You can change this later</AppText>
 

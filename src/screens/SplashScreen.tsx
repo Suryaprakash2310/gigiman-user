@@ -1,12 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/useTheme';
 
 const { height, width } = Dimensions.get('window');
 
 export const SplashScreen = () => {
   const { setMode } = useTheme();
+  const insets = useSafeAreaInsets();
   const logoScale = useRef(new Animated.Value(0.5)).current; // start smaller
   const textFade = useRef(new Animated.Value(0)).current; // text invisible initially
   const textTranslate = useRef(new Animated.Value(50)).current; // start 50px below
@@ -22,6 +24,7 @@ export const SplashScreen = () => {
         friction: 5,
         tension: 60,
         useNativeDriver: true,
+
       }),
       Animated.parallel([
         Animated.timing(textFade, {
@@ -43,10 +46,10 @@ export const SplashScreen = () => {
 
   return (
     <LinearGradient
-      colors={[theme.colors.splashColor , theme.colors.splashColor]}
+      colors={[theme.colors.splashColor, theme.colors.splashColor]}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
-      style={styles.gradient}
+      style={[styles.gradient, { paddingTop: insets.top }]}
     >
       <View style={styles.logoContainer}>
         <Animated.Image

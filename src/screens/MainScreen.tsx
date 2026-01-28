@@ -1,27 +1,27 @@
 // src/screens/HomeScreen.tsx
+import { Ionicons } from '@expo/vector-icons';
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
-  View,
-  StyleSheet,
+  Dimensions,
   ScrollView,
-  TextInput,
+  StyleSheet,
   TouchableOpacity,
+  View
 } from 'react-native';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTheme } from '@/src/theme/useTheme';
-import AppText from '@/src/components/ui/AppText';
-import AppCard from '@/src/components/ui/AppCard';
-import AppButton from '@/src/components/ui/AppButton';
 import FanInstall from '@/assets/images/FanInstall.svg';
-import { useNavigation } from "@react-navigation/native";
-import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { AppTabsParamList } from '../navigation/AppStack';
-import AppHeader from '../components/ui/AppHeader';
-import { hp, wp } from '../utils/responsive';
+import AppButton from '@/src/components/ui/AppButton';
+import AppText from '@/src/components/ui/AppText';
+import { useTheme } from '@/src/theme/useTheme';
 import { getPopularServices } from '../api/dashboard.api';
+import { AppTabsParamList } from '../navigation/AppStack';
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
+const { width } = Dimensions.get('window');
 
 /* -------------------------------------------------------------------------- */
 /*                               MOCK CONFIG DATA                             */
@@ -43,12 +43,12 @@ type PopularService = {
 export type RecentService = {
   id: string;
   name: string;
-  icon: any;    //React.FC<React.SVGProps<SVGSVGElement>>;
+  icon: any;
 };
 
 
 const SERVICE_CATEGORIES: ServiceCategory[] = [
-  { id: 'hair', label: 'Electical', icon: FanInstall },
+  { id: 'hair', label: 'Electrical', icon: FanInstall },
   { id: 'clean', label: 'Cleaning', icon: FanInstall },
   { id: 'paint', label: 'Painting', icon: FanInstall },
   { id: 'cook', label: 'Plumbing', icon: FanInstall },
@@ -69,28 +69,28 @@ export const RECENT_SERVICES: RecentService[] = [
 
 const HomeScreen: React.FC = () => {
   const { theme, setMode } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(theme);
-  const [search, setSearch] = useState('');
   const navigation = useNavigation<Nav>();
-  
-const [popularServices, setPopularServices] = useState<any[]>([]);
-const [loadingPopular, setLoadingPopular] = useState(true);
+
+  const [popularServices, setPopularServices] = useState<any[]>([]);
+  const [loadingPopular, setLoadingPopular] = useState(true);
 
 
-useEffect(() => {
-  const fetchPopular = async () => {
-    try {
-      const data = await getPopularServices();
-      setPopularServices(data);
-    } catch (err) {
-      console.log("Popular service error:", err);
-    } finally {
-      setLoadingPopular(false);
-    }
-  };
+  useEffect(() => {
+    const fetchPopular = async () => {
+      try {
+        const data = await getPopularServices();
+        setPopularServices(data);
+      } catch (err) {
+        console.log("Popular service error:", err);
+      } finally {
+        setLoadingPopular(false);
+      }
+    };
 
-  fetchPopular();
-}, []);
+    fetchPopular();
+  }, []);
 
 
 
@@ -98,134 +98,86 @@ useEffect(() => {
     setMode?.('light');
   }, [setMode]);
 
+  const Header = () => (
+    <View style={styles.headerContainer}>
+      <AppText weight="bold" size="h1" style={styles.headerTitle}>GigiMan</AppText>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader showBack={false} title='GigiMan' />
-        {/* ------------------------------ HEADER ------------------------------ */}
-        <View style={styles.headerRow}>
-          <View>
-            <AppText size="caption" color="textMuted">
-              Your Location
-            </AppText>
-            <View style={styles.locationRow}>
-              <Ionicons
-                name="location-sharp"
-                size={14}
-                color={theme.colors.primary}
-                style={{ marginRight: 4 }}
-              />
-              <AppText weight="semibold">Trichy, Tamil Nadu</AppText>
-              <Ionicons
-                name="chevron-down"
-                size={16}
-                color={theme.colors.textMuted}
-                style={{ marginLeft: 2 }}
-              />
-            </View>
-          </View>
-
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconCircle} activeOpacity={0.8}>
-              <Feather name="bell" size={18} color={theme.colors.text} />
-            </TouchableOpacity>
-            <View style={styles.avatarCircle}>
-              <AppText weight="bold" style={{ color: '#fff', fontSize: 12 }}>
-                G
-              </AppText>
-            </View>
-          </View>
-        </View>
-
-        {/* -------------------------- SEARCH BAR --------------------------- */}
-        {/* <View style={styles.searchWrapper}>
-          <View
-            style={[
-              styles.searchContainer,
-              { backgroundColor: theme.colors.surface },
-            ]}
-          >
-            <Ionicons
-              name="search"
-              size={18}
-              color={theme.colors.textMuted}
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search for a service.."
-              placeholderTextColor={theme.colors.textMuted}
-              style={[styles.searchInput, { color: theme.colors.text }]}
-            />
-          </View>
-        </View> */}
+        <Header />
 
         {/* --------------------------- HERO CARD --------------------------- */}
-        <AppCard
-          style={[
-            styles.heroCard,
-            { backgroundColor: theme.colors.primary },
-          ]}
-        >
-          <View style={{ flex: 1 }}>
-            <AppText
-              weight="bold"
-              size="h2"
-              style={{ color: '#fff', marginBottom: 4 }}
-            >
-              Your solution, one tap away!
-            </AppText>
-            <AppText
-              size="small"
-              style={{
-                color: '#E2F3F4',
-                marginBottom: 12,
-                maxWidth: 210,
-              }}
-            >
-              Seamless, fast & reliable services at your fingertips.
-            </AppText>
-            <AppButton
-              title="Explore"
-              variant="outline"
-              onPress={() => { navigation.navigate("ServiceTab") }}
-              //size="small"
-              style={styles.exploreButton}
-            />
-          </View>
+        <Animated.View entering={FadeInDown.duration(600).springify()}>
+          <LinearGradient
+            colors={[theme.colors.primary, theme.colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
+          >
+            <View style={styles.heroContent}>
+              <View style={{ flex: 1 }}>
+                <AppText
+                  weight="bold"
+                  size="h2"
+                  style={{ color: '#fff', marginBottom: 4 }}
+                >
+                  Need a hand?
+                </AppText>
+                <AppText
+                  size="small"
+                  style={{
+                    color: '#E2F3F4',
+                    marginBottom: 16,
+                    lineHeight: 20,
+                    opacity: 0.9,
+                  }}
+                >
+                  Expert services for your home needs, just a tap away.
+                </AppText>
+                <AppButton
+                  title="Explore Services"
+                  variant="primary" // Changed to primary but we will override style for white look
+                  textStyle={{ color: theme.colors.primary }}
+                  style={styles.exploreButton}
+                  onPress={() => { navigation.navigate("ServiceTab") }}
+                />
+              </View>
 
-          {/* Minimal line-style illustration – simple geometric block */}
-          <View style={styles.heroIllustration}>
-            <View style={styles.heroBoxOuter}>
-              <View style={styles.heroBoxInner} />
-              <View style={styles.heroLine} />
-              <View style={styles.heroDot} />
+              {/* Enhanced Illustration Placeholder */}
+              <View style={styles.heroIllustration}>
+                <View style={[styles.glassCircle, { top: -20, right: -20, width: 80, height: 80 }]} />
+                <View style={[styles.glassCircle, { bottom: -10, left: -10, width: 50, height: 50 }]} />
+                <FanInstall width={100} height={100} fill="rgba(255,255,255,0.2)" />
+              </View>
             </View>
-          </View>
-        </AppCard>
+          </LinearGradient>
+        </Animated.View>
+
+        <View style={{ height: 24 }} />
 
         {/* ------------------------ RECENT BOOKINGS ------------------------ */}
-        <SectionHeader
-          title="Your Recent Bookings"
-          onPressViewAll={() => { }}
-        />
+        <Animated.View entering={FadeInDown.delay(100).duration(600).springify()}>
+          <SectionHeader
+            title="Recent Activity"
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalList}
+          >
+            {RECENT_SERVICES.map((s, index) => (
+              <RecentServiceCard key={s.id} service={s} index={index} />
+            ))}
+          </ScrollView>
+        </Animated.View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: 20 }}
-        >
-          {RECENT_SERVICES.map(s => (
-            <RecentServiceCard key={s.id} service={s} />
-          ))}
-        </ScrollView>
-
-
-        <View style={{ height: wp(7) }} />
+        <View style={{ height: 24 }} />
 
         {/* ----------------------- SERVICE CATEGORIES ---------------------- */}
         <SectionHeader
@@ -234,55 +186,56 @@ useEffect(() => {
         />
 
         <View style={styles.categoryGrid}>
-          {SERVICE_CATEGORIES.map((cat) => (
-            <ServiceCategoryCard key={cat.id} category={cat} />
+          {SERVICE_CATEGORIES.map((cat, index) => (
+            <ServiceCategoryCard key={cat.id} category={cat} index={index} />
           ))}
         </View>
 
         {/* ------------------------ POPULAR SERVICES ----------------------- */}
-        <SectionHeader
-          title="Popular Services"
-          onPressViewAll={() => { navigation.navigate("ServiceTab") }}
-        />
+        <Animated.View entering={FadeInDown.delay(300).duration(600).springify()}>
+          <SectionHeader
+            title="Popular Now"
+            onPressViewAll={() => { navigation.navigate("ServiceTab") }}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalList}
+          >
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 8 }}
-        >
+            {loadingPopular && (
+              <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
+                Loading popular services...
+              </AppText>
+            )}
 
-          {loadingPopular && (
-            <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
-              Loading popular services...
-            </AppText>
-          )}
-
-          {!loadingPopular && popularServices.length === 0 && (
-            <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
-              No popular services yet
-            </AppText>
-          )}
-
-
+            {!loadingPopular && popularServices.length === 0 && (
+              <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
+                No popular services yet
+              </AppText>
+            )}
 
 
-          {popularServices.map((service, index) => (
-            <PopularServiceCard
-              key={index}
-              service={{
-                id: index.toString(),
-                title: service._id,
-                subtitle: `${service.totalBookings} bookings • ₹${service.totalRevenue}`,
-                icon: FanInstall
-              }}
-            />
-          ))}
 
-        </ScrollView>
+
+            {popularServices.map((service, index) => (
+              <PopularServiceCard
+                key={index}
+                service={{
+                  id: index.toString(),
+                  title: service._id,
+                  subtitle: `${service.totalBookings} bookings • ₹${service.totalRevenue}`,
+                  icon: FanInstall
+                }}
+                index={index} />
+            ))}
+
+          </ScrollView>
+        </Animated.View>
 
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -297,119 +250,116 @@ const SectionHeader: React.FC<{
   onPressViewAll?: () => void;
 }> = ({ title, onPressViewAll }) => {
   const { theme } = useTheme();
-  const navigation = useNavigation();
   return (
     <View style={sectionHeaderStyles.container}>
-      <AppText weight="semibold" size="h3">
+      <AppText weight="bold" size="h3" style={{ color: theme.colors.text }}>
         {title}
       </AppText>
       {onPressViewAll && (
         <TouchableOpacity
           onPress={onPressViewAll}
           activeOpacity={0.7}
+          style={sectionHeaderStyles.viewAllBtn}
         >
           <AppText
             size="small"
-            weight="semibold"
+            weight="bold"
             style={{ color: theme.colors.primary }}
           >
-            View all
+            See All
           </AppText>
+          <Ionicons name="arrow-forward" size={14} color={theme.colors.primary} style={{ marginLeft: 2 }} />
         </TouchableOpacity>
       )}
     </View>
   );
 };
 
-// const ServiceCategoryCard: React.FC<{ category: ServiceCategory }> = ({
-//   category,
-// }) => {
-//   const { theme } = useTheme();
-//   const s = categoryCardStyles(theme);
-//   return (
-//     <AppCard style={s.card}>
-//       <View style={s.iconCircle}>
-//         <MaterialCommunityIcons
-//           name={category.icon}
-//           size={20}
-//           color={theme.colors.primary}
-//         />
-//       </View>
-//       <AppText weight="semibold" style={s.label}>
-//         {category.label}
-//       </AppText>
-//     </AppCard>
-//   );
-// };
-const ServiceCategoryCard: React.FC<{ category: ServiceCategory }> = ({
+const ServiceCategoryCard: React.FC<{ category: ServiceCategory; index: number }> = ({
   category,
+  index
 }) => {
   const { theme } = useTheme();
   const s = categoryCardStyles(theme);
-
-  // Dynamic SVG Component
   const IconSvg = category.icon;
 
   return (
-    <AppCard style={s.card}>
-      <View style={s.iconCircle}>
-        <IconSvg width={90} height={90} fill={theme.colors.primary} />
-      </View>
-
-      <AppText weight="semibold" style={s.label}>
-        {category.label}
-      </AppText>
-    </AppCard>
+    <Animated.View entering={FadeInDown.delay(index * 50 + 200).springify()} style={{ width: '48%' }}>
+      <TouchableOpacity activeOpacity={0.9}>
+        <View style={s.card}>
+          <View style={s.iconCircle}>
+            <IconSvg width={100} height={100} fill={theme.colors.primary} />
+          </View>
+          <AppText weight="semibold" style={s.label}>
+            {category.label}
+          </AppText>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
-const PopularServiceCard: React.FC<{ service: PopularService }> = ({
+const PopularServiceCard: React.FC<{ service: PopularService; index: number }> = ({
   service,
+  index
 }) => {
   const { theme } = useTheme();
   const s = popularServiceStyles(theme);
   const IconSvg = service.icon;
 
   return (
-    <AppCard style={s.card}>
-      <View style={s.imagePlaceholder} >
-        <IconSvg width='100%' fill={theme.colors.primary} />
-      </View>
-      <View style={s.textContainer}>
-        <AppText weight="semibold" numberOfLines={1}>
-          {service.title}
-        </AppText>
-        <AppText
-          size="small"
-          color="textMuted"
-          numberOfLines={1}
-          style={{ marginTop: 2 }}
-        >
-          {service.subtitle}
-        </AppText>
-      </View>
-    </AppCard>
+    <Animated.View entering={FadeInRight.delay(index * 100).springify()}>
+      <TouchableOpacity activeOpacity={0.95}>
+        <View style={s.card}>
+          <View style={s.imagePlaceholder} >
+            {/* Gradient Overlay for image placeholder */}
+            <LinearGradient
+              colors={[theme.colors.surface, theme.colors.border]}
+              style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+            >
+              <IconSvg width='60%' height='60%' fill={theme.colors.textMuted} style={{ opacity: 0.5 }} />
+            </LinearGradient>
+            <View style={s.badge}>
+              <AppText size="caption" weight="bold" style={{ color: '#fff' }}>BESTSELLER</AppText>
+            </View>
+          </View>
+          <View style={s.textContainer}>
+            <AppText weight="bold" numberOfLines={1} size="body">
+              {service.title}
+            </AppText>
+            <AppText
+              size="caption"
+              color="textMuted"
+              numberOfLines={1}
+              style={{ marginTop: 4 }}
+            >
+              {service.subtitle}
+            </AppText>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
-const RecentServiceCard: React.FC<{ service: RecentService }> = ({ service }) => {
+const RecentServiceCard: React.FC<{ service: RecentService; index: number }> = ({ service, index }) => {
   const { theme } = useTheme();
   const s = recentCardStyles(theme);
-
   const IconSvg = service.icon;
 
   return (
-    <TouchableOpacity activeOpacity={0.9}>
-      <View style={s.card}>
-        <View style={s.iconContainer}>
-          <IconSvg width={32} height={32} fill={theme.colors.primary} />
+    <Animated.View entering={FadeInRight.delay(index * 100).springify()}>
+      <TouchableOpacity activeOpacity={0.8} style={{ marginRight: 16 }}>
+        <View style={s.card}>
+          <View style={s.iconContainer}>
+            <IconSvg width={48} height={48} fill="#fff" />
+          </View>
+          <AppText weight="medium" style={s.serviceName} numberOfLines={2}>
+            {service.name}
+          </AppText>
         </View>
-
-        <AppText weight="semibold" style={s.serviceName}>
-          {service.name}
-        </AppText>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
@@ -424,224 +374,179 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     scroll: {
+      paddingBottom: 40,
+    },
+    headerContainer: {
       paddingHorizontal: 20,
-      paddingBottom: 16,
+      paddingBottom: 20,
+      paddingTop: 12,
+      alignItems: 'center',
     },
-    headerRow: {
+    headerTitle: {
+      color: theme.colors.primary,
+      fontSize: 34,
+      textAlign: 'center',
+    },
+    heroGradient: {
+      marginHorizontal: 20,
+      borderRadius: 24,
+      padding: 24,
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 16,
+      elevation: 10,
+    },
+    heroContent: {
       flexDirection: 'row',
+      alignItems: 'center',
       justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 16,
-      marginTop: 4,
-    },
-    locationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 2,
-    },
-    headerRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    iconCircle: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surface,
-      marginRight: 8,
-    },
-    avatarCircle: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.primary,
-    },
-    searchWrapper: {
-      marginBottom: 16,
-    },
-    searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 16,
-    },
-    searchInput: {
-      flex: 1,
-      fontSize: 15,
-    },
-    heroCard: {
-      flexDirection: 'row',
-      padding: 16,
-      borderRadius: 18,
-      marginBottom: 20,
-      alignItems: 'center',
     },
     exploreButton: {
+      backgroundColor: '#fff',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 12,
       alignSelf: 'flex-start',
-      paddingHorizontal: 18,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: theme.colors.surface,
-
-
+      elevation: 2,
     },
     heroIllustration: {
-      width: 110,
+      width: 100,
+      height: 100,
       alignItems: 'center',
       justifyContent: 'center',
+      position: 'relative',
     },
-    heroBoxOuter: {
-      width: 84,
-      height: 70,
-      borderRadius: 16,
-      borderWidth: 1.4,
-      borderColor: '#EAF5F6',
-      alignItems: 'center',
-      justifyContent: 'center',
+    glassCircle: {
+      position: 'absolute',
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      borderRadius: 999,
     },
-    heroBoxInner: {
-      width: 54,
-      height: 32,
-      borderRadius: 10,
-      borderWidth: 1.2,
-      borderColor: '#EAF5F6',
-    },
-    heroLine: {
-      width: 54,
-      height: 2,
-      backgroundColor: '#EAF5F6',
-      marginTop: 6,
-    },
-    heroDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: '#EAF5F6',
-      marginTop: 4,
+    horizontalList: {
+      paddingHorizontal: 20,
+      paddingVertical: 8,
     },
     categoryGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'space-between',
-      rowGap: 12,
-      marginBottom: 8,
+      paddingHorizontal: 20,
+      rowGap: 16,
     },
   });
 
 const sectionHeaderStyles = StyleSheet.create({
   container: {
-    marginTop: 4,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(40, 91, 91, 0.08)', // Using primary with opacity
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  }
 });
-
-// const categoryCardStyles = (theme: any) =>
-//   StyleSheet.create({
-//     card: {
-//       width: '48%',
-//       paddingVertical: 14,
-//       paddingHorizontal: 12,
-//       borderRadius: 16,
-//       backgroundColor: theme.colors.surface,
-//     },
-//     iconCircle: {
-//       width: 32,
-//       height: 32,
-//       borderRadius: 16,
-//       alignItems: 'center',
-//       justifyContent: 'center',
-//       backgroundColor: theme.colors.background,
-//       marginBottom: 8,
-//     },
-//     label: {},
-//   });
 
 const categoryCardStyles = (theme: any) =>
   StyleSheet.create({
     card: {
-      width: '48%',
-      paddingVertical: 16,
-      paddingHorizontal: 14,
-      borderRadius: 18,
+      width: '100%',
+      paddingVertical: 20,
+      paddingHorizontal: 16,
+      borderRadius: 20,
       backgroundColor: theme.colors.surface,
-      shadowColor: '#000',
+      shadowColor: theme.colors.cardShadow,  //0.1 opacity
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
-      elevation: 3,
+      shadowOpacity: 1, // theme handles the opacity in string
+      shadowRadius: 12,
+      elevation: 4,
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.dark ? theme.colors.border : 'transparent',
     },
     iconCircle: {
-      width: 46,
-      height: 46,
-      borderRadius: 12,
-      backgroundColor: theme.colors.background,
+      width: 110,
+      height: 110,
+      borderRadius: 35,
+      backgroundColor: 'transparent',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: 12,
     },
     label: {
       fontSize: 15,
+      textAlign: 'center',
+      color: theme.colors.text,
     },
   });
 
 const popularServiceStyles = (theme: any) =>
   StyleSheet.create({
     card: {
-      width: 220,
-      borderRadius: 16,
-      marginRight: 12,
-      overflow: 'hidden',
+      width: 240,
+      borderRadius: 20,
+      marginRight: 16,
       backgroundColor: theme.colors.surface,
+      shadowColor: theme.colors.cardShadow,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 1,
+      shadowRadius: 12,
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: theme.dark ? theme.colors.border : 'transparent',
+      overflow: 'hidden',
     },
     imagePlaceholder: {
-      height: 90,
+      height: 120,
       width: '100%',
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.border,
+      position: 'relative',
+    },
+    badge: {
+      position: 'absolute',
+      top: 10,
+      left: 10,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
     },
     textContainer: {
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      padding: 16,
     },
   });
 
 const recentCardStyles = (theme: any) =>
   StyleSheet.create({
     card: {
-      width: 120,
-      paddingVertical: 18,
-      paddingHorizontal: 10,
-      borderRadius: 18,
-      backgroundColor: theme.colors.surface,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.06,
-      shadowRadius: 10,
-      elevation: 4,
-      marginRight: 14,
     },
     iconContainer: {
-      width: 58,
-      height: 58,
-      borderRadius: 16,
-      backgroundColor: theme.colors.surface2 || "#F4F4F4",
+      width: 90,
+      height: 90,
+      borderRadius: 30,
+      backgroundColor: theme.colors.primary, // Using primary for recent to make them pop
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: 10,
+      marginBottom: 8,
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
     },
     serviceName: {
       fontSize: 13,
       textAlign: "center",
+      width: 90,
+      color: theme.colors.text
     },
   });
 

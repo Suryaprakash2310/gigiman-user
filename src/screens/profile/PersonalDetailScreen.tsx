@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { View, StyleSheet, TextInput, ScrollView } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 //import AppHeader from "@/src/components/ui/AppHeader";
 import AppButton from "@/src/components/ui/AppButton";
@@ -87,6 +87,7 @@ const createStyles = (theme: any, insets: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+      paddingTop: insets.top,
     },
     body: {
       paddingHorizontal: theme.spacing.lg,

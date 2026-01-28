@@ -1,10 +1,10 @@
 // src/screens/profile/ProfileScreen.tsx
 
+import { useTheme } from '@/src/theme/useTheme';
+import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '@/src/theme/useTheme';
 
 //import AppHeader from '@/src/components/ui/AppHeader';
 import AppText from '@/src/components/ui/AppText';
@@ -12,15 +12,15 @@ import AppText from '@/src/components/ui/AppText';
 
 
 //import ProfileMenuItem from './ProfileMenuItem';
-import {
-  PROFILE_MENU,
-  SUPPORT_MENU,
-  LOGOUT_MENU,
-} from '../../configs/profileMenu';
-import ProfileMenuItem from '../../components/ProfileMenuItem';
-import AvatarUpload from '../../components/ui/AvatorUpload';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import { useAuth } from '@/src/hook/useAuth';
+import ProfileMenuItem from '../../components/ProfileMenuItem';
+import AvatarUpload from '../../components/ui/AvatorUpload';
+import {
+  LOGOUT_MENU,
+  PROFILE_MENU,
+  SUPPORT_MENU,
+} from '../../configs/profileMenu';
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
@@ -52,7 +52,7 @@ export default function ProfileScreen() {
           <AppText weight="bold" size="h2" style={{ marginTop: 12 }}>
             Alex Martinez
           </AppText>
-        {/*
+          {/*
           <AppText color="textMuted" size="body" style={{ marginTop: 4 }}>
             alex.math@gmail.com
           </AppText>
@@ -121,6 +121,7 @@ const createStyles = (theme: any, insets: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
       paddingBottom: insets.bottom,
+      paddingTop: insets.top,
     },
     scroll: {
       flex: 1,
