@@ -1,25 +1,25 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  SafeAreaView,
-  TextInput,
-  Platform,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  FlatList,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/src/theme/useTheme";
-import AppText from "@/src/components/ui/AppText";
-import AppHeader from "@/src/components/ui/AppHeader";
 import AppBottomSheet, {
   AppBottomSheetRef,
 } from "@/src/components/ui/AppBottomSheet";
+import AppHeader from "@/src/components/ui/AppHeader";
+import AppText from "@/src/components/ui/AppText";
+import { useTheme } from "@/src/theme/useTheme";
 
-import { ServiceAPI, DomainService } from "@/src/api/service.api";
+import { DomainService, ServiceAPI } from "@/src/api/service.api";
 
 export default function ServicesScreen({ navigation }: any) {
   const { theme } = useTheme();
@@ -48,7 +48,6 @@ export default function ServicesScreen({ navigation }: any) {
     setSelectedDomain(domainName);
     setSelectedDomainId(domainId);
     const res = await ServiceAPI.getSubServicesByDomainId(domainId);
-    console.log("subservices::", res);
     // API returns { success: true, services: [...] } where each item has `serviceName`.
     // Fallback to other shapes if present (categoriesservices, etc.).
     const list = res?.services || res?.categoriesservices || [];

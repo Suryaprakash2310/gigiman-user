@@ -1,13 +1,13 @@
 // src/context/AuthContext.tsx
+import { socket } from "@/src/socket/socket";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {
   createContext,
+  ReactNode,
   useContext,
   useEffect,
   useState,
-  ReactNode,
 } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { socket } from "@/src/socket/socket";
 
 export type AuthUser = {
   _id: string;
