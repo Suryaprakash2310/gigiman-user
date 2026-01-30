@@ -9,7 +9,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
+import AppLoader from '@/src/components/ui/AppLoader';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppBottomSheet, {
@@ -26,7 +28,7 @@ export default function ServicesScreen({ navigation }: any) {
   const styles = createStyles(theme);
   const cardStyles = serviceCardStyles(theme);
   const insets = useSafeAreaInsets();
-
+  const [loadingServices, setLoadingServices] = useState<boolean>(true);
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
   const [services, setServices] = useState<DomainService[]>([]);
@@ -40,8 +42,15 @@ export default function ServicesScreen({ navigation }: any) {
   }, []);
 
   const loadServices = async () => {
-    const res = await ServiceAPI.getServicesAPI();
-    setServices(res.services || []);
+    try {
+      setLoadingServices(true);
+      const res = await ServiceAPI.getServicesAPI();
+      setServices(res.services || []);
+    } catch (err) {
+      console.log('Error loading services:', err);
+    } finally {
+      setLoadingServices(false);
+    }
   };
 
   const openBottomSheet = async (domainName: string, domainId: string) => {
@@ -61,6 +70,7 @@ export default function ServicesScreen({ navigation }: any) {
   const filteredServices = services.filter((s) =>
     s.domainName.toLowerCase().includes(search.toLowerCase())
   );
+  
 
   return (
     <SafeAreaView
@@ -93,48 +103,54 @@ export default function ServicesScreen({ navigation }: any) {
         </View>
 
         {/* GRID */}
-        <FlatList
-          data={filteredServices}
-          keyExtractor={(item) => item._id}
-          numColumns={2}
-          showsVerticalScrollIndicator={false}
-          columnWrapperStyle={styles.columnWrap}
-          contentContainerStyle={{ paddingBottom: 24 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={cardStyles.card}
-              onPress={() => openBottomSheet(item.domainName, item._id)}
-            >
-              <View style={cardStyles.iconWrap}>
-                <MaterialIcons
-                  name="home-repair-service"
-                  size={26}
-                  color={theme.colors.primary}
-                />
-              </View>
-
-              <AppText
-                weight="semibold"
-                numberOfLines={2}
-                style={cardStyles.title}
+        {loadingServices ? (
+          <View style={{ paddingVertical: 40 }}>
+            <AppLoader />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredServices}
+            keyExtractor={(item) => item._id}
+            numColumns={2}
+            showsVerticalScrollIndicator={false}
+            columnWrapperStyle={styles.columnWrap}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={cardStyles.card}
+                onPress={() => openBottomSheet(item.domainName, item._id)}
               >
-                {item.domainName}
-              </AppText>
+                <View style={cardStyles.iconWrap}>
+                  <Image
+                    source={{ uri: (item as any).serviceImage }}
+                    style={{ width: 90, height: 90 }}
+                    resizeMode="contain"
+                  />
+                </View>
 
-              <AppText size="small" style={{ color: theme.colors.textMuted }}>
-                Tap to view services
-              </AppText>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <AppText style={{ color: theme.colors.textMuted }}>
-                No services found
-              </AppText>
-            </View>
-          }
-        />
+                <AppText
+                  weight="semibold"
+                  numberOfLines={2}
+                  style={cardStyles.title}
+                >
+                  {item.domainName}
+                </AppText>
+
+                <AppText size="small" style={{ color: theme.colors.textMuted }}>
+                  Tap to view services
+                </AppText>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <View style={styles.emptyWrap}>
+                <AppText style={{ color: theme.colors.textMuted }}>
+                  No services found
+                </AppText>
+              </View>
+            }
+          />
+        )}
       </View>
 
       {/* BOTTOM SHEET */}
@@ -151,7 +167,7 @@ export default function ServicesScreen({ navigation }: any) {
             <TouchableOpacity
               key={name}
               style={styles.sheetItem}
-                onPress={() => {
+              onPress={() => {
                 sheetRef.current?.close();
                 navigation.navigate("ServiceCategory", {
                   serviceName: name,
@@ -225,6 +241,8 @@ const serviceCardStyles = (theme: any) =>
   StyleSheet.create({
     card: {
       width: "48%",
+      justifyContent: "center",
+      alignItems: "center",
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radius.xl,
       padding: theme.spacing.md,
