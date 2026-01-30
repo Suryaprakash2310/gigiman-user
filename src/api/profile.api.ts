@@ -6,7 +6,7 @@ export interface UserProfile {
   name?: string;
   email?: string;
   phoneNo?: string;
-  avatar?: string;
+  avatar?: string | null;
 }
 
 export const completeProfileAPI = (payload: {
@@ -15,7 +15,7 @@ export const completeProfileAPI = (payload: {
   longitude?: number;
   phoneNo?: string;
   email?: string;
-  avatar?: string;
+  avatar?: string | null;
 }) => api.post('/user/complete-profile', payload);
 
 export const ProfileAPI = {
@@ -31,7 +31,8 @@ export const updateProfile = (data: {
   fullName?: string;
   latitude?: number;
   longitude?: number;
-  avatar?: string;
+  avatar?: string | null;
 }) => {
+  console.log(data);
   return api.put('/user/edit-profile', data);
 };

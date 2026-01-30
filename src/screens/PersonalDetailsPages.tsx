@@ -1,11 +1,12 @@
 import AppText from '@/src/components/ui/AppText';
+import AvatarUpload from '@/src/components/ui/AvatorUpload';
 import PersonalDetailsCard from '@/src/components/ui/PersonalDetailsCard';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ProfileAPI } from '../api/profile.api';
+import { ProfileAPI, updateProfile } from '../api/profile.api';
 
 export default function PersonalDetailsPage() {
     // Force light theme colors as per requirement
@@ -25,10 +26,23 @@ export default function PersonalDetailsPage() {
     };
 
     const handleSubmit = (values: any) => {
-        console.log('Submitted values:', values);
-        // Here you would typically make an API call to save the data
+        // Call updateProfile API to save changes
+        (async () => {
+            try {
+                const payload: any = { fullName: values.fullName };
+                if (avatar !== undefined) payload.avatar = avatar; // string | null
+
+                const res = await updateProfile(payload);
+                console.log('Profile updated', res.data);
+                // update local state
+                setProfile((prev: any) => ({ ...(prev || {}), fullName: values.fullName, avatar }));
+            } catch (err) {
+                console.warn('Failed to update profile', err);
+            }
+        })();
     };
     const [profile, setProfile] = useState<any>(null);
+    const [avatar, setAvatar] = useState<string | null>(null);
 
     useEffect(() => {
         const load = async () => {
@@ -62,14 +76,7 @@ export default function PersonalDetailsPage() {
                 {/* Profile Image Section */}
                 <View style={styles.profileSection}>
                     <View style={styles.imageContainer}>
-                        <Image
-                            source={{ uri: 'https://i.pravatar.cc/300?img=12' }} // Placeholder avatar
-                            style={styles.profileImage}
-                        />
-                        <TouchableOpacity style={[styles.editIconBadge, { backgroundColor: themeColors.success }]}>
-                            {/* Edit Pencil Icon representation */}
-                            <AppText size="small" style={{ color: 'white' }}>✎</AppText>
-                        </TouchableOpacity>
+                        <AvatarUpload size={100} initialUri={avatar} onChange={setAvatar} />
                     </View>
                 </View>
 
