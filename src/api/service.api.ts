@@ -60,7 +60,6 @@ export const ServiceAPI = {
     const res = await api.get(
       `/auth/service-list/${domainServiceId}`
     );
-    console.log(res.data);
     return res.data;
   },
 

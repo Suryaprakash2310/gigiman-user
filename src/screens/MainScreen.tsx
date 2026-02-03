@@ -9,7 +9,8 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
+  Image
 } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import AppButton from '@/src/components/ui/AppButton';
 import AppText from '@/src/components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
 import { getPopularServices } from '../api/dashboard.api';
+import { ServiceAPI } from '../api/service.api';
 import { AppTabsParamList } from '../navigation/AppStack';
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
 const { width } = Dimensions.get('window');
@@ -47,7 +49,7 @@ export type RecentService = {
 };
 
 
-const SERVICE_CATEGORIES: ServiceCategory[] = [
+const DEFAULT_SERVICE_CATEGORIES: ServiceCategory[] = [
   { id: 'hair', label: 'Electrical', icon: FanInstall },
   { id: 'clean', label: 'Cleaning', icon: FanInstall },
   { id: 'paint', label: 'Painting', icon: FanInstall },
@@ -75,6 +77,8 @@ const HomeScreen: React.FC = () => {
 
   const [popularServices, setPopularServices] = useState<any[]>([]);
   const [loadingPopular, setLoadingPopular] = useState(true);
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>(DEFAULT_SERVICE_CATEGORIES);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
 
   useEffect(() => {
@@ -90,6 +94,28 @@ const HomeScreen: React.FC = () => {
     };
 
     fetchPopular();
+  }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await ServiceAPI.getServicesAPI();
+        const items = Array.isArray(data) ? data : (data?.services ?? data?.serviceNames ?? []);
+        const mapped = (items || []).slice(0, 6).map((it: any) => ({
+          id: it._id || it.id || String(it),
+          label: it.domainName || it.serviceName || it.serviceCategoryName || String(it),
+          icon: it.serviceImage,
+        }));
+        if (mapped.length > 0) setServiceCategories(mapped);
+        console.log('Fetched service categories:', mapped);
+      } catch (err) {
+        console.log('Service categories error:', err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
 
@@ -186,9 +212,15 @@ const HomeScreen: React.FC = () => {
         />
 
         <View style={styles.categoryGrid}>
-          {SERVICE_CATEGORIES.map((cat, index) => (
-            <ServiceCategoryCard key={cat.id} category={cat} index={index} />
-          ))}
+          {loadingCategories ? (
+            <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
+              Loading services...
+            </AppText>
+          ) : (
+            serviceCategories.map((cat, index) => (
+              <ServiceCategoryCard key={cat.id} category={cat} index={index} />
+            ))
+          )}
         </View>
 
         {/* ------------------------ POPULAR SERVICES ----------------------- */}
@@ -282,13 +314,23 @@ const ServiceCategoryCard: React.FC<{ category: ServiceCategory; index: number }
   const { theme } = useTheme();
   const s = categoryCardStyles(theme);
   const IconSvg = category.icon;
+  const navigation = useNavigation<Nav>();
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 50 + 200).springify()} style={{ width: '48%' }}>
-      <TouchableOpacity activeOpacity={0.9}>
+      <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('ServiceTab' as any, { serviceId: category.id, categoryName: category.label })}>
         <View style={s.card}>
           <View style={s.iconCircle}>
-            <IconSvg width={100} height={100} fill={theme.colors.primary} />
+            {/* Render either an Image (for URL strings) or an SVG React component */}
+            {typeof IconSvg === 'string' ? (
+              <Image
+                source={{ uri: IconSvg }}
+                style={{ width: 90, height: 90 }}
+                resizeMode="contain"
+              />
+            ) : IconSvg ? (
+              <IconSvg width={90} height={90} fill={theme.colors.primary} />
+            ) : null}
           </View>
           <AppText weight="semibold" style={s.label}>
             {category.label}

@@ -1,20 +1,22 @@
 import React from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ViewStyle,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+import { useTheme } from "@/src/theme/useTheme";
 import { wp } from "@/src/utils/responsive";
 
 type Props = {
-  value: number;
+  value?: number;              // e.g. 4.5
   onChange?: (val: number) => void;
   maxStars?: number;
   size?: number;
   editable?: boolean;
-  style?: ViewStyle | any;
+  style?: ViewStyle;
 };
 
 const StarRating: React.FC<Props> = ({
@@ -25,55 +27,69 @@ const StarRating: React.FC<Props> = ({
   editable = true,
   style,
 }) => {
-  const starSize = size ?? wp(8);
-  const stars = Array.from({ length: maxStars }, (_, i) => i + 1);
+  const { theme } = useTheme();
+  const starSize = size ?? wp(5.5);
+
+  const renderStar = (index: number) => {
+    const rating = value;
+    const starValue = index + 1;
+
+    let iconName: any = "star-outline";
+
+    if (rating >= starValue) {
+      iconName = "star";
+    } else if (rating >= starValue - 0.5) {
+      iconName = "star-half";
+    }
+
+    return (
+      <TouchableOpacity
+        key={index}
+        activeOpacity={editable ? 0.7 : 1}
+        disabled={!editable}
+        onPress={() => editable && onChange?.(starValue)}
+        style={styles.touch}
+        accessibilityRole={editable ? "button" : "image"}
+        accessibilityLabel={`${starValue} star`}
+      >
+        <Ionicons
+          name={iconName}
+          size={starSize}
+          color={
+            iconName === "star-outline"
+              ? theme.colors.border
+              : "#FFB300"
+          }
+          style={styles.star}
+        />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container, style]}>
-      {stars.map((s) => {
-        const filled = s <= Math.round(value);
-
-        return (
-          <TouchableOpacity
-            key={s}
-            onPress={() => editable && onChange && onChange(s)}
-            activeOpacity={0.7}
-            accessibilityRole={editable ? "button" : "image"}
-            accessibilityLabel={`${s} star${s > 1 ? "s" : ""}`}
-            style={styles.touch}
-            disabled={!editable}
-          >
-            <Text
-              style={[
-                styles.star,
-                { fontSize: starSize, color: filled ? "#FFB300" : "#E0E0E0" },
-              ]}
-            >
-              {filled ? "★" : "☆"}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      {Array.from({ length: maxStars }).map((_, i) =>
+        renderStar(i)
+      )}
     </View>
   );
 };
+
+export default StarRating;
+
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
   },
   touch: {
-    marginHorizontal: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
   },
   star: {
-    textShadowColor: "rgba(0,0,0,0.08)",
+    textShadowColor: "rgba(0,0,0,0.12)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
-    includeFontPadding: false,
-    textAlignVertical: "center",
+    textShadowRadius: 2,
   },
 });
-
-export default StarRating;
