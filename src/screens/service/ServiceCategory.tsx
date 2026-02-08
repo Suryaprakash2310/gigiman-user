@@ -45,7 +45,7 @@ export default function ServiceCategory({ route, navigation }: any) {
           <ServiceCategoryCard
             key={cat._id}
             title={cat.serviceCategoryName}
-            subtitle={cat.description}
+           // subtitle={cat.description}
             amount={cat.price}
             image={cat.servicecategoryImage}
             onPress={() =>

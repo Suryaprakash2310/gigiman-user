@@ -28,10 +28,14 @@ export default function BookingScreen() {
   const empty = data.length === 0;
 
   const handleCardPress = (booking: BookingItem) => {
-    if (booking.status === "searching") {
-      navigation.navigate("Searching", { bookingId: booking._id });
-      return;
-    }
+    // if (booking.status === "searching") {
+    //   navigation.navigate("Searching", { bookingId: booking._id });
+    //   return;
+    // }
+
+    if (!booking.isScheduled && booking.status === "searching") {
+  navigation.navigate("Searching", { bookingId: booking._id });
+}
   
     // assigned or upcoming → open details
     navigation.navigate("BookingDetails", { bookingId: booking._id });

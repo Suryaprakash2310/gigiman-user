@@ -9,7 +9,7 @@ import React, {
 export type BookingStatus =
   | "searching"
   | "assigned"
-  | "upcoming"
+ // | "upcoming"
   | "completed"
   | "cancelled";
 
@@ -25,6 +25,10 @@ export type BookingItem = {
   technicianName?: string;
   technicianPhone?: string;
   technicianRating?: number;
+
+  
+  isScheduled?: boolean;
+  scheduleDateTime?: string;
 };
 
 type BookingContextType = {
@@ -66,17 +70,41 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const getBookingById = (id: string) =>
     bookings.find(b => b._id === id) ?? null;
 
-  const ongoing = useMemo(
-    () => bookings.filter(b =>
-      b.status === "searching" || b.status === "assigned"
-    ),
-    [bookings]
-  );
+  // const ongoing = useMemo(
+  //   () => bookings.filter(b =>
+  //     b.status === "searching" || b.status === "assigned"
+  //   ),
+  //   [bookings]
+  // );
 
-  const upcoming = useMemo(
-    () => bookings.filter(b => b.status === "upcoming"),
-    [bookings]
-  );
+  // const upcoming = useMemo(
+  //   () => bookings.filter(b => b.status === "upcoming"),
+  //   [bookings]
+  // );
+
+  const now = new Date();
+
+const upcoming = useMemo(
+  () =>
+    bookings.filter(b =>
+      b.isScheduled &&
+      b.scheduleDateTime &&
+      new Date(b.scheduleDateTime) > now
+    ),
+  [bookings]
+);
+
+const ongoing = useMemo(
+  () =>
+    bookings.filter(b =>
+      !b.isScheduled ||
+      !b.scheduleDateTime ||
+      new Date(b.scheduleDateTime) <= now
+    ).filter(
+      b => b.status === "searching" || b.status === "assigned"
+    ),
+  [bookings]
+);
 
   const completed = useMemo(
     () => bookings.filter(b => b.status === "completed"),

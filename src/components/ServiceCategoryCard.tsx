@@ -19,7 +19,7 @@ interface ServiceCategoryCardProps {
   image?: ImageSourcePropType | null;
   icon?: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   amount?: string | number;
   onPress?: () => void;
   points?: string[];

@@ -20,7 +20,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServiceAPI } from "../api/service.api";
 import AppHeader from "../components/ui/AppHeader";
 import { AppTabsParamList } from "../navigation/AppStack";
+import CalendarModal from "../components/ui/CalendarModal";
 
+//schudule imports 
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { BOOKING_TYPE } from "../utils/enums/BookingType";
 type Nav = BottomTabNavigationProp<AppTabsParamList, "BookingTab">;
 
 interface Props {
@@ -38,12 +42,25 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     const styles = createStyles(theme);
     const tabNav = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
+    
     //   const { createBooking } = useBooking();
 
     const [category, setCategory] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [count, setCount] = useState(1);
 
+    // schudule state
+    const [isScheduled, setIsScheduled] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    // const [scheduleDateTime, setScheduleDateTime] = useState<Date | null>(null);
+    // const resetSchedule = () => {
+    //     setIsScheduled(false);
+    //     setSelectedDate(null);
+    //     setSelectedTime(null);
+    // };
     useEffect(() => {
         loadService();
     }, []);
@@ -74,10 +91,10 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             </View>
         );
     }
-
+    const domainService = category.domainServiceName;
     const serviceName = category.serviceCategoryName;
     const price = category.price;
-    const time = `${category.durationInMinutes} mins`;
+    const duration = `${category.durationInMinutes} mins`;
     const description = category.description;
 
     const parseDescription = (html?: string) => {
@@ -130,44 +147,67 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             Alert.alert("Please login to book a service");
             return;
         }
+        console.log("category", category);
+
+        if (isScheduled && (!selectedDate || !selectedTime)) {
+            Alert.alert("Select date & time", "Please choose when you want the service");
+            return;
+        }
+        let scheduleDateTime: Date | null = null;
+
+        if (isScheduled && selectedDate && selectedTime) {
+            scheduleDateTime = new Date(
+                selectedDate.getFullYear(),
+                selectedDate.getMonth(),
+                selectedDate.getDate(),
+                selectedTime.getHours(),
+                selectedTime.getMinutes()
+            );
+        }
 
         try {
-            // ✅ 1. GET LIVE GPS LOCATION
             const { latitude, longitude } = await getCurrentLocation();
 
-            // ✅ 2. SAVE LOCATION TO BACKEND USER
-            // await apiClient.post("/user/update-location", {
-            //   userId: user._id,
-            //   coordinates: [longitude, latitude], // lng, lat
-            // });
-
-            // ✅ 3. CALL AUTO-ASSIGN
-            const res = await apiClient.post("/booking/auto-assign", {
+            const payload: any = {
                 userId: user._id,
                 serviceCategoryName: serviceName,
-                domainService: category?.domainService ?? null,
+                domainService: domainService,
                 address: user.address ?? "Saved address",
-                coordinates: [78.73752232787717, 10.926784394142894],
+                coordinates: [longitude, latitude],
                 serviceCount: count,
-            });
+            };
+            console.log("payload", payload);
 
+            if (scheduleDateTime) {
+                payload.isScheduled = true;
+                payload.scheduleDateTime = scheduleDateTime;
+                payload.status = "SCHEDULED";
+                payload.assignmentStatus = "SCHEDULED";
+                payload.bookingType = BOOKING_TYPE.SCHEDULED;
+            }
 
-            const bookingId = res.data.bookingId;
-            console.log("----------Booking created with ID:", bookingId);
+            const res = await apiClient.post(
+                scheduleDateTime ? "/booking/schedule" : "/booking/auto-assign",
+                payload
+            );
 
-            tabNav.navigate("BookingTab", {
-                screen: "Searching",
-                params: { bookingId },
-            } as any);
+            if (scheduleDateTime) {
+                Alert.alert(
+                    "Booking Scheduled",
+                    `Your service is scheduled on ${scheduleDateTime.toLocaleString()}`
+                );
+                //resetSchedule();
+                tabNav.navigate("BookingTab", { screen: "MyBookings" } as any);
+            } else {
+                tabNav.navigate("BookingTab", {
+                    screen: "Searching",
+                    params: { bookingId: res.data.bookingId },
+                } as any);
+            }
 
         } catch (err: any) {
             console.error("Booking failed:", err?.response?.data || err);
-
-            Alert.alert(
-                "Booking failed",
-                err?.response?.data?.message ??
-                "Please enable location and try again"
-            );
+            Alert.alert("Booking failed", "Please try again");
         }
     };
 
@@ -176,72 +216,163 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-            {/* Scrollable Content */}
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <AppHeader showBack={true} />
+  <View style={[styles.container, { paddingTop: insets.top }]}>
 
-                <Image source={image} style={styles.image} />
+    {/* SCROLLABLE CONTENT */}
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <AppHeader showBack={true} />
 
-                <View style={styles.headerBox}>
-                    <AppText weight="bold" size="h2">{serviceName}</AppText>
+      <Image source={image} style={styles.image} />
 
-                    <View style={styles.priceBox}>
-                        <AppText weight="bold" size="h3">₹ {price}</AppText>
-                        <AppText color="textMuted">{time}</AppText>
-                    </View>
-                </View>
+      <View style={styles.headerBox}>
+        <AppText weight="bold" size="h2">{serviceName}</AppText>
 
-                <View style={styles.section}>
-                    <AppText weight="bold" size="h3">Description</AppText>
-
-                    <View style={{ marginTop: 8 }}>
-                        {parseDescription(description).map((line, idx) => (
-                            <View key={idx} style={styles.bulletRow}>
-                                <Ionicons
-                                    name="checkmark-circle"
-                                    size={18}
-                                    color={theme.colors.primary}
-                                />
-                                <AppText style={{ marginLeft: 8 }}>{line}</AppText>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-
-                <View style={styles.counterBox}>
-                    <AppText weight="bold">How many installations?</AppText>
-
-                    <View style={styles.counterRow}>
-                        <TouchableOpacity onPress={decrease} style={styles.counterBtn}>
-                            <Ionicons name="remove" size={22} />
-                        </TouchableOpacity>
-
-                        <View style={styles.countDisplay}>
-                            <AppText weight="bold" size="h3">{count}</AppText>
-                        </View>
-
-                        <TouchableOpacity onPress={increase} style={styles.counterBtn}>
-                            <Ionicons name="add" size={22} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <View style={{ height: 140 }} />
-            </ScrollView>
-
-            <View style={styles.bottomBox}>
-                <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: theme.colors.primary }]}
-                    onPress={handleBookNow}
-                >
-                    <AppText weight="bold" style={styles.primaryText}>
-                        Book Now – ₹{price * count}
-                    </AppText>
-                </TouchableOpacity>
-            </View>
+        <View style={styles.priceBox}>
+          <AppText weight="bold" size="h3">₹ {price}</AppText>
+          <AppText color="textMuted">{duration}</AppText>
         </View>
-    );
+      </View>
+
+      <View style={styles.section}>
+        <AppText weight="bold" size="h3">Description</AppText>
+        <View style={{ marginTop: 8 }}>
+          {parseDescription(description).map((line, idx) => (
+            <View key={idx} style={styles.bulletRow}>
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={theme.colors.primary}
+              />
+              <AppText style={{ marginLeft: 8 }}>{line}</AppText>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.counterBox}>
+        <AppText weight="bold">How many installations?</AppText>
+
+        <View style={styles.counterRow}>
+          <TouchableOpacity onPress={decrease} style={styles.counterBtn}>
+            <Ionicons name="remove" size={22} />
+          </TouchableOpacity>
+
+          <View style={styles.countDisplay}>
+            <AppText weight="bold" size="h3">{count}</AppText>
+          </View>
+
+          <TouchableOpacity onPress={increase} style={styles.counterBtn}>
+            <Ionicons name="add" size={22} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* MODE SELECTOR */}
+      <View style={styles.modeRow}>
+        <TouchableOpacity
+          style={[styles.modeBtn, !isScheduled && styles.modeBtnActive]}
+          onPress={() => {
+            setIsScheduled(false);
+            setSelectedDate(null);
+            setSelectedTime(null);
+          }}
+        >
+          <Ionicons
+            name="flash-outline"
+            size={18}
+            color={!isScheduled ? "#fff" : theme.colors.text}
+          />
+          <AppText style={{ marginLeft: 6, color: !isScheduled ? "#fff" : theme.colors.text }}>
+            Now
+          </AppText>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.modeBtn, isScheduled && styles.modeBtnActive]}
+          onPress={() => setIsScheduled(true)}
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={18}
+            color={isScheduled ? "#fff" : theme.colors.text}
+          />
+          <AppText style={{ marginLeft: 6, color: isScheduled ? "#fff" : theme.colors.text }}>
+            Schedule
+          </AppText>
+        </TouchableOpacity>
+      </View>
+
+      {isScheduled && (
+        <View style={styles.scheduleBox}>
+          <TouchableOpacity
+            style={styles.scheduleRow}
+            onPress={() => setShowCalendar(true)}
+          >
+            <Ionicons name="calendar-outline" size={18} />
+            <AppText style={{ marginLeft: 8 }}>
+              {selectedDate ? selectedDate.toDateString() : "Select date"}
+            </AppText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.scheduleRow}
+            onPress={() => setShowTimePicker(true)}
+          >
+            <Ionicons name="time-outline" size={18} />
+            <AppText style={{ marginLeft: 8 }}>
+              {selectedTime ? selectedTime.toLocaleTimeString() : "Select time"}
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Spacer so content doesn't hide behind bottom bar */}
+      <View style={{ height: 160 }} />
+    </ScrollView>
+
+    {/* FIXED BOTTOM BAR */}
+    <View style={styles.bottomBox}>
+      <TouchableOpacity
+        disabled={isScheduled && (!selectedDate || !selectedTime)}
+        style={[
+          styles.primaryBtn,
+          {
+            backgroundColor:
+              isScheduled && (!selectedDate || !selectedTime)
+                ? "#ccc"
+                : theme.colors.primary,
+          },
+        ]}
+        onPress={handleBookNow}
+      >
+        <AppText weight="bold" style={styles.primaryText}>
+          {isScheduled
+            ? "Schedule Booking"
+            : `Book Now – ₹${price * count}`}
+        </AppText>
+      </TouchableOpacity>
+    </View>
+
+    {/* MODALS */}
+    <CalendarModal
+      visible={showCalendar}
+      selectedDate={selectedDate}
+      onClose={() => setShowCalendar(false)}
+      onSelect={setSelectedDate}
+    />
+
+    {showTimePicker && (
+      <DateTimePicker
+        mode="time"
+        value={new Date()}
+        onChange={(e, time) => {
+          setShowTimePicker(false);
+          if (time) setSelectedTime(time);
+        }}
+      />
+    )}
+  </View>
+);
 };
 
 export default ServiceBookingScreen;
@@ -338,5 +469,47 @@ const createStyles = (theme: any) =>
         },
         secondaryBtn: {
             alignSelf: "center",
+        },
+        scheduleBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            alignSelf: "center",
+            padding: 10,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 10,
+            elevation: 2,
+            marginTop: 10,
+        },
+        modeRow: {
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: 12,
+            marginVertical: 16,
+        },
+
+        modeBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 20,
+            backgroundColor: "#eee",
+        },
+
+        modeBtnActive: {
+            backgroundColor: theme.colors.primary,
+        },
+
+        scheduleBox: {
+            marginTop: 10,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 14,
+            padding: 12,
+            gap: 10,
+        },
+
+        scheduleRow: {
+            flexDirection: "row",
+            alignItems: "center",
         },
     });

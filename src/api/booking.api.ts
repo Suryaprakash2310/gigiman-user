@@ -6,3 +6,6 @@ export const BookingAPI = {
     return res.data.bookings;
   },
 };
+
+
+
