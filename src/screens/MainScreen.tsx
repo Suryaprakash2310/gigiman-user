@@ -179,7 +179,7 @@ const HomeScreen: React.FC = () => {
               <View style={styles.heroIllustration}>
                 <View style={[styles.glassCircle, { top: -20, right: -20, width: 80, height: 80 }]} />
                 <View style={[styles.glassCircle, { bottom: -10, left: -10, width: 50, height: 50 }]} />
-                <FanInstall width={100} height={100} fill="rgba(255,255,255,0.2)" />
+                {/* <FanInstall width={100} height={100} fill="rgba(255,255,255,0.2)" /> */}
               </View>
             </View>
           </LinearGradient>
@@ -394,7 +394,18 @@ const RecentServiceCard: React.FC<{ service: RecentService; index: number }> = (
       <TouchableOpacity activeOpacity={0.8} style={{ marginRight: 16 }}>
         <View style={s.card}>
           <View style={s.iconContainer}>
-            <IconSvg width={48} height={48} fill="#fff" />
+            {/* <IconSvg width={48} height={48} fill="#fff" /> */}
+            <View style={[s.iconContainer, {
+              backgroundColor: 'linear-gradient(45deg, #6a11cb, #2575fc)',
+              borderRadius: 24,
+              justifyContent: 'center',
+              alignItems: 'center'
+            }]}>
+              <AppText weight="bold" style={{ color: '#fff', fontSize: 40 }}>
+                {service.name.charAt(0)}
+              </AppText>
+            </View>
+
           </View>
           <AppText weight="medium" style={s.serviceName} numberOfLines={2}>
             {service.name}
