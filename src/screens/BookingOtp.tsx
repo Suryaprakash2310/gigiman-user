@@ -227,7 +227,7 @@ return (
         {/* Technician Card */}
         <BookingDetailsCard
           name={booking.technicianName ?? "Assigned Technician"}
-          role={booking.serviceName}
+          role={booking.serviceCategoryName}
           experience="5 years exp"
           rating={booking.technicianRating ?? 4.9}
           reviews={845}
@@ -411,13 +411,13 @@ return (
             <View style={styles.summaryRow}>
               <AppText style={{ color: "#475569" }}>Service</AppText>
               <AppText style={{ color: "#475569" }}>
-                {booking.serviceName}
+                {booking.serviceCategoryName}
               </AppText>
             </View>
             <View style={styles.summaryRow}>
               <AppText style={{ color: "#475569" }}>Price</AppText>
               <AppText style={{ color: "#475569" }}>
-                ₹{booking.amount}
+                ₹{booking.totalPrice}
               </AppText>
             </View>
 

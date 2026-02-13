@@ -9,14 +9,14 @@ import React, {
 export type BookingStatus =
   | "searching"
   | "assigned"
- // | "upcoming"
+  | "scheduled"
   | "completed"
   | "cancelled";
 
 export type BookingItem = {
   _id: string;
-  serviceName: string;
-  amount: number;
+  serviceCategoryName: string;
+  amount?: number;
   dateLabel: string;
   timeLabel: string;
   address: string;
@@ -25,6 +25,7 @@ export type BookingItem = {
   technicianName?: string;
   technicianPhone?: string;
   technicianRating?: number;
+  totalPrice?: number;
 
   
   isScheduled?: boolean;
@@ -85,12 +86,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const now = new Date();
 
 const upcoming = useMemo(
-  () =>
-    bookings.filter(b =>
-      b.isScheduled &&
-      b.scheduleDateTime &&
-      new Date(b.scheduleDateTime) > now
-    ),
+  () => bookings.filter(b => b.status === "scheduled"),
   [bookings]
 );
 
@@ -105,6 +101,16 @@ const ongoing = useMemo(
     ),
   [bookings]
 );
+
+
+/* future use this  
+const ongoing = useMemo(
+  () =>
+    bookings.filter(
+      b => b.status === "searching" || b.status === "assigned"
+    ),
+  [bookings]
+);*/
 
   const completed = useMemo(
     () => bookings.filter(b => b.status === "completed"),

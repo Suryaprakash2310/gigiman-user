@@ -88,7 +88,7 @@ export default function BookingSearchScreen() {
 
     const onNoProvider = () => {
       Alert.alert("No technicians available");
-      navigation.goBack();
+      //navigation.goBack();
     };
 
     socket.on("servicer-accepted", onAccepted);
@@ -136,7 +136,7 @@ export default function BookingSearchScreen() {
       _id: bookingId,
       status: "assigned",
       otp,
-      serviceName: "",
+      serviceCategoryName: "arun",
       amount: 0,
       dateLabel: "",
       timeLabel: "",
