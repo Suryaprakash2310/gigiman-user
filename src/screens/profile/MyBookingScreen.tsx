@@ -1,7 +1,6 @@
-import { BookingAPI } from '@/src/api/booking.api';
-import AppHeader from '@/src/components/ui/AppHeader';
-import { useTheme } from '@/src/theme/useTheme';
-import React, { useEffect, useState } from 'react';
+// src/screens/MyBookingsScreen.tsx
+
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -9,88 +8,88 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  TouchableOpacity,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRoute } from "@react-navigation/native";
 
-const { width } = Dimensions.get('window');
+import { useBooking } from "@/src/context/BookingContext";
+import AppHeader from "@/src/components/ui/AppHeader";
+import { useTheme } from "@/src/theme/useTheme";
 
-/* ===============================
-   STATUS STYLE (DYNAMIC)
-================================ */
-const getStatusChipStyle = (status: string) => ({
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 20,
-  backgroundColor:
-    status === 'COMPLETED'
-      ? '#E6F7EC'
-      : status === 'CANCELLED'
-        ? '#FDECEA'
-        : '#FFF4E5',
-});
+const { width } = Dimensions.get("window");
 
 export default function MyBookingsScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const route = useRoute<any>();
+
+  const { ongoing, upcoming } = useBooking();
+
+  const [activeTab, setActiveTab] = useState<"ongoing" | "upcoming">(
+    route?.params?.tab || "ongoing"
+  );
 
   useEffect(() => {
-    loadBookings();
-  }, []);
-
-  const loadBookings = async () => {
-    try {
-      setLoading(true);
-      const data = await BookingAPI.getUserBookings();
-      setBookings(data || []);
-    } catch (err) {
-      console.error('Booking load error', err);
-    } finally {
-      setLoading(false);
+    if (route?.params?.tab) {
+      setActiveTab(route.params.tab);
     }
-  };
+  }, [route?.params?.tab]);
 
   const styles = makeStyles(theme, insets);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
+  const data = activeTab === "ongoing" ? ongoing : upcoming;
 
   return (
     <View style={styles.wrapper}>
       <AppHeader title="My Bookings" showBack showShadow />
 
+      {/* 🔵 TAB SWITCH */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "ongoing" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("ongoing")}
+        >
+          <Text style={styles.tabText}>Ongoing ({ongoing.length})</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "upcoming" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("upcoming")}
+        >
+          <Text style={styles.tabText}>Upcoming ({upcoming.length})</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 📦 LIST */}
       <FlatList
-        data={bookings}
+        data={data}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.content}
-        ListEmptyComponent={<Text style={styles.empty}>No bookings found</Text>}
+        ListEmptyComponent={
+          <Text style={styles.empty}>No bookings found</Text>
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.row}>
               <Text style={styles.service}>
-                {item.serviceCategoryName || 'Service'}
+                {item.serviceCategoryName}
               </Text>
-              <Text style={styles.amount}>₹{item.totalPrice}</Text>
+              <Text style={styles.amount}>
+                ₹{item.totalPrice || 0}
+              </Text>
             </View>
 
-            <Text style={styles.sub}>
-              Assigned: {item.primaryEmployee?.fullname || '—'}
-            </Text>
+            <Text style={styles.sub}>{item.address}</Text>
 
             <View style={styles.footer}>
-              <Text style={styles.date}>
-                {new Date(item.createdAt).toDateString()}
-              </Text>
-
-              <View style={getStatusChipStyle(item.status)}>
-                <Text style={styles.statusText}>{item.status}</Text>
-              </View>
+              <Text style={styles.status}>{item.status}</Text>
             </View>
           </View>
         )}
@@ -99,9 +98,6 @@ export default function MyBookingsScreen() {
   );
 }
 
-/* ===============================
-   STATIC STYLES
-================================ */
 const makeStyles = (theme: any, insets: any) =>
   StyleSheet.create({
     wrapper: {
@@ -109,41 +105,54 @@ const makeStyles = (theme: any, insets: any) =>
       backgroundColor: theme.colors.background,
       paddingTop: insets.top,
     },
-    center: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+    tabContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginVertical: 12,
+    },
+    tabButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 20,
+      borderRadius: 20,
+      marginHorizontal: 6,
+      backgroundColor: theme.colors.surface,
+    },
+    activeTab: {
+      backgroundColor: theme.colors.primary,
+    },
+    tabText: {
+      color: theme.colors.text,
+      fontWeight: "600",
     },
     content: {
       paddingHorizontal: Math.min(20, width * 0.06),
-      paddingTop: insets.top + 12,
       paddingBottom: 28,
     },
     empty: {
-      textAlign: 'center',
+      textAlign: "center",
       marginTop: 40,
       color: theme.colors.textMuted,
     },
     card: {
       backgroundColor: theme.colors.surface,
       borderRadius: 14,
-      padding: theme.spacing?.md || 14,
+      padding: 14,
       marginBottom: 12,
       elevation: 2,
     },
     row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      justifyContent: "space-between",
     },
     service: {
       fontSize: 15,
-      fontWeight: '700',
+      fontWeight: "700",
       color: theme.colors.text,
     },
     amount: {
       fontSize: 15,
-      fontWeight: '700',
-      color: theme.colors.success || '#2e7d32',
+      fontWeight: "700",
+      color: theme.colors.success || "#2e7d32",
     },
     sub: {
       fontSize: 13,
@@ -152,17 +161,12 @@ const makeStyles = (theme: any, insets: any) =>
     },
     footer: {
       marginTop: 10,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
     },
-    date: {
+    status: {
       fontSize: 12,
-      color: theme.colors.textMuted,
-    },
-    statusText: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: theme.colors.text,
+      fontWeight: "600",
+      color: theme.colors.primary,
     },
   });

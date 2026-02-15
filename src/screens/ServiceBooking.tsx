@@ -94,7 +94,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       </View>
     );
   }
-  const domainService = category.domainServiceName;
+  const domainService = category.domainService;
   const serviceName = category.serviceCategoryName;
   const price = category.price;
   const duration = `${category.durationInMinutes} mins`;
@@ -176,7 +176,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         serviceCategoryName: serviceName,
         domainService: domainService,
         address: user.address ?? "Saved address",
-        coordinates: [79.5321, 10.9393],//need to change in production with [longitude, latitude]
+        coordinates: [longitude, latitude],//need to change in production with [longitude, latitude]
         serviceCount: count,
       };
       console.log("payload", payload);
@@ -184,8 +184,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       if (scheduleDateTime) {
         payload.isScheduled = true;
         payload.scheduleDateTime = scheduleDateTime;
-        payload.status = "SCHEDULED";
-        payload.assignmentStatus = "SCHEDULED";
+        // payload.status = "SCHEDULED";
+        // payload.assignmentStatus = "SCHEDULED";
         payload.bookingType = BOOKING_TYPE.SCHEDULED;
       }
 
@@ -194,33 +194,42 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         payload
       );
 
+      const booking = res.data?.booking ?? res.data;
+      const bookingId = booking?._id ?? res.data.bookingId;
+
       if (scheduleDateTime) {
-        Alert.alert(
-          "Booking Scheduled",
-          `Your service is scheduled on ${scheduleDateTime.toLocaleString()}`
-        );
-        //resetSchedule();
-        const booking = res.data?.booking ?? res.data;
-        const dateLabel = scheduleDateTime.toDateString();
-        const timeLabel = scheduleDateTime.toLocaleTimeString();
-        const address = payload.address;
-        const mapped = mapBookingToBookingItem({
-          _id: booking?._id,
-          serviceName: booking?.serviceCategoryName ?? serviceName,
-          amount: booking?.totalPrice ?? price * count,
-          dateLabel,
-          timeLabel,
-          address,
-          status: booking?.status ?? "scheduled",
+
+        const bookingId = res.data.bookingId;
+
+        upsertBooking({
+          _id: bookingId,
+          serviceCategoryName: serviceName,
+          address: payload.address,
+          totalPrice: price * count,
+          status: "scheduled",
           isScheduled: true,
-          scheduledAt: booking?.scheduledAt ?? scheduleDateTime.toISOString(),
+          scheduleDateTime: scheduleDateTime.toISOString(),
         });
-        upsertBooking(mapped);
-        tabNav.navigate("BookingTab", { screen: "MyBookings" } as any);
+
+        tabNav.navigate("BookingTab", {
+          screen: "BookingsMain",
+          params: { tab: "upcoming" }
+        } as any);
+
       } else {
+
+        upsertBooking({
+          _id: bookingId,
+          serviceCategoryName: serviceName,
+          address: payload.address,
+          status: "searching",
+          totalPrice: price * count,
+          isScheduled: false,
+        });
+
         tabNav.navigate("BookingTab", {
           screen: "Searching",
-          params: { bookingId: res.data.bookingId },
+          params: { bookingId },
         } as any);
       }
 

@@ -1,33 +1,56 @@
-// utils/mapBooking.ts
-import { BookingItem } from "@/src/context/BookingContext";
+import { BookingItem, BookingStatus } from "@/src/context/BookingContext";
 
-export function mapBookingToBookingItem(booking: any, otp?: number): BookingItem {
+function normalizeStatus(booking: any): BookingStatus {
+  const backendStatus = booking.status?.toLowerCase();
+
+  switch (backendStatus) {
+    case "pending":
+      // Provider accepted → OTP stage
+      return "otp";
+
+    case "in_progress":
+      return "in_progress";
+
+    case "completed":
+      return "completed";
+
+    case "cancelled":
+    case "cancalled":
+      return "cancelled";
+
+    default:
+      // Before acceptance
+      return "searching";
+  }
+}
+
+export function mapBookingToBookingItem(
+  booking: any,
+  otp?: number
+): BookingItem {
   if (!booking || !booking._id) {
     throw new Error("Invalid booking object received in mapper");
   }
 
-  return { 
-    
+  const normalizedStatus = normalizeStatus(booking);
+
+  return {
     _id: booking._id,
+    serviceCategoryName: booking.serviceCategoryName,
+    totalPrice: booking.totalPrice,
+    address: booking.address,
 
-  serviceName: booking.serviceCategoryName,
-  amount: booking.totalPrice,
+    status: normalizedStatus,
 
-  dateLabel: booking.scheduleDateTime
-    ? new Date(booking.scheduleDateTime).toLocaleDateString()
-    : "",
+    isScheduled: booking.bookingType === "scheduled" || booking.isScheduled,
+    otp: otp ?? booking.StartWorkOTP,
+    scheduleDateTime:
+      booking.scheduleDateTime ||
+      booking.scheduledAt ||
+      null,
 
-  timeLabel: booking.scheduleDateTime
-    ? new Date(booking.scheduleDateTime).toLocaleTimeString()
-    : "",
-
-  address: booking.address,
-
-  status: booking.status,
-
-  otp: otp ?? booking.StartWorkOTP,
-
-  technicianName: booking.primaryEmployee?.fullname,
-  technicianPhone: booking.primaryEmployee?.phoneNo,
-  technicianRating: booking.primaryEmployee?.rating,
-};}
+    technicianName: booking.primaryEmployee?.fullname,
+    technicianPhone: booking.primaryEmployee?.phoneNo,
+    technicianRating: booking.primaryEmployee?.rating,
+  };
+}

@@ -14,27 +14,10 @@ export default function BookingSearchScreen() {
   const route = useRoute<Route>();
   const navigation = useNavigation<any>();
   const { bookingId } = route.params;
-  const { upsertBooking } = useBooking();
+  const { upsertBooking, bookings } = useBooking();
 
   const progress = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!bookingId) return;
 
-    socket.connect();
-
-    socket.on("connect", () => {
-      console.log("🟢 USER SOCKET CONNECTED:", socket.id);
-
-      // 🔑 REGISTER USER HERE
-      // socket.emit("register-user", {
-      //   userId: route.params.userId, // or from auth context
-      // });
-    });
-
-    return () => {
-      socket.off("connect");
-    };
-  }, []);
 
 
 
@@ -57,45 +40,42 @@ export default function BookingSearchScreen() {
     fetchBooking();
   }, [bookingId]);
 
+
+useEffect(() => {
+  const booking = bookings.find(b => b._id === bookingId);
+  if (!booking) return;
+
+  if (booking.status === "otp") {
+    navigation.replace("BookingDetails", { bookingId });
+  }
+
+}, [bookings]);
+
   /* 🔌 SOCKET */
   useEffect(() => {
-    const onAccepted = ({ booking, otp }: any) => {
-      const mapped = mapBookingToBookingItem(booking, otp);
-      //     upsertBooking({
-      //   _id: booking._id,
-      //   serviceName: booking.serviceCategoryName,
-      //   amount: booking.totalPrice,
-      //   dateLabel: "",
-      //   timeLabel: "",
-      //   address: booking.address,
-      //   status: booking.status,
-      //   otp, // ✅ THIS IS NOW REAL
-      //   technicianName: booking.primaryEmployee?.fullname,
-      //   technicianPhone: booking.primaryEmployee?.phoneno,
-      //   technicianRating: booking.primaryEmployee?.rating,
-      // });
+    // const onAccepted = ({ booking, otp }: any) => {
+    //   const mapped = mapBookingToBookingItem(booking, otp);
 
-      console.log("📦 ----Booking stored in context:", booking, otp);
-      upsertBooking(mapped);
-      //const mapped = mapBookingToBookingItem(booking);
-      //console.log("🟢 ---------mapped Booking accepted:", mapped);
-      //upsertBooking(mapped);
-      //socket.on("servicer-accepted", onAccepted);
-      navigation.replace("BookingDetails", {
-        bookingId: booking._id,
-      });
-    };
+
+    //   console.log("📦 ----Booking stored in context:", booking, otp);
+    //   upsertBooking(mapped);
+
+    //   //socket.on("servicer-accepted", onAccepted);
+    //   navigation.replace("BookingDetails", {
+    //     bookingId: booking._id,
+    //   });
+    // };
 
     const onNoProvider = () => {
       Alert.alert("No technicians available");
       //navigation.goBack();
     };
 
-    socket.on("servicer-accepted", onAccepted);
+    //socket.on("servicer-accepted", onAccepted);
     socket.on("no-servicer-available", onNoProvider);
 
     return () => {
-      socket.off("servicer-accepted", onAccepted);
+      //socket.off("servicer-accepted", onAccepted);
       socket.off("no-servicer-available", onNoProvider);
     };
   }, []);
@@ -126,33 +106,26 @@ export default function BookingSearchScreen() {
   //   };
   // }, []);
 
- useEffect(() => {
-  const onOtpGenerated = ({ bookingId, otp }: any) => {
-    console.log("🟢 OTP RECEIVED FOR USER:", bookingId, otp);
+  useEffect(() => {
+    const onOtpGenerated = ({ bookingId, otp }: any) => {
+      console.log("🟢 OTP RECEIVED:", bookingId, otp);
 
-    
+      upsertBooking({
+        _id: bookingId,
+        serviceCategoryName: "",
+        address: "",
+        status: "otp",
+      });
 
-    upsertBooking({
-      _id: bookingId,
-      status: "assigned",
-      otp,
-      serviceCategoryName: "arun",
-      amount: 0,
-      dateLabel: "",
-      timeLabel: "",
-      address: ""
-    });
+      navigation.replace("BookingDetails", { bookingId });
+    };
 
-    navigation.replace("BookingDetails", { bookingId });
-  };
+    socket.on("otp-generated", onOtpGenerated);
 
-  socket.on("otp-generated", onOtpGenerated);
-
-  return () => {
-    socket.off("otp-generated", onOtpGenerated);
-  };
-}, []);
-
+    return () => {
+      socket.off("otp-generated", onOtpGenerated);
+    };
+  }, []);
 
 
 

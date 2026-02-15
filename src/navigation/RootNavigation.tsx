@@ -1,16 +1,18 @@
 // src/navigation/RootNavigator.tsx
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '../hook/useAuth';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
+import GlobalBookingListener from '../socket/GlobalBookingListener';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
+  const navigationRef = useNavigationContainerRef();
   const { user, isLoading } = useAuth();
 
   // 🔄 Splash / restore
@@ -39,7 +41,8 @@ export default function RootNavigator() {
   const isProfileCompleted = user?.isVerified === true;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
+      <GlobalBookingListener />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isProfileCompleted ? (
           <Stack.Screen name="AppStack" component={AppStack} />
@@ -47,6 +50,7 @@ export default function RootNavigator() {
           <Stack.Screen name="AuthStack" component={AuthStack} />
         )}
       </Stack.Navigator>
+      
     </NavigationContainer>
   );
 }

@@ -4,118 +4,156 @@ import React, {
   useState,
   useMemo,
   ReactNode,
+  useEffect,
 } from "react";
+import { socket } from "@/src/socket/socket";
+import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
+import { useNavigationContainerRef } from "@react-navigation/native";
+
+/* ============================= */
+/*          STATUS TYPE          */
+/* ============================= */
 
 export type BookingStatus =
-  | "searching"
-  | "assigned"
   | "scheduled"
+  | "searching"
+  | "otp"
+  | "in_progress"
   | "completed"
-  | "cancelled";
-
+  | "cancelled"
+  | "assigned";
+/* ============================= */
+/*          BOOKING TYPE         */
+/* ============================= */
 export type BookingItem = {
   _id: string;
   serviceCategoryName: string;
-  amount?: number;
-  dateLabel: string;
-  timeLabel: string;
   address: string;
   status: BookingStatus;
-  otp?: string;
+  totalPrice?: number;
+  isScheduled?: boolean;
+  scheduleDateTime?: string;
   technicianName?: string;
   technicianPhone?: string;
   technicianRating?: number;
-  totalPrice?: number;
-
-  
-  isScheduled?: boolean;
-  scheduleDateTime?: string;
+  otp?: string;
+  dateLabel?: string;  // Add if needed for the booking screen
+  timeLabel?: string;
 };
+
+/* ============================= */
+/*        CONTEXT TYPE           */
+/* ============================= */
 
 type BookingContextType = {
   bookings: BookingItem[];
   ongoing: BookingItem[];
   upcoming: BookingItem[];
-  completed: BookingItem[];
+
   upsertBooking: (booking: BookingItem) => void;
+  updateStatus: (id: string, status: BookingStatus) => void;
   cancelBooking: (id: string) => void;
   getBookingById: (id: string) => BookingItem | null;
+
+  getLatestActiveBooking: () => BookingItem | null;
+  activeBookings: BookingItem[];
 };
 
 const BookingContext = createContext<BookingContextType | null>(null);
 
+/* ============================= */
+/*        PROVIDER               */
+/* ============================= */
+
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  useEffect(() => {
+    const onServicerAccepted = ({ booking, otp }: any) => {
+      console.log("🔥 SERVICER ACCEPTED (GLOBAL):", booking._id);
 
-  /** ✅ SINGLE SOURCE OF TRUTH */
+      const mapped = mapBookingToBookingItem(booking, otp);
+      upsertBooking(mapped);
+    };
+
+    socket.on("servicer-accepted", onServicerAccepted);
+
+    return () => {
+      socket.off("servicer-accepted", onServicerAccepted);
+    };
+  }, []);
+
+  /* ----------------------------- */
+  /* SINGLE SOURCE OF TRUTH        */
+  /* ----------------------------- */
+
   const upsertBooking = (booking: BookingItem) => {
     setBookings(prev => {
       const exists = prev.find(b => b._id === booking._id);
       if (exists) {
         return prev.map(b =>
-          b._id === booking._id ? booking : b
+          b._id === booking._id ? { ...b, ...booking } : b
         );
       }
       return [booking, ...prev];
     });
   };
 
-  const cancelBooking = (id: string) => {
+  const updateStatus = (id: string, status: BookingStatus) => {
     setBookings(prev =>
       prev.map(b =>
-        b._id === id ? { ...b, status: "cancelled" } : b
+        b._id === id ? { ...b, status } : b
       )
     );
+  };
+
+  const cancelBooking = (id: string) => {
+    updateStatus(id, "cancelled");
   };
 
   const getBookingById = (id: string) =>
     bookings.find(b => b._id === id) ?? null;
 
-  // const ongoing = useMemo(
-  //   () => bookings.filter(b =>
-  //     b.status === "searching" || b.status === "assigned"
-  //   ),
-  //   [bookings]
-  // );
+  /* ============================= */
+  /*            FILTERS            */
+  /* ============================= */
 
-  // const upcoming = useMemo(
-  //   () => bookings.filter(b => b.status === "upcoming"),
-  //   [bookings]
-  // );
-
-  const now = new Date();
-
-const upcoming = useMemo(
-  () => bookings.filter(b => b.status === "scheduled"),
-  [bookings]
-);
-
-const ongoing = useMemo(
-  () =>
-    bookings.filter(b =>
-      !b.isScheduled ||
-      !b.scheduleDateTime ||
-      new Date(b.scheduleDateTime) <= now
-    ).filter(
-      b => b.status === "searching" || b.status === "assigned"
-    ),
-  [bookings]
-);
-
-
-/* future use this  
-const ongoing = useMemo(
-  () =>
-    bookings.filter(
-      b => b.status === "searching" || b.status === "assigned"
-    ),
-  [bookings]
-);*/
-
-  const completed = useMemo(
-    () => bookings.filter(b => b.status === "completed"),
+  const upcoming = useMemo(
+    () =>
+      bookings.filter(
+        b =>
+          b.isScheduled &&
+          b.status === "scheduled" &&
+          b.scheduleDateTime &&
+          new Date(b.scheduleDateTime) > new Date()
+      ),
     [bookings]
   );
+
+  const ongoing = useMemo(
+    () =>
+      bookings.filter(
+        b =>
+          ["searching", "otp", "in_progress"].includes(b.status)
+      ),
+    [bookings]
+  );
+
+  const activeBookings = useMemo(
+    () =>
+      bookings.filter(
+        b =>
+          ["searching", "otp", "in_progress"].includes(b.status)
+      ),
+    [bookings]
+  );
+  /* ============================= */
+  /*     LATEST ACTIVE BOOKING     */
+  /* ============================= */
+
+  const getLatestActiveBooking = () => {
+    if (activeBookings.length === 0) return null;
+    return activeBookings[0];
+  };
 
   return (
     <BookingContext.Provider
@@ -123,16 +161,22 @@ const ongoing = useMemo(
         bookings,
         ongoing,
         upcoming,
-        completed,
         upsertBooking,
+        updateStatus,
         cancelBooking,
         getBookingById,
+        getLatestActiveBooking,
+        activeBookings,
       }}
     >
       {children}
     </BookingContext.Provider>
   );
 }
+
+/* ============================= */
+/*           HOOK                */
+/* ============================= */
 
 export function useBooking() {
   const ctx = useContext(BookingContext);

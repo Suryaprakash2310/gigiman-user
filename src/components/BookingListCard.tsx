@@ -1,0 +1,139 @@
+import React from "react";
+import { TouchableOpacity, View, StyleSheet } from "react-native";
+import AppCard from "@/src/components/ui/AppCard";
+import AppText from "@/src/components/ui/AppText";
+import { BookingItem } from "@/src/context/BookingContext";
+import { useTheme } from "@/src/theme/useTheme";
+
+interface Props {
+  booking: BookingItem;
+  onPress: () => void;
+}
+
+export default function BookingListCard({ booking, onPress }: Props) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
+  const getStatusConfig = () => {
+    switch (booking.status) {
+      case "searching":
+        return {
+          label: "Searching technician…",
+          bg: "#FEF3C7",
+          color: "#B45309",
+        };
+
+      case "otp":
+        return {
+          label: "Technician arrived",
+          bg: "#DBEAFE",
+          color: "#1D4ED8",
+        };
+
+      case "in_progress":
+        return {
+          label: "Service in progress",
+          bg: "#DCFCE7",
+          color: "#166534",
+        };
+
+      case "scheduled":
+        return {
+          label: "Scheduled",
+          bg: "#E0E7FF",
+          color: "#3730A3",
+        };
+
+      default:
+        return null;
+    }
+  };
+
+  const statusConfig = getStatusConfig();
+
+  if (!statusConfig) return null; // safety
+
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
+      <AppCard style={styles.card}>
+        <View style={styles.rowTop}>
+          <AppText weight="bold">
+            {booking.serviceCategoryName}
+          </AppText>
+
+          {booking.totalPrice && (
+            <AppText
+              weight="bold"
+              style={{ color: theme.colors.primary }}
+            >
+              ₹{booking.totalPrice}
+            </AppText>
+          )}
+        </View>
+
+        <View style={styles.rowMid}>
+          <AppText size="small" color="textMuted">
+            {booking.scheduleDateTime
+              ? new Date(booking.scheduleDateTime).toLocaleString()
+              : ""}
+          </AppText>
+
+          <AppText size="small" color="textMuted">
+            {booking.address}
+          </AppText>
+        </View>
+
+        <View style={styles.rowBottom}>
+          <View
+            style={[
+              styles.pill,
+              { backgroundColor: statusConfig.bg },
+            ]}
+          >
+            <AppText
+              size="small"
+              weight="semibold"
+              style={{ color: statusConfig.color }}
+            >
+              {statusConfig.label}
+            </AppText>
+          </View>
+
+          {booking.status === "in_progress" &&
+            booking.technicianName && (
+              <AppText size="small" color="textMuted">
+                With {booking.technicianName}
+              </AppText>
+            )}
+        </View>
+      </AppCard>
+    </TouchableOpacity>
+  );
+}
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    card: {
+      padding: 14,
+      marginBottom: 12,
+      borderRadius: 16,
+    },
+    rowTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    rowMid: {
+      marginBottom: 8,
+    },
+    rowBottom: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    pill: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+  });

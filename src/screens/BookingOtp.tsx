@@ -90,26 +90,26 @@ export default function BookingOtp() {
   
 
 
-useEffect(() => {
-  const onBookingCompleted = ({ bookingId: completedId }: any) => {
-    if (completedId !== bookingId) return;
+// useEffect(() => {
+//   const onBookingCompleted = ({ bookingId: completedId }: any) => {
+//     if (completedId !== bookingId) return;
 
-    console.log("✅ Booking completed, redirecting to review");
+//     console.log("✅ Booking completed, redirecting to review");
 
-    navigation.replace("Review", 
-      {
-      bookingId: completedId,
-    }
-    );
-  };
+//     navigation.replace("Review", 
+//       {
+//       bookingId: completedId,
+//     }
+//     );
+//   };
   
 
-  socket.on("booking-completed", onBookingCompleted);
+//   socket.on("booking-completed", onBookingCompleted);
 
-  return () => {
-    socket.off("booking-completed", onBookingCompleted);
-  };
-}, [bookingId]);
+//   return () => {
+//     socket.off("booking-completed", onBookingCompleted);
+//   };
+// }, [bookingId]);
 
 
 
