@@ -81,6 +81,8 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(
   }
 );
 
+AppBottomSheet.displayName = 'AppBottomSheet';
+
 export default AppBottomSheet;
 
 const styles = StyleSheet.create({

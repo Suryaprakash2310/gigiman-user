@@ -45,6 +45,7 @@ const PhoneNumScreen: React.FC = () => {
       setError(null);
       const res = await sendOtpApi(phone);
       console.log("otp::", res.data.otp);
+      alert(`OTP sent: ${res.data.otp}`); // For testing, remove in production
       navigation.navigate("OtpScreen", { phone });
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to send OTP");

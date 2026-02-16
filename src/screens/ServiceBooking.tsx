@@ -1,185 +1,165 @@
-import apiClient from "@/src/api/client";
-import AppLoader from "@/src/components/ui/AppLoader";
-import AppText from "@/src/components/ui/AppText";
-import { useAuthContext } from "@/src/context/AuthContext";
-import { useTheme } from "@/src/theme/useTheme";
-import { getCurrentLocation } from "@/src/utils/location";
-import { Ionicons } from "@expo/vector-icons";
-import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { useNavigation } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  Image,
+  View,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+  SafeAreaView,
+  Platform,
+  Alert,
+  Image,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ServiceAPI } from "../api/service.api";
-import AppHeader from "../components/ui/AppHeader";
-import { AppTabsParamList } from "../navigation/AppStack";
-import CalendarModal from "../components/ui/CalendarModal";
+import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
-//schudule imports 
+import apiClient from '@/src/api/client';
+import AppLoader from '@/src/components/ui/AppLoader';
+import AppText from '@/src/components/ui/AppText';
+import AppButton from '@/src/components/ui/AppButton';
+import AppHeader from '@/src/components/ui/AppHeader';
+import CalendarModal from '@/src/components/ui/CalendarModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { BOOKING_TYPE } from "../utils/enums/BookingType";
-import { useBooking } from "../context/BookingContext";
-import { mapBookingToBookingItem } from "../utils/mapBooking";
-type Nav = BottomTabNavigationProp<AppTabsParamList, "BookingTab">;
+
+import { useAuthContext } from '@/src/context/AuthContext';
+import { useTheme } from '@/src/theme/useTheme';
+import { useBooking } from '@/src/context/BookingContext';
+import { ServiceAPI } from '@/src/api/service.api';
+import { getCurrentLocation } from '@/src/utils/location';
+import { BOOKING_TYPE } from '@/src/utils/enums/BookingType';
+
+import ServiceHeader from '@/src/components/booking/ServiceHeader';
+import QuantitySelector from '@/src/components/booking/QuantitySelector';
+import BookingModeSelector from '@/src/components/booking/BookingModeSelector';
+import ScheduleSelector from '@/src/components/booking/ScheduleSelector';
+import ServiceDescription from '@/src/components/booking/ServiceDescription';
+import { AppTabsParamList } from '@/src/navigation/AppStack';
+
+type Nav = BottomTabNavigationProp<AppTabsParamList, 'BookingTab'>;
 
 interface Props {
   route: {
     params: {
       serviceCategoryId: string;
+      serviceData?: any;
     };
   };
 }
 
+interface ServiceCategory {
+  _id: string;
+  serviceCategoryName: string;
+  price: number;
+  durationInMinutes: number;
+  servicecategoryImage?: string;
+  description?: string;
+  domainService?: string;
+}
+
+const { width } = Dimensions.get('window');
+
 const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
-  const { serviceCategoryId } = route.params;
+  const { serviceCategoryId, serviceData } = route.params;
   const { user } = useAuthContext();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const tabNav = useNavigation<Nav>();
+  const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { upsertBooking } = useBooking();
 
-  //   const { createBooking } = useBooking();
-
-  const [category, setCategory] = useState<any>(null);
+  // State management
+  const [category, setCategory] = useState<ServiceCategory | null>(null);
   const [loading, setLoading] = useState(true);
-  const [count, setCount] = useState(1);
-
-  // schudule state
-  const [isScheduled, setIsScheduled] = useState(false);
+  const [booking, setBooking] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [bookingMode, setBookingMode] = useState<'now' | 'schedule'>('now');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  // const [scheduleDateTime, setScheduleDateTime] = useState<Date | null>(null);
-  // const resetSchedule = () => {
-  //     setIsScheduled(false);
-  //     setSelectedDate(null);
-  //     setSelectedTime(null);
-  // };
+
+  // Load service on mount
   useEffect(() => {
     loadService();
-  }, []);
+  }, [serviceCategoryId]);
 
-  const loadService = async () => {
+  const loadService = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await ServiceAPI.getServiceCategoryByIdAPI(serviceCategoryId);
       setCategory(res.serviceCategory);
     } catch (err) {
-      console.error("Load service error", err);
+      console.error('Load service error:', err);
+      if (serviceData) {
+        const formattedCategory: ServiceCategory = {
+          _id: serviceData._id,
+          serviceCategoryName: serviceData.serviceCategoryName || serviceData.name,
+          price: serviceData.price || 0,
+          durationInMinutes: serviceData.durationInMinutes || 60,
+          description: serviceData.description,
+          servicecategoryImage: serviceData.servicecategroyImage || serviceData.serviceImage,
+          domainService: serviceData.domainService,
+        };
+        setCategory(formattedCategory);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [serviceCategoryId, serviceData]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1 }}>
-        <AppLoader visible={true} text={"Loading service details..."} />
-      </View>
-    );
-  }
+  const handleQuantityIncrease = useCallback(() => {
+    setQuantity((prev) => Math.min(prev + 1, 10));
+  }, []);
 
-  if (!category) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <AppText color="danger">Service not found</AppText>
-      </View>
-    );
-  }
-  const domainService = category.domainService;
-  const serviceName = category.serviceCategoryName;
-  const price = category.price;
-  const duration = `${category.durationInMinutes} mins`;
-  const description = category.description;
+  const handleQuantityDecrease = useCallback(() => {
+    setQuantity((prev) => Math.max(prev - 1, 1));
+  }, []);
 
-  const parseDescription = (html?: string) => {
-    if (!html) return [] as string[];
-    // Convert paragraph and <br> tags to newlines
-    let text = html.replace(/<\/p>\s*<p>/gi, '\n');
-    text = text.replace(/<br\s*\/?>/gi, '\n');
-    // Remove remaining tags
-    text = text.replace(/<[^>]+>/g, '');
-    // Decode common HTML entities
-    text = text
-      .replace(/&amp;/g, '&')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
-    // Split into non-empty trimmed lines
-    return text
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  };
-
-  const image = category.servicecategoryImage
-    ? { uri: category.servicecategoryImage }
-    : require("../../assets/images/SampleService.png");
-
-  const increase = () => setCount((p) => p + 1);
-  const decrease = () => setCount((p) => (p > 1 ? p - 1 : 1));
-
-  //   const handleBookNow = () => {
-  //     const booking = createBooking({
-  //       serviceName,
-  //       amount: price * count,
-  //       dateLabel: "Today",
-  //       timeLabel: time,
-  //       address: "Default saved address",
-  //     });
-
-  //     tabNav.navigate("BookingTab", {
-  //       screen: "Searching",
-  //       params: { bookingId: booking.id },
-  //     } as any);
-  //   };
-
-
-  const handleBookNow = async () => {
+  const handleBookNow = useCallback(async () => {
     if (!user?._id) {
-      Alert.alert("Please login to book a service");
+      Alert.alert('Login Required', 'Please login to book a service');
       return;
     }
-    console.log("category", category);
 
-    if (isScheduled && (!selectedDate || !selectedTime)) {
-      Alert.alert("Select date & time", "Please choose when you want the service");
+    if (!category) {
+      Alert.alert('Service Error', 'Service details not found');
       return;
     }
-    let scheduleDateTime: Date | null = null;
 
-    if (isScheduled && selectedDate && selectedTime) {
-      scheduleDateTime = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        selectedTime.getHours(),
-        selectedTime.getMinutes()
+    if (bookingMode === 'schedule' && (!selectedDate || !selectedTime)) {
+      Alert.alert(
+        'Schedule Required',
+        'Please select both date and time for scheduled booking'
       );
+      return;
     }
 
     try {
-      const { latitude, longitude } = await getCurrentLocation();
+      setBooking(true);
+
+      const location = await getCurrentLocation();
+      const scheduleDateTime =
+        bookingMode === 'schedule'
+          ? new Date(
+            selectedDate!.getFullYear(),
+            selectedDate!.getMonth(),
+            selectedDate!.getDate(),
+            selectedTime!.getHours(),
+            selectedTime!.getMinutes()
+          )
+          : null;
 
       const payload: any = {
         userId: user._id,
-        serviceCategoryName: serviceName,
-        domainService: domainService,
-        address: user.address ?? "Saved address",
-        coordinates: [longitude, latitude],//need to change in production with [longitude, latitude]
-        serviceCount: count,
+        serviceCategoryName: category.serviceCategoryName,
+        domainService: category.domainService,
+        address: user.address ?? 'Saved address',
+        coordinates: [location.longitude, location.latitude],
+        serviceCount: quantity,
       };
-      console.log("payload", payload);
 
       if (scheduleDateTime) {
         payload.isScheduled = true;
@@ -190,198 +170,207 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       }
 
       const res = await apiClient.post(
-        scheduleDateTime ? "/booking/schedule" : "/booking/auto-assign",
+        scheduleDateTime ? '/booking/schedule' : '/booking/auto-assign',
         payload
       );
 
-      const booking = res.data?.booking ?? res.data;
-      const bookingId = booking?._id ?? res.data.bookingId;
+      const booking = res.data?.booking ?? null;
+      const bookingId =
+        booking?._id ?? res.data?.bookingId ?? null;
+
+      if (!bookingId) {
+        throw new Error("Booking ID not returned from server");
+      }
 
       if (scheduleDateTime) {
-
-        const bookingId = res.data.bookingId;
-
         upsertBooking({
           _id: bookingId,
-          serviceCategoryName: serviceName,
+          serviceCategoryName: category.serviceCategoryName,
           address: payload.address,
-          totalPrice: price * count,
+          totalPrice: category.price * quantity,
           status: "scheduled",
           isScheduled: true,
           scheduleDateTime: scheduleDateTime.toISOString(),
         });
 
-        tabNav.navigate("BookingTab", {
+        navigation.navigate("BookingTab", {
           screen: "BookingsMain",
-          params: { tab: "upcoming" }
         } as any);
-
       } else {
-
         upsertBooking({
           _id: bookingId,
-          serviceCategoryName: serviceName,
+          serviceCategoryName: category.serviceCategoryName,
           address: payload.address,
-          status: "searching",
-          totalPrice: price * count,
+          status: 'searching',
+          totalPrice: category.price * quantity,
           isScheduled: false,
         });
 
-        tabNav.navigate("BookingTab", {
-          screen: "Searching",
-          params: { bookingId },
+        navigation.navigate('BookingTab', {
+          screen: 'Searching',
+          params: { bookingId},
         } as any);
       }
-
     } catch (err: any) {
-      console.error("Booking failed:", err?.response?.data || err);
-      Alert.alert("Booking failed", "Please try again");
+      console.error('Booking error:', err);
+      Alert.alert(
+        'Booking Failed',
+        err?.response?.data?.message || 'Please try again'
+      );
+    } finally {
+      setBooking(false);
     }
-  };
+  }, [user, category, bookingMode, selectedDate, selectedTime, quantity, navigation, upsertBooking]);
 
+  // Loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <AppHeader showBack title="Service Details" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <AppText size="body" color="textMuted" style={styles.loadingText}>
+            Loading service details...
+          </AppText>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
+  // Error state
+  if (!category) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <AppHeader showBack title="Service Details" />
+        <View style={styles.errorContainer}>
+          <Ionicons
+            name="alert-circle"
+            size={48}
+            color={theme.colors.danger}
+            style={styles.errorIcon}
+          />
+          <AppText weight="bold" size="h3" color="danger" style={styles.errorTitle}>
+            Service Not Found
+          </AppText>
+          <AppText size="body" color="textMuted" style={styles.errorMessage}>
+            The service you're looking for is no longer available
+          </AppText>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
+  const imageSource = category.servicecategoryImage
+    ? { uri: category.servicecategoryImage }
+    : require('../../assets/images/SampleService.png');
 
+  const totalPrice = category.price * quantity;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView
+      style={[
+        styles.safe,
+        { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+      ]}
+    >
+      <AppHeader showBack title="Service Details" />
 
-      {/* SCROLLABLE CONTENT */}
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <AppHeader showBack={true} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Image */}
+        <Animated.View entering={FadeInDown.duration(400)}>
+          <Image source={imageSource} style={styles.heroImage} />
+        </Animated.View>
 
-        <Image source={image} style={styles.image} />
+        {/* Service Header Card */}
+        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+          <ServiceHeader
+            name={category.serviceCategoryName}
+            price={category.price}
+            duration={category.durationInMinutes}
+          />
+        </Animated.View>
 
-        <View style={styles.headerBox}>
-          <AppText weight="bold" size="h2">{serviceName}</AppText>
+        {/* Service Description */}
+        {category.description && (
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+            <ServiceDescription description={category.description} />
+          </Animated.View>
+        )}
 
-          <View style={styles.priceBox}>
-            <AppText weight="bold" size="h3">₹ {price}</AppText>
-            <AppText color="textMuted">{duration}</AppText>
-          </View>
-        </View>
+        {/* Quantity Selector */}
+        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+          <QuantitySelector
+            quantity={quantity}
+            onIncrease={handleQuantityIncrease}
+            onDecrease={handleQuantityDecrease}
+            label="How many services needed?"
+          />
+        </Animated.View>
 
-        <View style={styles.section}>
-          <AppText weight="bold" size="h3">Description</AppText>
-          <View style={{ marginTop: 8 }}>
-            {parseDescription(description).map((line, idx) => (
-              <View key={idx} style={styles.bulletRow}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={18}
-                  color={theme.colors.primary}
-                />
-                <AppText style={{ marginLeft: 8 }}>{line}</AppText>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.counterBox}>
-          <AppText weight="bold">How many installations?</AppText>
-
-          <View style={styles.counterRow}>
-            <TouchableOpacity onPress={decrease} style={styles.counterBtn}>
-              <Ionicons name="remove" size={22} />
-            </TouchableOpacity>
-
-            <View style={styles.countDisplay}>
-              <AppText weight="bold" size="h3">{count}</AppText>
-            </View>
-
-            <TouchableOpacity onPress={increase} style={styles.counterBtn}>
-              <Ionicons name="add" size={22} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* MODE SELECTOR */}
-        <View style={styles.modeRow}>
-          <TouchableOpacity
-            style={[styles.modeBtn, !isScheduled && styles.modeBtnActive]}
-            onPress={() => {
-              setIsScheduled(false);
+        {/* Booking Mode Selector */}
+        <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+          <BookingModeSelector
+            selectedMode={bookingMode}
+            onModeChange={(mode: 'now' | 'schedule') => {
+              setBookingMode(mode);
               setSelectedDate(null);
               setSelectedTime(null);
             }}
-          >
-            <Ionicons
-              name="flash-outline"
-              size={18}
-              color={!isScheduled ? "#fff" : theme.colors.text}
+          />
+        </Animated.View>
+
+        {/* Schedule Selector - Conditional */}
+        {bookingMode === 'schedule' && (
+          <Animated.View entering={FadeInDown.duration(400)}>
+            <ScheduleSelector
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              onDatePress={() => setShowCalendar(true)}
+              onTimePress={() => setShowTimePicker(true)}
             />
-            <AppText style={{ marginLeft: 6, color: !isScheduled ? "#fff" : theme.colors.text }}>
-              Now
-            </AppText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.modeBtn, isScheduled && styles.modeBtnActive]}
-            onPress={() => setIsScheduled(true)}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={18}
-              color={isScheduled ? "#fff" : theme.colors.text}
-            />
-            <AppText style={{ marginLeft: 6, color: isScheduled ? "#fff" : theme.colors.text }}>
-              Schedule
-            </AppText>
-          </TouchableOpacity>
-        </View>
-
-        {isScheduled && (
-          <View style={styles.scheduleBox}>
-            <TouchableOpacity
-              style={styles.scheduleRow}
-              onPress={() => setShowCalendar(true)}
-            >
-              <Ionicons name="calendar-outline" size={18} />
-              <AppText style={{ marginLeft: 8 }}>
-                {selectedDate ? selectedDate.toDateString() : "Select date"}
-              </AppText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.scheduleRow}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <Ionicons name="time-outline" size={18} />
-              <AppText style={{ marginLeft: 8 }}>
-                {selectedTime ? selectedTime.toLocaleTimeString() : "Select time"}
-              </AppText>
-            </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
 
-        {/* Spacer so content doesn't hide behind bottom bar */}
-        <View style={{ height: 160 }} />
+        {/* Spacer */}
+        <View style={styles.spacer} />
       </ScrollView>
 
-      {/* FIXED BOTTOM BAR */}
-      <View style={styles.bottomBox}>
-        <TouchableOpacity
-          disabled={isScheduled && (!selectedDate || !selectedTime)}
-          style={[
-            styles.primaryBtn,
-            {
-              backgroundColor:
-                isScheduled && (!selectedDate || !selectedTime)
-                  ? "#ccc"
-                  : theme.colors.primary,
-            },
-          ]}
-          onPress={handleBookNow}
-        >
-          <AppText weight="bold" style={styles.primaryText}>
-            {isScheduled
-              ? "Schedule Booking"
-              : `Book Now – ₹${price * count}`}
+      {/* Fixed Bottom Action Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+        <View style={styles.priceDisplay}>
+          <AppText size="body" color="textMuted">
+            Total:
           </AppText>
-        </TouchableOpacity>
+          <AppText
+            weight="bold"
+            size="h2"
+            style={{ color: theme.colors.primary }}
+          >
+            ₹{totalPrice}
+          </AppText>
+        </View>
+
+        <AppButton
+          title={
+            booking
+              ? 'Booking...'
+              : bookingMode === 'schedule'
+                ? 'Schedule Service'
+                : 'Book Now'
+          }
+          disabled={booking || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
+          onPress={handleBookNow}
+          loading={booking}
+          variant="primary"
+          style={styles.bookButton}
+        />
       </View>
 
-      {/* MODALS */}
+      {/* Modals */}
       <CalendarModal
         visible={showCalendar}
         selectedDate={selectedDate}
@@ -392,152 +381,127 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       {showTimePicker && (
         <DateTimePicker
           mode="time"
-          value={new Date()}
+          value={selectedTime || new Date()}
           onChange={(e, time) => {
             setShowTimePicker(false);
             if (time) setSelectedTime(time);
           }}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: 200,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.xl,
+    },
+    loadingText: {
+      marginTop: theme.spacing.md,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.xl,
+    },
+    errorIcon: {
+      marginBottom: theme.spacing.lg,
+      opacity: 0.7,
+    },
+    errorTitle: {
+      marginBottom: theme.spacing.sm,
+      textAlign: 'center',
+    },
+    errorMessage: {
+      textAlign: 'center',
+      fontSize: 14,
+    },
+    heroImage: {
+      width: width,
+      height: 280,
+      backgroundColor: theme.colors.surface,
+    },
+    spacer: {
+      height: theme.spacing.xl,
+    },
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.md,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+      shadowColor: theme.colors.cardShadow,
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    priceDisplay: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.md,
+    },
+    bookButton: {
+      borderRadius: theme.radius.lg,
+    },
+  });
 
 export default ServiceBookingScreen;
 
 
-/* ------------------------------------------------------------------------ */
-/*                               STYLES                                     */
-/* ------------------------------------------------------------------------ */
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    image: {
-      width: "100%",
-      height: 220,
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
-    },
-    headerBox: {
-      padding: 16,
-    },
-    ratingRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: 4,
-    },
-    priceBox: {
-      marginTop: 14,
-      padding: 12,
-      borderRadius: 14,
-      backgroundColor: theme.colors.surface,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      elevation: 3,
-    },
-    section: {
-      padding: 16,
-    },
-    bulletRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: 8,
-    },
-    counterBox: {
-      padding: 16,
-    },
-    counterRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: 14,
-    },
-    counterBtn: {
-      width: 42,
-      height: 42,
-      borderRadius: 10,
-      backgroundColor: theme.colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      elevation: 2,
-    },
-    countDisplay: {
-      width: 60,
-      height: 42,
-      marginHorizontal: 14,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.colors.surface,
-    },
-    bottomBox: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: 20,
-      backgroundColor: theme.colors.background,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-    },
-    primaryBtn: {
-      paddingVertical: 16,
-      borderRadius: 14,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 12,
-    },
-    primaryText: {
-      color: "#fff",
-      fontSize: 18,
-    },
-    secondaryBtn: {
-      alignSelf: "center",
-    },
-    scheduleBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      alignSelf: "center",
-      padding: 10,
-      backgroundColor: theme.colors.surface,
-      borderRadius: 10,
-      elevation: 2,
-      marginTop: 10,
-    },
-    modeRow: {
-      flexDirection: "row",
-      justifyContent: "center",
-      gap: 12,
-      marginVertical: 16,
-    },
 
-    modeBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: "#eee",
-    },
+/*
+1.ServiceHeader.tsx - Beautiful service header with:
 
-    modeBtnActive: {
-      backgroundColor: theme.colors.primary,
-    },
+Floating card design with negative margin
+Price badge with gradient
+Duration badge
+Professional shadows and styling
+2.QuantitySelector.tsx - Smart quantity control with:
 
-    scheduleBox: {
-      marginTop: 10,
-      backgroundColor: theme.colors.surface,
-      borderRadius: 14,
-      padding: 12,
-      gap: 10,
-    },
+Animated count display with spring animation
+Min/Max validation with disabled states
+Responsive button sizing
+Max quantity warning
+3.BookingModeSelector.tsx - Mode selection with:
 
-    scheduleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-  });
+Two booking modes: "Book Now" & "Schedule Later"
+Gradient active state
+Icon support
+Beautiful descriptions
+4.ScheduleSelector.tsx - Date & time picker UI with:
+
+Date and time selectors in one row
+Smart date formatting ("Today", "Mar 15")
+Visual confirmation box
+Primary color indicators
+
+5.ServiceDescription.tsx - Description display with:
+
+HTML parsing and cleanup
+Bullet point features with checkmarks
+Beautiful feature cards
+*/

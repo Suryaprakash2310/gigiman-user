@@ -205,24 +205,6 @@ const HomeScreen: React.FC = () => {
 
         <View style={{ height: 24 }} />
 
-        {/* ----------------------- SERVICE CATEGORIES ---------------------- */}
-        <SectionHeader
-          title="Service Categories"
-          onPressViewAll={() => { navigation.navigate("ServiceTab") }}
-        />
-
-        <View style={styles.categoryGrid}>
-          {loadingCategories ? (
-            <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
-              Loading services...
-            </AppText>
-          ) : (
-            serviceCategories.map((cat, index) => (
-              <ServiceCategoryCard key={cat.id} category={cat} index={index} />
-            ))
-          )}
-        </View>
-
         {/* ------------------------ POPULAR SERVICES ----------------------- */}
         <Animated.View entering={FadeInDown.delay(300).duration(600).springify()}>
           <SectionHeader
@@ -253,17 +235,32 @@ const HomeScreen: React.FC = () => {
             {popularServices.map((service, index) => (
               <PopularServiceCard
                 key={index}
-                service={{
-                  id: index.toString(),
-                  title: service._id,
-                  subtitle: `${service.totalBookings} bookings • ₹${service.totalRevenue}`,
-                  icon: FanInstall
-                }}
+                service={service}
                 index={index} />
             ))}
 
           </ScrollView>
         </Animated.View>
+
+        <View style={{ height: 24 }} />
+
+        {/* ----------------------- SERVICE CATEGORIES ---------------------- */}
+        <SectionHeader
+          title="Service Categories"
+          onPressViewAll={() => { navigation.navigate("ServiceTab") }}
+        />
+
+        <View style={styles.categoryGrid}>
+          {loadingCategories ? (
+            <AppText size="small" color="textMuted" style={{ paddingLeft: 20 }}>
+              Loading services...
+            </AppText>
+          ) : (
+            serviceCategories.map((cat, index) => (
+              <ServiceCategoryCard key={cat.id} category={cat} index={index} />
+            ))
+          )}
+        </View>
 
 
       </ScrollView>
@@ -341,33 +338,58 @@ const ServiceCategoryCard: React.FC<{ category: ServiceCategory; index: number }
   );
 };
 
-const PopularServiceCard: React.FC<{ service: PopularService; index: number }> = ({
+const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
   service,
   index
 }) => {
   const { theme } = useTheme();
   const s = popularServiceStyles(theme);
-  const IconSvg = service.icon;
+  const navigation = useNavigation<Nav>();
+
+  const handlePress = () => {
+    // Log the service object to understand its structure
+   
+    
+    // Try to navigate with the available ID
+    // First try with _id, then with other possible IDs
+    const serviceId = service._id || service.serviceId || service.domainServiceId;
+    
+    // navigation.navigate("ServiceTab" as any, { 
+    //   screen: "Booking", 
+    //   params: { 
+    //     serviceCategoryId: serviceId,
+    //     serviceData: service // Pass the full service data as fallback
+    //   } 
+    // });
+  };
 
   return (
     <Animated.View entering={FadeInRight.delay(index * 100).springify()}>
-      <TouchableOpacity activeOpacity={0.95}>
+      <TouchableOpacity activeOpacity={0.95} onPress={handlePress}>
         <View style={s.card}>
-          <View style={s.imagePlaceholder} >
-            {/* Gradient Overlay for image placeholder */}
-            <LinearGradient
-              colors={[theme.colors.surface, theme.colors.border]}
-              style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-            >
-              <IconSvg width='60%' height='60%' fill={theme.colors.textMuted} style={{ opacity: 0.5 }} />
-            </LinearGradient>
+          <View style={s.imagePlaceholder}>
+            {/* Display image from backend if available */}
+            {service.servicecategroyImage || service.serviceImage ? (
+              <Image
+                source={{ uri: service.servicecategroyImage || service.serviceImage }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={[theme.colors.surface, theme.colors.border]}
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+              >
+                <FanInstall width='60%' height='60%' fill={theme.colors.textMuted} style={{ opacity: 0.5 }} />
+              </LinearGradient>
+            )}
             <View style={s.badge}>
               <AppText size="caption" weight="bold" style={{ color: '#fff' }}>BESTSELLER</AppText>
             </View>
           </View>
           <View style={s.textContainer}>
             <AppText weight="bold" numberOfLines={1} size="body">
-              {service.title}
+              {service.serviceCategoryName || service.name || service._id}
             </AppText>
             <AppText
               size="caption"
@@ -375,7 +397,7 @@ const PopularServiceCard: React.FC<{ service: PopularService; index: number }> =
               numberOfLines={1}
               style={{ marginTop: 4 }}
             >
-              {service.subtitle}
+              {service.totalBookings ? `${service.totalBookings} bookings • ₹${service.totalRevenue}` : 'Popular service'}
             </AppText>
           </View>
         </View>
