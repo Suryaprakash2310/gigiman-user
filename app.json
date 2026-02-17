@@ -1,4 +1,4 @@
-export default {
+{
   "expo": {
     "name": "gigi-user",
     "slug": "gigi-user",
@@ -40,12 +40,7 @@ export default {
           }
         }
       ],
-      [
-        "@rnmapbox/maps",
-        {
-          "RNMapboxMapsDownloadToken": process.env.MAPBOX_DOWNLOAD_TOKEN
-        }
-      ]
+      "@rnmapbox/maps"
     ],
     "experiments": {
       "typedRoutes": true,
