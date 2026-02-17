@@ -1,9 +1,9 @@
-import React from "react";
-import { TouchableOpacity, View, StyleSheet } from "react-native";
 import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
 import { BookingItem } from "@/src/context/BookingContext";
 import { useTheme } from "@/src/theme/useTheme";
+import React from "react";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 interface Props {
   booking: BookingItem;
@@ -42,6 +42,13 @@ export default function BookingListCard({ booking, onPress }: Props) {
           label: "Scheduled",
           bg: "#E0E7FF",
           color: "#3730A3",
+        };
+
+      case "completed":
+        return {
+          label: "Completed",
+          bg: "#DCFCE7",
+          color: "#166534",
         };
 
       default:
@@ -99,10 +106,10 @@ export default function BookingListCard({ booking, onPress }: Props) {
             </AppText>
           </View>
 
-          {booking.status === "in_progress" &&
-            booking.technicianName && (
+          {(booking.status === "in_progress" || booking.status === "completed") &&
+            booking.name && (
               <AppText size="small" color="textMuted">
-                With {booking.technicianName}
+                {booking.status === "completed" ? "By" : "With"} {booking.name}
               </AppText>
             )}
         </View>

@@ -1,14 +1,13 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useMemo,
-  ReactNode,
-  useEffect,
-} from "react";
 import { socket } from "@/src/socket/socket";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
-import { useNavigationContainerRef } from "@react-navigation/native";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 /* ============================= */
 /*          STATUS TYPE          */
@@ -33,12 +32,12 @@ export type BookingItem = {
   totalPrice?: number;
   isScheduled?: boolean;
   scheduleDateTime?: string;
-  technicianName?: string;
-  technicianPhone?: string;
-  technicianRating?: number;
+  name?: string;
+  rating?: number;
   otp?: string;
-  dateLabel?: string;  // Add if needed for the booking screen
+  dateLabel?: string;
   timeLabel?: string;
+  durationInMinutes?: number;
 };
 
 /* ============================= */
@@ -91,7 +90,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       const exists = prev.find(b => b._id === booking._id);
       if (exists) {
         return prev.map(b =>
-          b._id === booking._id ? { ...b, ...booking } : b
+          b._id === booking._id ? {
+            ...b,
+            ...booking,
+            // Preserve OTP if the new update doesn't have it (e.g. from API refresh)
+            otp: booking.otp ?? b.otp
+          } : b
         );
       }
       return [booking, ...prev];

@@ -17,9 +17,9 @@ interface Props {
 
 export default function PersonalDetailsCard({
     initialValues = {
-        fullName: 'Alex Martinez',
-        email: 'alex.math@gmail.com',
-        phoneNo: '7892233780',
+        fullName: '',
+        email: '',
+        phoneNo: '',
     },
     onSubmit,
 }: Props) {

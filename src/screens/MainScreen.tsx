@@ -6,11 +6,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
+  Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View,
-  Image
+  View
 } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -107,7 +107,7 @@ const HomeScreen: React.FC = () => {
           icon: it.serviceImage,
         }));
         if (mapped.length > 0) setServiceCategories(mapped);
-        console.log('Fetched service categories:', mapped);
+
       } catch (err) {
         console.log('Service categories error:', err);
       } finally {

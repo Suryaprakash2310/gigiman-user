@@ -1,13 +1,13 @@
 // src/context/AuthContext.tsx
+import { socket } from "@/src/socket/socket";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {
   createContext,
+  ReactNode,
   useContext,
   useEffect,
   useState,
-  ReactNode,
 } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { socket } from "@/src/socket/socket";
 
 export type AuthUser = {
   _id: string;
@@ -72,44 +72,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
 
-useEffect(() => {
-  if (!accessToken || !user?._id) return;
+  useEffect(() => {
+    if (!accessToken || !user?._id) return;
 
-  socket.connect();
-
-  const onConnect = () => {
-    console.log("✅ USER socket connected:", socket.id);
-
-    socket.emit("register-user", {
-      userId: user._id,
+    // Add error listener before connecting
+    socket.on("connect_error", (err) => {
+      console.error("❌ Socket Connection Error:", err.message);
     });
 
-    console.log("📨 register-user emitted");
-  };
+    socket.connect();
 
-  socket.on("connect", onConnect);
+    const onConnect = () => {
+      console.log("✅ USER socket connected:", socket.id);
 
-  return () => {
-    socket.off("connect", onConnect);
-    socket.disconnect();
-  };
-}, [accessToken, user?._id]);
+      socket.emit("register-user", {
+        userId: user._id,
+      });
+
+      console.log("📨 register-user emitted");
+    };
+
+    socket.on("connect", onConnect);
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("connect_error");
+      socket.disconnect();
+    };
+  }, [accessToken, user?._id]);
 
 
-// useEffect(() => {
-//   socket.on("connect", () => {
-//     console.log("✅ Socket connected:", socket.id);
-//   });
+  // useEffect(() => {
+  //   socket.on("connect", () => {
+  //     console.log("✅ Socket connected:", socket.id);
+  //   });
 
-//   socket.on("disconnect", () => {
-//     console.log("❌ Socket disconnected");
-//   });
+  //   socket.on("disconnect", () => {
+  //     console.log("❌ Socket disconnected");
+  //   });
 
-//   return () => {
-//     socket.off("connect");
-//     socket.off("disconnect");
-//   };
-// }, []);
+  //   return () => {
+  //     socket.off("connect");
+  //     socket.off("disconnect");
+  //   };
+  // }, []);
 
 
 
@@ -120,15 +126,15 @@ useEffect(() => {
     refreshToken,
   }) => {
     setUser(user);
-  setAccessToken(accessToken);
+    setAccessToken(accessToken);
     if (refreshToken) setRefreshToken(refreshToken);
     console.log("user coordinates:", user);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
     await AsyncStorage.setItem(ACCESS_KEY, accessToken);
 
-  if (refreshToken) {
+    if (refreshToken) {
       await AsyncStorage.setItem(REFRESH_KEY, refreshToken);
-  }
+    }
   };
 
   // 🚪 Logout

@@ -1,8 +1,8 @@
 // BookingCard.tsx
 
-import React from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import React from "react";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
@@ -18,7 +18,7 @@ interface Props {
     paymentMode?: string;
 
     // For assigned
-    technicianName?: string;
+    name?: string;
 
     // For both
     onPress?: () => void;
@@ -32,7 +32,7 @@ export default function BookingCard({
     date,
     time,
     paymentMode,
-    technicianName,
+    name,
     onPress,
     onInvoiceDownload,
 }: Props) {
@@ -48,7 +48,7 @@ export default function BookingCard({
             {/* TOP ROW */}
             <View style={styles.header}>
                 {/* Icon for assigned type */}
-                <View style={{flexDirection:"row", alignItems:"center", justifyContent:"flex-end"}}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end" }}>
                     {type === "assigned" && (
                         <View style={[styles.iconContainer, { backgroundColor: theme.colors.surface }]}>
                             <MaterialIcons name="cleaning-services" size={26} color={theme.colors.primary} />
@@ -73,9 +73,9 @@ export default function BookingCard({
             </View>
 
             {/* Technician info (Assigned) */}
-            {type === "assigned" && technicianName && (
+            {type === "assigned" && name && (
                 <AppText size="small" weight="medium" style={{ marginBottom: 8 }}>
-                    Technician : {technicianName}
+                    Technician : {name}
                 </AppText>
             )}
 

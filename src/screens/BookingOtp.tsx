@@ -1,31 +1,31 @@
+import { Ionicons } from "@expo/vector-icons";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
-  Button,
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Text,
   TouchableOpacity,
-  View,
-  Text
+  View
 } from "react-native";
-import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withSpring,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
 
-import AppText from "@/src/components/ui/AppText";
-import AppCard from "@/src/components/ui/AppCard";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
-import { useTheme } from "@/src/theme/useTheme";
+import AppCard from "@/src/components/ui/AppCard";
+import AppText from "@/src/components/ui/AppText";
 import { useBooking } from "@/src/context/BookingContext";
 import { BookingParamList } from "@/src/navigation/stacks/BookingStack";
+import { useTheme } from "@/src/theme/useTheme";
+import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
+import api from "../api/client";
 import AppHeader from "../components/ui/AppHeader";
 import { socket } from "../socket/socket";
-import api from "../api/client";
 
 
 
@@ -35,9 +35,27 @@ export default function BookingOtp() {
   const { theme } = useTheme();
   const route = useRoute<DetailsRoute>();
   const { bookingId } = route.params;
-  const { getBookingById } = useBooking();
+  const { getBookingById, upsertBooking } = useBooking();
 
   const booking = getBookingById(bookingId);
+
+  // Fetch full booking from API to ensure technician name is available
+  useEffect(() => {
+    const fetchBooking = async () => {
+      try {
+        const res = await api.get(`/booking/${bookingId}`);
+        if (res.data?.booking) {
+          const mapped = mapBookingToBookingItem(res.data.booking);
+          upsertBooking(mapped);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch booking details:", err);
+      }
+    };
+    if (!booking?.name) {
+      fetchBooking();
+    }
+  }, [bookingId]);
 
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -52,12 +70,12 @@ export default function BookingOtp() {
     opacity.value = withDelay(300, withSpring(1));
   }, []);
 
-//   if (PendingRequest && !PendingRequest.parts) {
-//   return null; // or loader
-// }
+  //   if (PendingRequest && !PendingRequest.parts) {
+  //   return null; // or loader
+  // }
   if (PendingRequest && !Array.isArray(PendingRequest.parts)) {
-  return <Text>Loading parts...</Text>;
-}
+    return <Text>Loading parts...</Text>;
+  }
 
 
 
@@ -87,29 +105,29 @@ export default function BookingOtp() {
     };
   }, []);
 
-  
 
 
-// useEffect(() => {
-//   const onBookingCompleted = ({ bookingId: completedId }: any) => {
-//     if (completedId !== bookingId) return;
 
-//     console.log("✅ Booking completed, redirecting to review");
+  // useEffect(() => {
+  //   const onBookingCompleted = ({ bookingId: completedId }: any) => {
+  //     if (completedId !== bookingId) return;
 
-//     navigation.replace("Review", 
-//       {
-//       bookingId: completedId,
-//     }
-//     );
-//   };
-  
+  //     console.log("✅ Booking completed, redirecting to review");
 
-//   socket.on("booking-completed", onBookingCompleted);
+  //     navigation.replace("Review", 
+  //       {
+  //       bookingId: completedId,
+  //     }
+  //     );
+  //   };
 
-//   return () => {
-//     socket.off("booking-completed", onBookingCompleted);
-//   };
-// }, [bookingId]);
+
+  //   socket.on("booking-completed", onBookingCompleted);
+
+  //   return () => {
+  //     socket.off("booking-completed", onBookingCompleted);
+  //   };
+  // }, [bookingId]);
 
 
 
@@ -129,189 +147,189 @@ export default function BookingOtp() {
   //   }, 500);
   // };
   const handleApprove = async () => {
-  if (!PendingRequest) return;
+    if (!PendingRequest) return;
 
-  console.log("Approving request:", PendingRequest.requestId);
+    console.log("Approving request:", PendingRequest.requestId);
 
-  await api.post(
-    `/booking/approve/${PendingRequest.requestId}`
-  );
+    await api.post(
+      `/booking/approve/${PendingRequest.requestId}`
+    );
 
-  // ❌ DO NOT emit socket from frontend
-  setPendingRequest(null);
-};
+    // ❌ DO NOT emit socket from frontend
+    setPendingRequest(null);
+  };
 
-const handleReject = async () => {
-  if (!PendingRequest) return;
+  const handleReject = async () => {
+    if (!PendingRequest) return;
 
-  console.log("Rejecting request:", PendingRequest.requestId);
+    console.log("Rejecting request:", PendingRequest.requestId);
 
-  await api.post(
-    `/reject/${PendingRequest.requestId}`
-  );
+    await api.post(
+      `/reject/${PendingRequest.requestId}`
+    );
 
-  // ❌ DO NOT emit socket from frontend
-  setPendingRequest(null);
-};
-
-
+    // ❌ DO NOT emit socket from frontend
+    setPendingRequest(null);
+  };
 
 
 
 
-// const handleRejectParts = () => {
-//   if (!PendingRequest) return;
-
-//   socket.emit("tool-permission-rejected", {
-//     requestId: PendingRequest.requestId,
-//   });
-
-//   setPendingRequest(null);
-// };
 
 
+  // const handleRejectParts = () => {
+  //   if (!PendingRequest) return;
+
+  //   socket.emit("tool-permission-rejected", {
+  //     requestId: PendingRequest.requestId,
+  //   });
+
+  //   setPendingRequest(null);
+  // };
 
 
-const animatedCircleStyle = useAnimatedStyle(() => ({
-  transform: [{ scale: scale.value }],
-}));
 
-const animatedContentStyle = useAnimatedStyle(() => ({
-  opacity: opacity.value,
-  transform: [{ translateY: (1 - opacity.value) * 20 }],
-}));
 
-const brightCyan = "#67E8F9";
-const otpBg = "#A5F3FC";
-const primaryTeal = "#0D9488";
+  const animatedCircleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
-console.log("🧪 ---------Booking from context:", booking);
-console.log("-------pendingRequest:", PendingRequest);
+  const animatedContentStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: (1 - opacity.value) * 20 }],
+  }));
 
-if (!booking) {
+  const brightCyan = "#67E8F9";
+  const otpBg = "#A5F3FC";
+  const primaryTeal = "#0D9488";
+
+  console.log("🧪 ---------Booking from context:", booking);
+  console.log("-------pendingRequest:", PendingRequest);
+
+  if (!booking) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <AppText>No booking found.</AppText>
+      </SafeAreaView>
+    );
+  }
+  // if (!PendingRequest) {
+  //   return <Text> no pending request</Text>; // or loader
+  // }
+
+
   return (
-    <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <AppText>No booking found.</AppText>
-    </SafeAreaView>
-  );
-}
-// if (!PendingRequest) {
-//   return <Text> no pending request</Text>; // or loader
-// }
-
-
-return (
-  <SafeAreaView style={[styles.container, { backgroundColor: "#F8FAFC" }]}>
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <AppHeader showBack={true} />
-      {/* Header Section */}
-      <View style={styles.header}>
-        <Animated.View
-          style={[
-            styles.checkCircle,
-            { backgroundColor: brightCyan },
-            animatedCircleStyle,
-          ]}
-        >
-          <Ionicons name="checkmark" size={32} color="#0F172A" />
-        </Animated.View>
-        <AppText size="h3" weight="bold" style={styles.headerTitle}>
-          Technician Assigned!
-        </AppText>
-      </View>
-
-      <Animated.View style={animatedContentStyle}>
-        {/* Technician Card */}
-        <BookingDetailsCard
-          name={booking.technicianName ?? "Assigned Technician"}
-          role={booking.serviceCategoryName}
-          experience="5 years exp"
-          rating={booking.technicianRating ?? 4.9}
-          reviews={845}
-          image="https://randomuser.me/api/portraits/men/32.jpg"
-        />
-
-        {/* OTP Section */}
-        <View
-          style={[
-            styles.otpContainer,
-            { backgroundColor: otpBg, borderColor: brightCyan },
-          ]}
-        >
-          <AppText weight="bold" style={styles.otpLabel}>
-            Your Booking OTP
-          </AppText>
-          <AppText size="h1" weight="bold" style={styles.otpValue}>
-            {booking.otp ?? "----"}
-          </AppText>
-          <AppText size="small" style={styles.otpInstruction}>
-            Share this code with the technician
+    <SafeAreaView style={[styles.container, { backgroundColor: "#F8FAFC" }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <AppHeader showBack={true} />
+        {/* Header Section */}
+        <View style={styles.header}>
+          <Animated.View
+            style={[
+              styles.checkCircle,
+              { backgroundColor: brightCyan },
+              animatedCircleStyle,
+            ]}
+          >
+            <Ionicons name="checkmark" size={32} color="#0F172A" />
+          </Animated.View>
+          <AppText size="h3" weight="bold" style={styles.headerTitle}>
+            Technician Assigned!
           </AppText>
         </View>
 
-        {/* ===============================
+        <Animated.View style={animatedContentStyle}>
+          {/* Technician Card */}
+          <BookingDetailsCard
+            name={booking.name ?? "Assigned Technician"}
+            role={booking.serviceCategoryName}
+            experience="5 years exp"
+            rating={booking.rating ?? 4.9}
+            reviews={845}
+            image="https://randomuser.me/api/portraits/men/32.jpg"
+          />
+
+          {/* OTP Section */}
+          <View
+            style={[
+              styles.otpContainer,
+              { backgroundColor: otpBg, borderColor: brightCyan },
+            ]}
+          >
+            <AppText weight="bold" style={styles.otpLabel}>
+              Your Booking OTP
+            </AppText>
+            <AppText size="h1" weight="bold" style={styles.otpValue}>
+              {booking.otp ?? "----"}
+            </AppText>
+            <AppText size="small" style={styles.otpInstruction}>
+              Share this code with the technician
+            </AppText>
+          </View>
+
+          {/* ===============================
     PART APPROVAL SECTION (NEW)
 ================================ */}
-        {PendingRequest && (
-          <AppCard style={styles.partApprovalCard}>
-            <AppText weight="bold" size="h3" style={{ marginBottom: 10 }}>
-              Parts Required
-            </AppText>
+          {PendingRequest && (
+            <AppCard style={styles.partApprovalCard}>
+              <AppText weight="bold" size="h3" style={{ marginBottom: 10 }}>
+                Parts Required
+              </AppText>
 
-            {(() => {
-              interface Part {
-                partName: string;
-                quantity: number;
-                price: number;
-              }
+              {(() => {
+                interface Part {
+                  partName: string;
+                  quantity: number;
+                  price: number;
+                }
 
-              const parts = PendingRequest.parts as Part[];
+                const parts = PendingRequest.parts as Part[];
 
-              return parts.map((p: Part, index: number) => (
-                <View key={index} style={styles.partRow}>
-                  <AppText>{p.partName}</AppText>
-                  <AppText>
-                    {p.quantity} × ₹{p.price}
+                return parts.map((p: Part, index: number) => (
+                  <View key={index} style={styles.partRow}>
+                    <AppText>{p.partName}</AppText>
+                    <AppText>
+                      {p.quantity} × ₹{p.price}
+                    </AppText>
+                  </View>
+                ));
+              })()}
+
+              <View style={styles.partDivider} />
+
+              <View style={styles.partTotalRow}>
+                <AppText weight="bold">Total</AppText>
+                <AppText weight="bold">₹{PendingRequest.totalCost}</AppText>
+              </View>
+
+              <View style={styles.partActionRow}>
+                <TouchableOpacity
+                  style={[styles.partBtn, styles.rejectBtn]}
+                  onPress={handleReject}
+                //disabled={partActionLoading}
+                >
+                  <AppText weight="bold" style={{ color: "#DC2626" }}>
+                    Reject
                   </AppText>
-                </View>
-              ));
-            })()}
+                </TouchableOpacity>
 
-            <View style={styles.partDivider} />
-
-            <View style={styles.partTotalRow}>
-              <AppText weight="bold">Total</AppText>
-              <AppText weight="bold">₹{PendingRequest.totalCost}</AppText>
-            </View>
-
-            <View style={styles.partActionRow}>
-              <TouchableOpacity
-                style={[styles.partBtn, styles.rejectBtn]}
-                onPress={handleReject}
+                <TouchableOpacity
+                  style={[styles.partBtn, styles.approveBtn]}
+                  onPress={handleApprove}
                 //disabled={partActionLoading}
-              >
-                <AppText weight="bold" style={{ color: "#DC2626" }}>
-                  Reject
-                </AppText>
-              </TouchableOpacity>
+                >
+                  <AppText weight="bold" style={{ color: "#065F46" }}>
+                    {partActionLoading ? "Approving..." : "Approve"}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </AppCard>
+          )}
 
-              <TouchableOpacity
-                style={[styles.partBtn, styles.approveBtn]}
-                onPress={handleApprove}
-                //disabled={partActionLoading}
-              >
-                <AppText weight="bold" style={{ color: "#065F46" }}>
-                  {partActionLoading ? "Approving..." : "Approve"}
-                </AppText>
-              </TouchableOpacity>
-            </View>
-          </AppCard>
-        )}
-
-        {/* 
+          {/* 
         {pendingRequest && (
   <View style={styles.approvalBox}>
     <Text style={styles.title}>Parts Required</Text>
@@ -348,148 +366,149 @@ return (
 
 
 
-        {/* Arrival & Summary */}
-        <AppCard style={styles.arrivalCard}>
-          <View style={styles.arrivalHeader}>
-            <View
-              style={[styles.iconCircle, { backgroundColor: primaryTeal }]}
-            >
-              <Ionicons name="chevron-down" size={20} color="white" />
-            </View>
-            <AppText size="h3" weight="bold" style={styles.arrivalText}>
-              Arriving soon
-            </AppText>
-          </View>
-
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: brightCyan }]}
-            >
-              <Ionicons
-                name="call"
-                size={20}
-                color="#0F172A"
-                style={{ marginRight: 8 }}
-              />
-              <AppText weight="bold" style={{ color: "#0F172A" }}>
-                Call
-              </AppText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                {
-                  backgroundColor: "white",
-                  borderWidth: 1,
-                  borderColor: "#CCFBF1",
-                },
-              ]}
-            >
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={20}
-                color={primaryTeal}
-                style={{ marginRight: 8 }}
-              />
-              <AppText weight="bold" style={{ color: primaryTeal }}>
-                Chat
-              </AppText>
-            </TouchableOpacity>
-          </View>
-
-          {/* Summary */}
-          <View style={styles.summaryContainer}>
-            <AppText
-              weight="bold"
-              size="h3"
-              style={styles.summaryTitle}
-            >
-              Booking Summary
-            </AppText>
-
-            <View style={styles.summaryRow}>
-              <AppText style={{ color: "#475569" }}>Service</AppText>
-              <AppText style={{ color: "#475569" }}>
-                {booking.serviceCategoryName}
-              </AppText>
-            </View>
-            <View style={styles.summaryRow}>
-              <AppText style={{ color: "#475569" }}>Price</AppText>
-              <AppText style={{ color: "#475569" }}>
-                ₹{booking.totalPrice}
+          {/* Arrival & Summary */}
+          <AppCard style={styles.arrivalCard}>
+            <View style={styles.arrivalHeader}>
+              <View
+                style={[styles.iconCircle, { backgroundColor: primaryTeal }]}
+              >
+                <Ionicons name="chevron-down" size={20} color="white" />
+              </View>
+              <AppText size="h3" weight="bold" style={styles.arrivalText}>
+                Arriving soon
               </AppText>
             </View>
 
-            <View style={styles.divider} />
-
-            <View style={styles.detailRow}>
-              <Ionicons
-                name="location-outline"
-                size={20}
-                color={primaryTeal}
-                style={styles.detailIcon}
-              />
-              <View>
-                <AppText color="textMuted" size="small">
-                  Address
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: brightCyan }]}
+              >
+                <Ionicons
+                  name="call"
+                  size={20}
+                  color="#0F172A"
+                  style={{ marginRight: 4 }}
+                />
+                <AppText weight="bold" style={{ color: "#0F172A" }}>
+                  Call
                 </AppText>
-                <AppText weight="medium" style={styles.detailText}>
-                  {booking.address}
+              </TouchableOpacity>
+
+              {/* <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  {
+                    backgroundColor: "white",
+                    borderWidth: 1,
+                    borderColor: "#CCFBF1",
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={20}
+                  color={primaryTeal}
+                  style={{ marginRight: 8 }}
+                />
+                <AppText weight="bold" style={{ color: primaryTeal }}>
+                  Chat
+                </AppText>
+              </TouchableOpacity> */}
+            </View>
+
+            {/* Summary */}
+            <View style={styles.summaryContainer}>
+              <AppText
+                weight="bold"
+                size="h3"
+                style={styles.summaryTitle}
+              >
+                Booking Summary
+              </AppText>
+
+              <View style={styles.summaryRow}>
+                <AppText style={{ color: "#475569" }}>Service</AppText>
+                <AppText style={{ color: "#475569" }}>
+                  {booking.serviceCategoryName}
                 </AppText>
               </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Ionicons
-                name="time-outline"
-                size={20}
-                color={primaryTeal}
-                style={styles.detailIcon}
-              />
-              <View>
-                <AppText color="textMuted" size="small">
-                  Scheduled
-                </AppText>
-                <AppText weight="medium" style={styles.detailText}>
-                  {booking.dateLabel}, {booking.timeLabel}
+              <View style={styles.summaryRow}>
+                <AppText style={{ color: "#475569" }}>Price</AppText>
+                <AppText style={{ color: "#475569" }}>
+                  ₹{booking.totalPrice}
                 </AppText>
               </View>
-            </View>
 
-            <View style={styles.detailRow}>
-              <Ionicons
-                name="card-outline"
-                size={20}
-                color={primaryTeal}
-                style={styles.detailIcon}
-              />
-              <View>
-                <AppText color="textMuted" size="small">
-                  Payment
-                </AppText>
-                <AppText weight="medium" style={styles.detailText}>
-                  Cash on Delivery
-                </AppText>
+              <View style={styles.divider} />
+
+              <View style={styles.detailRow}>
+                <Ionicons
+                  name="location-outline"
+                  size={20}
+                  color={primaryTeal}
+                  style={styles.detailIcon}
+                />
+                <View>
+                  <AppText color="textMuted" size="small">
+                    Address
+                  </AppText>
+                  <AppText weight="medium" style={styles.detailText}>
+                    {booking.address}
+                  </AppText>
+                </View>
               </View>
-            </View>
-          </View>
-        </AppCard>
-      </Animated.View>
-    </ScrollView>
 
-    {/* Footer */}
-    <View style={[styles.footer, { backgroundColor: "#F8FAFC" }]}>
-      <TouchableOpacity
-        style={[styles.trackButton, { backgroundColor: brightCyan }]}
-      >
-        <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
-          Track Technician
-        </AppText>
-      </TouchableOpacity>
-    </View>
-  </SafeAreaView>
-);
+              <View style={styles.detailRow}>
+                <Ionicons
+                  name="time-outline"
+                  size={20}
+                  color={primaryTeal}
+                  style={styles.detailIcon}
+                />
+                <View>
+                  <AppText color="textMuted" size="small">
+                    Duration
+                  </AppText>
+                  <AppText weight="medium" style={styles.detailText}>
+                    {booking.durationInMinutes ? `${booking.durationInMinutes} mins` : "N/A"}
+                  </AppText>
+                </View>
+              </View>
+
+              {/* <View style={styles.detailRow}>
+                <Ionicons
+                  name="card-outline"
+                  size={20}
+                  color={primaryTeal}
+                  style={styles.detailIcon}
+                />
+                <View>
+                  <AppText color="textMuted" size="small">
+                    Payment
+                  </AppText>
+                  <AppText weight="medium" style={styles.detailText}>
+                    Cash on Delivery
+                  </AppText>
+                </View>
+              </View> */}
+            </View>
+          </AppCard>
+        </Animated.View>
+      </ScrollView>
+
+      {/* Footer */}
+      <View style={[styles.footer, { backgroundColor: "#F8FAFC" }]}>
+        <TouchableOpacity
+          style={[styles.trackButton, { backgroundColor: brightCyan }]}
+          onPress={() => navigation.navigate("LiveTracking", { bookingId })}
+        >
+          <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
+            Track Technician
+          </AppText>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({

@@ -1,41 +1,40 @@
+import { Ionicons } from '@expo/vector-icons';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
-  Platform,
-  Alert,
-  Image,
-  Dimensions,
-  ActivityIndicator,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import apiClient from '@/src/api/client';
-import AppLoader from '@/src/components/ui/AppLoader';
-import AppText from '@/src/components/ui/AppText';
 import AppButton from '@/src/components/ui/AppButton';
 import AppHeader from '@/src/components/ui/AppHeader';
+import AppText from '@/src/components/ui/AppText';
 import CalendarModal from '@/src/components/ui/CalendarModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-import { useAuthContext } from '@/src/context/AuthContext';
-import { useTheme } from '@/src/theme/useTheme';
-import { useBooking } from '@/src/context/BookingContext';
 import { ServiceAPI } from '@/src/api/service.api';
-import { getCurrentLocation } from '@/src/utils/location';
+import { useAuthContext } from '@/src/context/AuthContext';
+import { useBooking } from '@/src/context/BookingContext';
+import { useTheme } from '@/src/theme/useTheme';
 import { BOOKING_TYPE } from '@/src/utils/enums/BookingType';
+import { getCurrentLocation } from '@/src/utils/location';
 
-import ServiceHeader from '@/src/components/booking/ServiceHeader';
-import QuantitySelector from '@/src/components/booking/QuantitySelector';
 import BookingModeSelector from '@/src/components/booking/BookingModeSelector';
+import QuantitySelector from '@/src/components/booking/QuantitySelector';
 import ScheduleSelector from '@/src/components/booking/ScheduleSelector';
 import ServiceDescription from '@/src/components/booking/ServiceDescription';
+import ServiceHeader from '@/src/components/booking/ServiceHeader';
 import { AppTabsParamList } from '@/src/navigation/AppStack';
 
 type Nav = BottomTabNavigationProp<AppTabsParamList, 'BookingTab'>;

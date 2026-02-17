@@ -87,9 +87,9 @@ export default function PersonalDetailsPage() {
                 {profile && (
                     <PersonalDetailsCard
                         initialValues={{
-                            fullName: profile.fullName,
-                            email: profile.email,
-                            phoneNo: profile.phoneNo,
+                            fullName: profile.name || profile.fullName || '',
+                            email: profile.email || '',
+                            phoneNo: profile.phoneNo ? String(profile.phoneNo) : '',
                         }}
                         onSubmit={handleSubmit}
                     />

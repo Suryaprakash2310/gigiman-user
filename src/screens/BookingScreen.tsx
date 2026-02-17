@@ -1,20 +1,22 @@
-import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
 import { BookingItem, useBooking } from "@/src/context/BookingContext";
 import { useTheme } from "@/src/theme/useTheme";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AppHeader from "../components/ui/AppHeader";
+import { BookingAPI } from "../api/booking.api";
 import BookingListCard from "../components/BookingListCard";
+import AppHeader from "../components/ui/AppHeader";
 
-type TabType = "ongoing" | "upcoming";
+type TabType = "ongoing" | "upcoming" | "history";
 
 export default function BookingScreen() {
   const { theme } = useTheme();
@@ -25,14 +27,62 @@ export default function BookingScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
 
-  const rawData = activeTab === "ongoing" ? ongoing : upcoming;
+  // History state
+  const [historyBookings, setHistoryBookings] = useState<BookingItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  const data = rawData.filter(
-    b => b.status !== "completed" && b.status !== "cancelled"
-  ); const empty = data.length === 0;
+  // Fetch history when tab is selected
+  const fetchHistory = useCallback(async () => {
+    if (historyLoaded) return;
+    setHistoryLoading(true);
+    try {
+      const bookings = await BookingAPI.getUserBookings();
+      const mapped: BookingItem[] = (bookings || []).map((b: any) => ({
+        _id: b._id,
+        serviceCategoryName: b.serviceCategoryName || "",
+        address: b.address || "",
+        status: "completed" as const,
+        totalPrice: b.totalPrice ?? b.cost,
+        name: b.primaryEmployee?.fullname || b.name || "",
+        rating: b.primaryEmployee?.rating,
+        durationInMinutes: b.durationInMinutes,
+        dateLabel: b.createdAt
+          ? new Date(b.createdAt).toLocaleDateString()
+          : "",
+        timeLabel: b.createdAt
+          ? new Date(b.createdAt).toLocaleTimeString()
+          : "",
+      }));
+      setHistoryBookings(mapped);
+      setHistoryLoaded(true);
+    } catch (err) {
+      console.log("History fetch error:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [historyLoaded]);
+
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchHistory();
+    }
+  }, [activeTab, fetchHistory]);
+
+  // Get data for current tab
+  const getTabData = (): BookingItem[] => {
+    if (activeTab === "history") return historyBookings;
+
+    const rawData = activeTab === "ongoing" ? ongoing : upcoming;
+    return rawData.filter(
+      b => b.status !== "completed" && b.status !== "cancelled"
+    );
+  };
+
+  const data = getTabData();
+  const empty = data.length === 0;
 
   const handleCardPress = (booking: BookingItem) => {
-
     if (booking.status === "searching") {
       navigation.navigate("Searching", { bookingId: booking._id });
       return;
@@ -52,8 +102,33 @@ export default function BookingScreen() {
       // still waiting for time
       return;
     }
-
   };
+
+  const getEmptyText = () => {
+    switch (activeTab) {
+      case "ongoing":
+        return {
+          title: "No Ongoing Services",
+          subtitle: "Book a service and track its live status here.",
+        };
+      case "upcoming":
+        return {
+          title: "No Upcoming Services",
+          subtitle: "Your scheduled services will show here.",
+        };
+      case "history":
+        return {
+          title: "No Completed Bookings",
+          subtitle: "Your completed service history will appear here.",
+        };
+    }
+  };
+
+  const tabs: { key: TabType; label: string; icon: string }[] = [
+    { key: "ongoing", label: "Ongoing", icon: "pulse-outline" },
+    { key: "upcoming", label: "Upcoming", icon: "calendar-outline" },
+    { key: "history", label: "History", icon: "time-outline" },
+  ];
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -64,13 +139,12 @@ export default function BookingScreen() {
 
       {/* TABS */}
       <View style={styles.tabRow}>
-        {(["ongoing", "upcoming"] as TabType[]).map((tab) => {
-          const label = tab === "ongoing" ? "Ongoing" : "Upcoming";
-          const active = tab === activeTab;
+        {tabs.map((tab) => {
+          const active = tab.key === activeTab;
           return (
             <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
               style={[
                 styles.tabButton,
                 {
@@ -83,41 +157,65 @@ export default function BookingScreen() {
                 },
               ]}
             >
+              <Ionicons
+                name={tab.icon as any}
+                size={16}
+                color={active ? "#fff" : theme.colors.text}
+                style={{ marginRight: 4 }}
+              />
               <AppText
                 weight={active ? "bold" : "medium"}
                 style={{
                   color: active ? "#fff" : theme.colors.text,
                 }}
               >
-                {label}
+                {tab.label}
               </AppText>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* EMPTY STATE */}
-      {empty && (
+      {/* LOADING (History tab) */}
+      {activeTab === "history" && historyLoading && (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyCircle} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <AppText color="textMuted" style={{ marginTop: 12 }}>
+            Loading booking history...
+          </AppText>
+        </View>
+      )}
+
+      {/* EMPTY STATE */}
+      {empty && !(activeTab === "history" && historyLoading) && (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyCircle}>
+            <Ionicons
+              name={
+                activeTab === "ongoing"
+                  ? "construct-outline"
+                  : activeTab === "upcoming"
+                    ? "calendar-outline"
+                    : "checkmark-done-outline"
+              }
+              size={40}
+              color="#9CA3AF"
+            />
+          </View>
           <AppText weight="bold" size="h3" style={{ marginTop: 12 }}>
-            {activeTab === "ongoing"
-              ? "No Ongoing Services"
-              : "No Upcoming Services"}
+            {getEmptyText().title}
           </AppText>
           <AppText
             color="textMuted"
             style={{ marginTop: 6, textAlign: "center", width: "70%" }}
           >
-            {activeTab === "ongoing"
-              ? "Book a service and track its live status here."
-              : "Your scheduled services will show here."}
+            {getEmptyText().subtitle}
           </AppText>
         </View>
       )}
 
       {/* LIST */}
-      {!empty && (
+      {!empty && !(activeTab === "history" && historyLoading) && (
         <FlatList
           data={data}
           keyExtractor={(item) => item._id}
@@ -155,7 +253,9 @@ const createStyles = (theme: any) =>
       marginBottom: 12,
     },
     tabButton: {
-      paddingHorizontal: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 20,
       borderWidth: 1,
@@ -172,9 +272,8 @@ const createStyles = (theme: any) =>
       width: 96,
       height: 96,
       borderRadius: 48,
-      backgroundColor: "#E5E7EB",
-      opacity: 0.5,
+      backgroundColor: "#F3F4F6",
+      alignItems: "center",
+      justifyContent: "center",
     },
   });
-
-

@@ -32,25 +32,48 @@ export function mapBookingToBookingItem(
     throw new Error("Invalid booking object received in mapper");
   }
 
-  const normalizedStatus = normalizeStatus(booking);
+  // Handle technician data from both response shapes:
+  // 1. Backend getBookingById: booking.name (company/employee name)
+  // 2. Socket "servicer-accepted": booking.primaryEmployee.fullname
+  // 3. GET /booking/:id API: booking.technician.name
+  const techName =
+    booking.name ||
+    booking.technician?.name ||
+    booking.primaryEmployee?.fullname ||
+    undefined;
+
+  const techRating =
+    booking.technician?.rating ||
+    booking.primaryEmployee?.rating ||
+    booking.rating ||
+    undefined;
+
+  const price = booking.totalPrice ?? booking.cost ?? booking.amount;
 
   return {
     _id: booking._id,
+
     serviceCategoryName: booking.serviceCategoryName,
-    totalPrice: booking.totalPrice,
+    totalPrice: price,
+
+    dateLabel: booking.scheduleDateTime
+      ? new Date(booking.scheduleDateTime).toLocaleDateString()
+      : booking.dateLabel || "",
+
+    timeLabel: booking.scheduleDateTime
+      ? new Date(booking.scheduleDateTime).toLocaleTimeString()
+      : booking.timeLabel || "",
+
     address: booking.address,
 
-    status: normalizedStatus,
+    status: booking.status,
 
-    isScheduled: booking.bookingType === "scheduled" || booking.isScheduled,
-    otp: otp ?? booking.StartWorkOTP,
-    scheduleDateTime:
-      booking.scheduleDateTime ||
-      booking.scheduledAt ||
-      null,
+    otp: otp ?? booking.StartWorkOTP ?? booking.otp,
 
-    technicianName: booking.primaryEmployee?.fullname,
-    technicianPhone: booking.primaryEmployee?.phoneNo,
-    technicianRating: booking.primaryEmployee?.rating,
+    name: techName,
+    rating: techRating,
+
+    isScheduled: booking.isScheduled,
+    scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,
   };
 }

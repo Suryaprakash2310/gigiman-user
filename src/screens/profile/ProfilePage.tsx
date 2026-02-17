@@ -1,19 +1,12 @@
-// src/screens/profile/ProfileScreen.tsx
-
-import { useTheme } from '@/src/theme/useTheme';
-import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-//import AppHeader from '@/src/components/ui/AppHeader';
+import { ProfileAPI } from '@/src/api/profile.api';
 import AppText from '@/src/components/ui/AppText';
-//import Avatar from '@/src/components/ui/AvatarUpload';
-
-
-//import ProfileMenuItem from './ProfileMenuItem';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import { useAuth } from '@/src/hook/useAuth';
+import { useTheme } from '@/src/theme/useTheme';
+import { useNavigation } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProfileMenuItem from '../../components/ProfileMenuItem';
 import AvatarUpload from '../../components/ui/AvatorUpload';
 import {
@@ -28,8 +21,23 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
 
   const styles = createStyles(theme, insets);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await ProfileAPI.getProfileAPI();
+        if (res.success && res.user) {
+          setProfile(res.user);
+        }
+      } catch (error) {
+        console.log('Error fetching profile:', error);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handlePress = (screen: string) => {
     if (!screen) return;
@@ -47,14 +55,14 @@ export default function ProfileScreen() {
       >
         {/* USER INFO */}
         <View style={styles.profileSection}>
-          <AvatarUpload size={90} />
+          <AvatarUpload size={90} initialUri={profile?.avatar} />
 
           <AppText weight="bold" size="h2" style={{ marginTop: 12 }}>
-            Alex Martinez
+            {profile?.fullName || ''}
           </AppText>
           {/*
           <AppText color="textMuted" size="body" style={{ marginTop: 4 }}>
-            alex.math@gmail.com
+            {profile?.email || ''}
           </AppText>
         
         */}
