@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
-  ScrollView,
   StyleSheet,
   RefreshControl,
   SafeAreaView,
   Platform,
-  Dimensions,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServiceAPI } from '@/src/api/service.api';
@@ -34,8 +33,6 @@ interface CategoryState {
   refreshing: boolean;
 }
 
-const { width } = Dimensions.get('window');
-
 export default function ServiceCategory({ route, navigation }: any) {
   const { serviceName, domainId } = route.params;
   const { theme } = useTheme();
@@ -62,7 +59,7 @@ export default function ServiceCategory({ route, navigation }: any) {
         const services = res?.services || [];
         const svc = services.find((s: any) => s.serviceName === serviceName);
         const cats = (svc?.serviceCategory || []) as CategoryItem[];
-        
+
         setState((prev) => ({
           ...prev,
           items: cats,
@@ -71,12 +68,11 @@ export default function ServiceCategory({ route, navigation }: any) {
         return;
       }
 
-      // Fallback to legacy endpoint shape
       const res = await ServiceAPI.getSubServicesAPI();
       const filtered = (res.categoriesservices || []).filter(
         (c: any) => c.parentServiceName === serviceName
       ) as CategoryItem[];
-      
+
       setState((prev) => ({
         ...prev,
         items: filtered,
@@ -107,75 +103,86 @@ export default function ServiceCategory({ route, navigation }: any) {
     [navigation]
   );
 
-  const renderContent = () => {
+  const renderHeader = () => (
+    <View style={styles.headerSection}>
+      <AppText
+        weight="bold"
+        size="h2"
+        style={[styles.headerTitle, { color: theme.colors.text }]}
+      >
+        Select a Service
+      </AppText>
+      <AppText size="small" color="textMuted" style={styles.headerSubtitle}>
+        {state.items.length > 0
+          ? `${state.items.length} option${
+              state.items.length !== 1 ? 's' : ''
+            } available`
+          : 'Loading options...'}
+      </AppText>
+    </View>
+  );
+
+  const renderEmptyOrError = () => {
     if (state.loading) {
       return <CategoryCardSkeleton count={5} />;
     }
 
     if (state.error) {
       return (
-        <View style={styles.errorContainer}>
+        <View style={styles.centerContainer}>
           <Ionicons
             name="alert-circle"
             size={48}
             color={theme.colors.danger}
-            style={styles.errorIcon}
+            style={{ marginBottom: 12 }}
           />
-          <AppText
-            weight="bold"
-            size="body"
-            color="danger"
-            style={styles.errorTitle}
-          >
+          <AppText weight="bold" size="body" color="danger">
             Oops! Something went wrong
           </AppText>
-          <AppText
-            size="small"
-            color="textMuted"
-            style={styles.errorSubtitle}
-          >
+          <AppText size="small" color="textMuted" style={{ marginTop: 6 }}>
             {state.error}
           </AppText>
-          <View style={styles.retryButtonContainer}>
-            {/* You can add a retry button here if needed */}
-          </View>
         </View>
       );
     }
 
     if (state.items.length === 0) {
       return (
-        <View style={styles.emptyContainer}>
+        <View style={styles.centerContainer}>
           <Ionicons
             name="layers-outline"
             size={48}
             color={theme.colors.textMuted}
-            style={styles.emptyIcon}
+            style={{ marginBottom: 12 }}
           />
-          <AppText
-            weight="semibold"
-            size="body"
-            color="textMuted"
-            style={styles.emptyTitle}
-          >
+          <AppText weight="semibold" size="body" color="textMuted">
             No services available
           </AppText>
-          <AppText
-            size="small"
-            color="textMuted"
-            style={styles.emptySubtitle}
-          >
-            Check back soon for more services in this category
+          <AppText size="small" color="textMuted" style={{ marginTop: 6 }}>
+            Check back soon for more services
           </AppText>
         </View>
       );
     }
 
-    return (
-      <View style={styles.listContainer}>
-        {state.items.map((item, index) => (
+    return null;
+  };
+
+  return (
+    <View
+      style={[
+        styles.safe,
+        { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+      ]}
+    >
+      <AppHeader showBack title={serviceName} />
+     <View >
+      <FlatList
+      //style={{ flex: 1 }}
+        data={state.items}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item, index }) => (
           <CategoryCard
-            key={item._id}
             id={item._id}
             image={item.servicecategoryImage}
             title={item.serviceCategoryName}
@@ -186,24 +193,9 @@ export default function ServiceCategory({ route, navigation }: any) {
             onPress={() => handleCategoryPress(item._id)}
             index={index}
           />
-        ))}
-      </View>
-    );
-  };
-
-  return (
-    <SafeAreaView
-      style={[
-        styles.safe,
-        { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
-      ]}
-    >
-      <AppHeader showBack title={serviceName} />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        )}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmptyOrError}
         refreshControl={
           <RefreshControl
             refreshing={state.refreshing}
@@ -212,31 +204,13 @@ export default function ServiceCategory({ route, navigation }: any) {
             colors={[theme.colors.primary]}
           />
         }
-      >
-        {/* Header Section */}
-        <View style={styles.headerSection}>
-          <AppText
-            weight="bold"
-            size="h2"
-            style={[styles.headerTitle, { color: theme.colors.text }]}
-          >
-            Select a Service
-          </AppText>
-          <AppText
-            size="small"
-            color="textMuted"
-            style={styles.headerSubtitle}
-          >
-            {state.items.length > 0
-              ? `${state.items.length} option${state.items.length !== 1 ? 's' : ''} available`
-              : 'Loading options...'}
-          </AppText>
-        </View>
-
-        {/* Content */}
-        {renderContent()}
-      </ScrollView>
-    </SafeAreaView>
+        contentContainerStyle={{
+          //paddingBottom: theme.spacing.xl,
+        }}
+        showsVerticalScrollIndicator={false}
+      />
+      </View>
+    </View>
   );
 }
 
@@ -245,13 +219,6 @@ const createStyles = (theme: any) =>
     safe: {
       flex: 1,
       backgroundColor: theme.colors.background,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      paddingBottom: theme.spacing.xl,
     },
     headerSection: {
       paddingHorizontal: theme.spacing.lg,
@@ -264,51 +231,11 @@ const createStyles = (theme: any) =>
     headerSubtitle: {
       fontSize: 13,
     },
-    listContainer: {
-      marginVertical: theme.spacing.sm,
-    },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
+    centerContainer: {
       alignItems: 'center',
+      justifyContent: 'center',
       paddingHorizontal: theme.spacing.xl,
       paddingVertical: theme.spacing.xl,
-      minHeight: 300,
-    },
-    errorIcon: {
-      marginBottom: theme.spacing.md,
-      opacity: 0.6,
-    },
-    errorTitle: {
-      marginBottom: theme.spacing.sm,
-      textAlign: 'center',
-    },
-    errorSubtitle: {
-      textAlign: 'center',
-      marginBottom: theme.spacing.lg,
-      fontSize: 13,
-    },
-    retryButtonContainer: {
-      marginTop: theme.spacing.lg,
-    },
-    emptyContainer: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.xl,
-      minHeight: 350,
-    },
-    emptyIcon: {
-      marginBottom: theme.spacing.lg,
-      opacity: 0.4,
-    },
-    emptyTitle: {
-      marginBottom: theme.spacing.sm,
-      textAlign: 'center',
-    },
-    emptySubtitle: {
-      textAlign: 'center',
-      fontSize: 13,
     },
   });

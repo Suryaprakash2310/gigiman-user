@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Add error listener before connecting
     socket.on("connect_error", (err) => {
-      console.error("❌ Socket Connection Error:", err.message);
+      //console.error("❌ Socket Connection Error:", err.message);
     });
 
     socket.connect();

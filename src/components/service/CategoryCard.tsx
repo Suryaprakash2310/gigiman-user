@@ -14,7 +14,6 @@ import AppText from '@/src/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-const cardWidth = width - 32; // 16px margin on each side
 
 interface CategoryCardProps {
   id: string;
@@ -29,70 +28,51 @@ interface CategoryCardProps {
 }
 
 const CategoryCard: React.FC<CategoryCardProps> = ({
-  id,
-  image,
   title,
   description,
   price,
   duration = 60,
   employeeCount,
+  image,
   onPress,
   index = 0,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  const handleImageLoad = () => {
-    setImageLoading(false);
-  };
-
-  const handleImageError = () => {
-    setImageLoading(false);
-    setImageError(true);
-  };
+  const cleanDescription = description?.replace(/<[^>]*>?/gm, '');
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(index * 100).duration(400).springify()}
-      style={{ width: '100%' }}
+      entering={FadeInDown.delay(index * 60).duration(350)}
     >
       <Pressable
         onPress={onPress}
-        android_ripple={{ color: `${theme.colors.primary}20` }}
+        android_ripple={{ color: `${theme.colors.primary}15` }}
         style={({ pressed }) => [
           styles.card,
-          pressed && { opacity: 0.85 },
+          pressed && { opacity: 0.9 },
         ]}
       >
-        {/* Image Container */}
+        {/* Image Section */}
         <View style={styles.imageWrapper}>
-          {imageError ? (
-            <LinearGradient
-              colors={[theme.colors.primary, theme.colors.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradientPlaceholder}
-            >
-              <AppText weight="bold" size="h2" style={{ color: '#fff' }}>
-                {title.charAt(0).toUpperCase()}
-              </AppText>
-            </LinearGradient>
-          ) : (
+          {image && !imageError ? (
             <>
-              {image && (
-                <Image
-                  source={{ uri: image }}
-                  style={styles.image}
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  resizeMode="cover"
-                />
-              )}
-
+              <Image
+                source={{ uri: image }}
+                style={styles.image}
+                resizeMode="cover"
+                onLoad={() => setImageLoading(false)}
+                onError={() => {
+                  setImageLoading(false);
+                  setImageError(true);
+                }}
+              />
               {imageLoading && (
-                <View style={styles.imageLoadingContainer}>
+                <View style={styles.loader}>
                   <ActivityIndicator
                     size="small"
                     color={theme.colors.primary}
@@ -100,82 +80,87 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                 </View>
               )}
             </>
+          ) : (
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
+              style={styles.gradientPlaceholder}
+            >
+              <AppText weight="bold" size="h2" style={{ color: '#fff' }}>
+                {title.charAt(0).toUpperCase()}
+              </AppText>
+            </LinearGradient>
           )}
         </View>
 
-        {/* Content Container */}
+        {/* Content Section */}
         <View style={styles.contentWrapper}>
-          {/* Title and Description */}
-          <View style={styles.textSection}>
+          <View>
             <AppText
               weight="bold"
               size="body"
-              numberOfLines={2}
-              style={[styles.title, { color: theme.colors.text }]}
+              numberOfLines={1}
+              style={styles.title}
             >
               {title}
             </AppText>
 
-            {description && (
+            {cleanDescription && (
               <AppText
                 size="small"
                 color="textMuted"
                 numberOfLines={2}
                 style={styles.description}
               >
-                {description}
+                {cleanDescription}
               </AppText>
             )}
           </View>
 
-          {/* Details Grid */}
-          <View style={styles.detailsGrid}>
+          <View style={styles.detailsRow}>
             {/* Duration */}
             <View style={styles.detailItem}>
-              <View style={[styles.detailIcon, { backgroundColor: `${theme.colors.primary}20` }]}>
-                <Ionicons name="time" size={14} color={theme.colors.primary} />
-              </View>
-              <AppText size="caption" weight="medium" color="text">
+              <Ionicons
+                name="time-outline"
+                size={14}
+                color={theme.colors.primary}
+              />
+              <AppText size="caption" weight="medium">
                 {duration}m
               </AppText>
             </View>
 
             {/* Employee Count */}
-            {employeeCount && (
+            {employeeCount ? (
               <View style={styles.detailItem}>
-                <View style={[styles.detailIcon, { backgroundColor: `${theme.colors.primary}20` }]}>
-                  <Ionicons name="person" size={14} color={theme.colors.primary} />
-                </View>
-                <AppText size="caption" weight="medium" color="text">
+                <Ionicons
+                  name="person-outline"
+                  size={14}
+                  color={theme.colors.primary}
+                />
+                <AppText size="caption" weight="medium">
                   {employeeCount} pro
                 </AppText>
               </View>
-            )}
+            ) : null}
 
             {/* Price */}
-            {price && (
-              <View style={styles.detailItem}>
-                <View style={[styles.detailIcon, { backgroundColor: `${theme.colors.primary}20` }]}>
-                  <AppText size="caption" weight="bold" style={{ color: theme.colors.primary }}>
-                    ₹
-                  </AppText>
-                </View>
+            {price ? (
+              <View style={styles.priceContainer}>
                 <AppText size="caption" weight="bold" color="primary">
-                  {price}
+                  ₹{price}
                 </AppText>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
 
-        {/* Action Arrow */}
-        <View style={styles.actionButton}>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={theme.colors.primary}
-          />
-        </View>
+        {/* Arrow */}
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={theme.colors.primary}
+          style={styles.arrow}
+        />
       </Pressable>
     </Animated.View>
   );
@@ -187,81 +172,84 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: 14,
       marginHorizontal: 16,
-      marginVertical: 8,
+      marginVertical: 6,
+      paddingVertical: 8,
+      paddingRight: 8,
       overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.dark ? theme.colors.border : 'transparent',
+      borderWidth: theme.dark ? 1 : 0,
+      borderColor: theme.colors.border,
       shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 2,
     },
+
     imageWrapper: {
-      width: 120,
-      height: 120,
+      width: 90,
+      height: 90,
       borderRadius: 12,
       marginLeft: 12,
       overflow: 'hidden',
       backgroundColor: theme.colors.background,
     },
+
     image: {
       width: '100%',
       height: '100%',
     },
-    imageLoadingContainer: {
+
+    loader: {
       ...StyleSheet.absoluteFillObject,
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: `${theme.colors.background}80`,
     },
+
     gradientPlaceholder: {
       width: '100%',
       height: '100%',
       justifyContent: 'center',
       alignItems: 'center',
     },
+
     contentWrapper: {
       flex: 1,
-      paddingHorizontal: 12,
-      paddingVertical: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
       justifyContent: 'space-between',
     },
-    textSection: {
-      marginBottom: 8,
-    },
+
     title: {
-      marginBottom: 4,
-      lineHeight: 18,
+      marginBottom: 3,
     },
+
     description: {
       fontSize: 12,
-      lineHeight: 16,
+      lineHeight: 15,
     },
-    detailsGrid: {
+
+    detailsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 12,
+      marginTop: 6,
     },
+
     detailItem: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
     },
-    detailIcon: {
-      width: 24,
-      height: 24,
-      borderRadius: 6,
-      justifyContent: 'center',
-      alignItems: 'center',
+
+    priceContainer: {
+      marginLeft: 'auto',
     },
-    actionButton: {
-      paddingHorizontal: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100%',
+
+    arrow: {
+      marginRight: 8,
     },
   });
 

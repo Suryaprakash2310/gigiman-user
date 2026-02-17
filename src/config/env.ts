@@ -6,8 +6,9 @@
 
 export const API_BASE_URL =
   process.env.NODE_ENV === 'development'
-    ? 'http://10.31.162.29:5000/api' // 👈 Replace with your system IP
+    ? 'https://gigiman1.onrender.com/api' // 👈 Replace with your system IP
     : 'https://gigiman1.onrender.com/api';
 // 10.175.221.153 //172.17.10.165
+export const MAPBOX_ACCESS_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN!;
 
-"// TODO: Replace with your actual Mapbox public token"
+// TODO: Replace with your actual Mapbox public token
