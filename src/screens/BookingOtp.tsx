@@ -38,6 +38,41 @@ export default function BookingOtp() {
   const { getBookingById, upsertBooking } = useBooking();
 
   const booking = getBookingById(bookingId);
+  const serviceProposal = booking?.pendingServiceProposal;
+  const handleApproveService = () => {
+  if (!serviceProposal) return;
+
+  console.log("✅ Approving visit proposal:", bookingId);
+
+  socket.emit("approve-visit-service", {
+    bookingId,
+    approve: true,
+  });
+
+  // optimistic UI (smooth UX)
+  upsertBooking({
+    ...booking!,
+    pendingServiceProposal: null,
+    totalPrice: serviceProposal.price,
+    serviceCategoryName: serviceProposal.serviceCategoryName,
+  });
+};
+
+  const handleRejectService = () => {
+  if (!serviceProposal) return;
+
+  console.log("❌ Rejecting visit proposal:", bookingId);
+
+  socket.emit("approve-visit-service", {
+    bookingId,
+    approve: false,
+  });
+
+  upsertBooking({
+    ...booking!,
+    pendingServiceProposal: null,
+  });
+};
 
   // Fetch full booking from API to ensure technician name is available
   useEffect(() => {
@@ -323,6 +358,55 @@ export default function BookingOtp() {
                 >
                   <AppText weight="bold" style={{ color: "#065F46" }}>
                     {partActionLoading ? "Approving..." : "Approve"}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </AppCard>
+          )}
+
+          {serviceProposal && (
+            <AppCard style={styles.serviceApprovalCard}>
+              <AppText weight="bold" size="h3" style={{ marginBottom: 10 }}>
+                Additional Service Recommended
+              </AppText>
+
+              <AppText style={{ marginBottom: 8, color: "#475569" }}>
+                Technician identified an additional issue.
+              </AppText>
+
+              <View style={styles.partRow}>
+                <AppText>Service</AppText>
+                <AppText>{serviceProposal.serviceCategoryName}</AppText>
+              </View>
+
+              <View style={styles.partRow}>
+                <AppText>Duration</AppText>
+                <AppText>{serviceProposal.durationInMinutes} mins</AppText>
+              </View>
+
+              <View style={styles.partDivider} />
+
+              <View style={styles.partTotalRow}>
+                <AppText weight="bold">New Total</AppText>
+                <AppText weight="bold">₹{serviceProposal.price}</AppText>
+              </View>
+
+              <View style={styles.partActionRow}>
+                <TouchableOpacity
+                  style={[styles.partBtn, styles.rejectBtn]}
+                  onPress={handleRejectService}
+                >
+                  <AppText weight="bold" style={{ color: "#DC2626" }}>
+                    Reject
+                  </AppText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.partBtn, styles.approveBtn]}
+                  onPress={handleApproveService}
+                >
+                  <AppText weight="bold" style={{ color: "#065F46" }}>
+                    Approve & Continue
                   </AppText>
                 </TouchableOpacity>
               </View>
@@ -711,6 +795,14 @@ const styles = StyleSheet.create({
 
   rejectBtn: {
     backgroundColor: "#FEE2E2",
+  },
+  serviceApprovalCard: {
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E0F2FE",
+    backgroundColor: "#F0F9FF",
   },
 
 });
