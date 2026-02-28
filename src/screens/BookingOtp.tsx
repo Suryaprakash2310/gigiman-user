@@ -26,13 +26,14 @@ import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 import api from "../api/client";
 import AppHeader from "../components/ui/AppHeader";
 import { socket } from "../socket/socket";
-
+import { useAuth } from "../hook/useAuth";
 
 
 type DetailsRoute = RouteProp<BookingParamList, "BookingDetails">;
 
 export default function BookingOtp() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const route = useRoute<DetailsRoute>();
   const { bookingId } = route.params;
   const { getBookingById, upsertBooking } = useBooking();
@@ -40,39 +41,49 @@ export default function BookingOtp() {
   const booking = getBookingById(bookingId);
   const serviceProposal = booking?.pendingServiceProposal;
   const handleApproveService = () => {
-  if (!serviceProposal) return;
+    if (!serviceProposal) return;
 
-  console.log("✅ Approving visit proposal:", bookingId);
+    console.log("✅ Approving visit proposal:", bookingId);
 
-  socket.emit("approve-visit-service", {
-    bookingId,
-    approve: true,
-  });
 
-  // optimistic UI (smooth UX)
-  upsertBooking({
-    ...booking!,
-    pendingServiceProposal: null,
-    totalPrice: serviceProposal.price,
-    serviceCategoryName: serviceProposal.serviceCategoryName,
-  });
-};
+
+    socket.emit("extra-service-approve", {
+      bookingId,
+      extraServiceId: booking.serviceCategoryName,
+      approve: true,
+      userId: user?._id,
+    });
+    // optimistic UI (smooth UX)
+    upsertBooking({
+      ...booking!,
+      pendingServiceProposal: null,
+      totalPrice: serviceProposal.price+ (booking?.totalPrice ?? 0),  // backend already summed
+      //serviceCategoryName: serviceProposal.serviceCategoryName,
+    });
+  };
 
   const handleRejectService = () => {
-  if (!serviceProposal) return;
+    if (!serviceProposal) return;
 
-  console.log("❌ Rejecting visit proposal:", bookingId);
+    console.log("❌ Rejecting visit proposal:", bookingId);
 
-  socket.emit("approve-visit-service", {
-    bookingId,
-    approve: false,
-  });
+    socket.emit("extra-service-approve", {
+      bookingId,
+      approve: false,
+    });
 
-  upsertBooking({
-    ...booking!,
-    pendingServiceProposal: null,
-  });
-};
+    upsertBooking({
+      ...booking!,
+      pendingServiceProposal: null,
+    });
+    const proposalScale = useSharedValue(0);
+
+    useEffect(() => {
+      if (serviceProposal) {
+        proposalScale.value = withSpring(1);
+      }
+    }, [serviceProposal]);
+  };
 
   // Fetch full booking from API to ensure technician name is available
   useEffect(() => {
@@ -91,6 +102,51 @@ export default function BookingOtp() {
       fetchBooking();
     }
   }, [bookingId]);
+
+  useEffect(() => {
+    const onExtraResponse = (data: any) => {
+      if (data.bookingId !== bookingId) return;
+
+      if (data.status === "APPROVED") {
+        upsertBooking({
+          ...booking!,
+          pendingServiceProposal: null,
+          totalPrice: data.totalPrice,  // backend already summed
+        });
+      }
+
+      if (data.status === "REJECTED") {
+        upsertBooking({
+          ...booking!,
+          pendingServiceProposal: null,
+        });
+      }
+    };
+
+    socket.on("extra-service-response", onExtraResponse);
+
+    return () => {
+      socket.off("extra-service-response", onExtraResponse);
+    };
+  }, [bookingId, booking]);
+  useEffect(() => {
+    const onExtraServiceProposed = (data: any) => {
+      console.log("🔥 USER received extra-service-proposed:", data);
+
+      if (data.bookingId !== bookingId) return;
+
+      upsertBooking({
+        ...booking!,
+        pendingServiceProposal: data.extraService,
+      });
+    };
+
+    socket.on("extra-service-proposed", onExtraServiceProposed);
+
+    return () => {
+      socket.off("extra-service-proposed", onExtraServiceProposed);
+    };
+  }, [bookingId, booking]);
 
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);

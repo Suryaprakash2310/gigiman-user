@@ -38,6 +38,16 @@ export type BookingItem = {
   dateLabel?: string;
   timeLabel?: string;
   durationInMinutes?: number;
+  pendingServiceProposal?: ServiceProposal | null;
+};
+
+export type ServiceProposal = {
+  serviceCategoryId: string;
+  serviceCategoryName: string;
+  price: number;
+  durationInMinutes: number;
+  employeeCount: number;
+  proposedAt: string;
 };
 
 /* ============================= */
@@ -80,6 +90,51 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       socket.off("servicer-accepted", onServicerAccepted);
     };
   }, []);
+
+  useEffect(() => {
+    const onServiceProposed = ({ bookingId, proposal }: any) => {
+      console.log("🧠 SERVICE PROPOSED:", bookingId);
+
+      setBookings(prev =>
+        prev.map(b =>
+          b._id === bookingId
+            ? { ...b, pendingServiceProposal: proposal }
+            : b
+        )
+      );
+    };
+
+    socket.on("service-proposed", onServiceProposed);
+
+    return () => {
+      socket.off("service-proposed", onServiceProposed);
+    };
+  }, []);
+  useEffect(() => {
+  const onServiceApproved = ({ bookingId, totalPrice, service }: any) => {
+    console.log("🎉 Service approved confirmed:", bookingId);
+
+    setBookings(prev =>
+      prev.map(b =>
+        b._id === bookingId
+          ? {
+              ...b,
+              pendingServiceProposal: null,
+              totalPrice,
+              serviceCategoryName: service,
+              status: "assigned",
+            }
+          : b
+      )
+    );
+  };
+
+  socket.on("service-approved", onServiceApproved);
+
+  return () => {
+    socket.off("service-approved", onServiceApproved);
+  };
+}, []);
 
   /* ----------------------------- */
   /* SINGLE SOURCE OF TRUTH        */
