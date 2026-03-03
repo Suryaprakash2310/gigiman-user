@@ -57,9 +57,10 @@ export default function BookingOtp() {
     upsertBooking({
       ...booking!,
       pendingServiceProposal: null,
-      totalPrice: serviceProposal.price+ (booking?.totalPrice ?? 0),  // backend already summed
+      totalPrice: booking.totalPrice,  // backend already summed
       //serviceCategoryName: serviceProposal.serviceCategoryName,
     });
+    fetchBooking();
   };
 
   const handleRejectService = () => {
@@ -76,6 +77,7 @@ export default function BookingOtp() {
       ...booking!,
       pendingServiceProposal: null,
     });
+    fetchBooking();
     const proposalScale = useSharedValue(0);
 
     useEffect(() => {
@@ -87,21 +89,33 @@ export default function BookingOtp() {
 
   // Fetch full booking from API to ensure technician name is available
   useEffect(() => {
-    const fetchBooking = async () => {
-      try {
-        const res = await api.get(`/booking/${bookingId}`);
-        if (res.data?.booking) {
-          const mapped = mapBookingToBookingItem(res.data.booking);
-          upsertBooking(mapped);
-        }
-      } catch (err) {
-        console.warn("Failed to fetch booking details:", err);
-      }
-    };
+    // const fetchBooking = async () => {
+    //   try {
+    //     const res = await api.get(`/booking/${bookingId}`);
+    //     if (res.data?.booking) {
+    //       const mapped = mapBookingToBookingItem(res.data.booking);
+    //       upsertBooking(mapped);
+    //     }
+    //   } catch (err) {
+    //     console.warn("Failed to fetch booking details:", err);
+    //   }
+    // };
     if (!booking?.name) {
       fetchBooking();
     }
-  }, [bookingId]);
+  }, []);
+  const fetchBooking = async () => {
+    try {
+      const res = await api.get(`/booking/${bookingId}`);
+      if (res.data?.booking) {
+        const mapped = mapBookingToBookingItem(res.data.booking);
+        upsertBooking(mapped);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch booking details:", err);
+    }
+  };
+
 
   useEffect(() => {
     const onExtraResponse = (data: any) => {
@@ -113,6 +127,7 @@ export default function BookingOtp() {
           pendingServiceProposal: null,
           totalPrice: data.totalPrice,  // backend already summed
         });
+        fetchBooking();
       }
 
       if (data.status === "REJECTED") {
@@ -248,6 +263,7 @@ export default function BookingOtp() {
 
     // ❌ DO NOT emit socket from frontend
     setPendingRequest(null);
+    fetchBooking();
   };
 
   const handleReject = async () => {
@@ -261,6 +277,7 @@ export default function BookingOtp() {
 
     // ❌ DO NOT emit socket from frontend
     setPendingRequest(null);
+    fetchBooking();
   };
 
 

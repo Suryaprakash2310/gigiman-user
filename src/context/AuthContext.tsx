@@ -72,34 +72,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
 
-  useEffect(() => {
-    if (!accessToken || !user?._id) return;
+  // useEffect(() => {
+  //   if (!accessToken || !user?._id) return;
 
-    // Add error listener before connecting
-    socket.on("connect_error", (err) => {
-      //console.error("❌ Socket Connection Error:", err.message);
-    });
+  //   // Add error listener before connecting
+  //   socket.on("connect_error", (err) => {
+  //     //console.error("❌ Socket Connection Error:", err.message);
+  //   });
 
-    socket.connect();
+  //   socket.connect();
 
-    const onConnect = () => {
-      console.log("✅ USER socket connected:", socket.id);
+  //   const onConnect = () => {
+  //     console.log("✅ USER socket connected:", socket.id);
 
-      socket.emit("register-user", {
-        userId: user._id,
-      });
+  //     socket.emit("register-user", {
+  //       userId: user._id,
+  //     });
 
-      console.log("📨 register-user emitted");
-    };
+  //     console.log("📨 register-user emitted");
+  //   };
 
-    socket.on("connect", onConnect);
+  //   socket.on("connect", onConnect);
 
-    return () => {
-      socket.off("connect", onConnect);
-      socket.off("connect_error");
-      socket.disconnect();
-    };
-  }, [accessToken, user?._id]);
+  //   return () => {
+  //     socket.off("connect", onConnect);
+  //     socket.off("connect_error");
+  //     socket.disconnect();
+  //   };
+  // }, [accessToken, user?._id]);
 
 
   // useEffect(() => {

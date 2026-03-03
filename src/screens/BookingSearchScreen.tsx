@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
-import { Alert, Dimensions, StyleSheet, View } from "react-native";
+import { Alert, Dimensions, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -13,6 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AppHeader from '../components/ui/AppHeader';
 import AppText from "@/src/components/ui/AppText";
 import { useBooking } from "@/src/context/BookingContext";
 import { BookingParamList } from "@/src/navigation/stacks/BookingStack";
@@ -62,6 +63,7 @@ const OrbitRing = ({
       styles.ringContainer,
       { width: size, height: size, borderRadius: size / 2 }
     ]}>
+     
       <View style={[
         styles.ringBorder,
         {
@@ -262,6 +264,13 @@ export default function BookingSearchScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
+       <TouchableOpacity
+        style={[styles.backButton, { top: insets.top + 12 }]}
+        onPress={() => navigation.navigate("BookingsMain")}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+      </TouchableOpacity>
       <View style={styles.orbitContainer}>
         {/* Outer Ring - Slow */}
         <OrbitRing size={width * 0.85} duration={15000} direction="ccw">
@@ -355,5 +364,16 @@ const styles = StyleSheet.create({
   textContainer: {
     marginTop: 60,
     paddingHorizontal: 30,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   }
 });

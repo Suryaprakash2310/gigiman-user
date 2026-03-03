@@ -10,7 +10,7 @@ import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
-import { StyleSheet, View } from 'react-native';
+import { Easing, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/src/theme/useTheme';
 
 export interface AppBottomSheetRef {
@@ -58,6 +58,10 @@ const AppBottomSheet = forwardRef<AppBottomSheetRef, Props>(
         index={-1} // hidden by default
         backdropComponent={renderBackdrop}
         enablePanDownToClose
+        animationConfigs={{
+          duration: 200,
+          easing: Easing.out(Easing.quad),
+        }}
         backgroundStyle={{
           backgroundColor: theme.colors.surface,
           borderRadius: theme.radius.xl,

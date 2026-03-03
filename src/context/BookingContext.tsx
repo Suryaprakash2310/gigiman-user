@@ -145,12 +145,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       const exists = prev.find(b => b._id === booking._id);
       if (exists) {
         return prev.map(b =>
-          b._id === booking._id ? {
-            ...b,
-            ...booking,
-            // Preserve OTP if the new update doesn't have it (e.g. from API refresh)
-            otp: booking.otp ?? b.otp
-          } : b
+          b._id === booking._id
+            ? {
+                ...booking, // Always use the latest booking from API
+                otp: booking.otp ?? b.otp // Only preserve OTP if missing
+              }
+            : b
         );
       }
       return [booking, ...prev];

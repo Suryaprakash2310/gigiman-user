@@ -178,7 +178,7 @@ export default function ServiceCategory({ route, navigation }: any) {
       <AppHeader showBack title={serviceName} />
      <View >
       <FlatList
-      //style={{ flex: 1 }}
+      style={{ flex: 1 }}
         data={state.items}
         keyExtractor={(item) => item._id}
         renderItem={({ item, index }) => (
@@ -205,9 +205,9 @@ export default function ServiceCategory({ route, navigation }: any) {
           />
         }
         contentContainerStyle={{
-          //paddingBottom: theme.spacing.xl,
+          paddingBottom: theme.spacing.xl,
         }}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
       />
       </View>
     </View>
