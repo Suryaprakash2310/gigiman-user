@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { BookingAPI } from "../api/booking.api";
 
 /* ============================= */
 /*          STATUS TYPE          */
@@ -111,30 +112,51 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   useEffect(() => {
-  const onServiceApproved = ({ bookingId, totalPrice, service }: any) => {
-    console.log("🎉 Service approved confirmed:", bookingId);
+    const onServiceApproved = ({ bookingId, totalPrice, service }: any) => {
+      console.log("🎉 Service approved confirmed:", bookingId);
 
-    setBookings(prev =>
-      prev.map(b =>
-        b._id === bookingId
-          ? {
+      setBookings(prev =>
+        prev.map(b =>
+          b._id === bookingId
+            ? {
               ...b,
               pendingServiceProposal: null,
               totalPrice,
               serviceCategoryName: service,
               status: "assigned",
             }
-          : b
-      )
-    );
-  };
+            : b
+        )
+      );
+    };
 
-  socket.on("service-approved", onServiceApproved);
+    socket.on("service-approved", onServiceApproved);
 
-  return () => {
-    socket.off("service-approved", onServiceApproved);
-  };
-}, []);
+    return () => {
+      socket.off("service-approved", onServiceApproved);
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchInitialBookings = async () => {
+      try {
+        const [active, scheduled] = await Promise.all([
+          BookingAPI.getActiveBookings(),
+          BookingAPI.getScheduledBookings()
+        ]);
+
+        const activeMapped = (active || []).map((b: any) => mapBookingToBookingItem(b));
+        const scheduledMapped = (scheduled || []).map((b: any) => mapBookingToBookingItem(b));
+
+        activeMapped.forEach(upsertBooking);
+        scheduledMapped.forEach(upsertBooking);
+      } catch (err) {
+        console.warn("Failed to fetch initial bookings:", err);
+      }
+    };
+
+    fetchInitialBookings();
+  }, []);
 
   /* ----------------------------- */
   /* SINGLE SOURCE OF TRUTH        */
@@ -147,9 +169,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         return prev.map(b =>
           b._id === booking._id
             ? {
-                ...booking, // Always use the latest booking from API
-                otp: booking.otp ?? b.otp // Only preserve OTP if missing
-              }
+              ...booking, // Always use the latest booking from API
+              otp: booking.otp ?? b.otp // Only preserve OTP if missing
+            }
             : b
         );
       }
@@ -192,7 +214,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     () =>
       bookings.filter(
         b =>
-          ["searching", "otp", "in_progress"].includes(b.status)
+          ["searching", "otp", "in_progress", "assigned"].includes(b.status)
       ),
     [bookings]
   );
@@ -201,7 +223,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     () =>
       bookings.filter(
         b =>
-          ["searching", "otp", "in_progress"].includes(b.status)
+          ["searching", "otp", "in_progress", "assigned"].includes(b.status)
       ),
     [bookings]
   );

@@ -194,6 +194,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
         navigation.navigate("BookingTab", {
           screen: "BookingsMain",
+          params: { activeTab: "upcoming" }
         } as any);
       } else {
         upsertBooking({
@@ -207,7 +208,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
         navigation.navigate('BookingTab', {
           screen: 'Searching',
-          params: { bookingId},
+          params: { bookingId },
         } as any);
       }
     } catch (err: any) {

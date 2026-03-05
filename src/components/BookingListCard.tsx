@@ -30,6 +30,13 @@ export default function BookingListCard({ booking, onPress }: Props) {
           color: "#1D4ED8",
         };
 
+      case "assigned":
+        return {
+          label: "Technician assigned",
+          bg: "#DBEAFE",
+          color: "#1D4ED8",
+        };
+
       case "in_progress":
         return {
           label: "Service in progress",

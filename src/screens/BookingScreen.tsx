@@ -2,7 +2,7 @@ import AppText from "@/src/components/ui/AppText";
 import { BookingItem, useBooking } from "@/src/context/BookingContext";
 import { useTheme } from "@/src/theme/useTheme";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,17 +15,34 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookingAPI } from "../api/booking.api";
 import BookingListCard from "../components/BookingListCard";
 import AppHeader from "../components/ui/AppHeader";
+import { BookingParamList } from "../navigation/stacks/BookingStack";
 
 type TabType = "ongoing" | "upcoming" | "history";
+type BookingRouteProp = RouteProp<BookingParamList, "BookingsMain">;
 
 export default function BookingScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const navigation = useNavigation<any>();
+  const route = useRoute<BookingRouteProp>();
   const { ongoing, upcoming } = useBooking();
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
+
+  // Handle initial tab from params or logic
+  useEffect(() => {
+    // 1. Check if tab was explicitly passed from navigation
+    if (route.params?.activeTab) {
+      setActiveTab(route.params.activeTab as TabType);
+    }
+    // 2. If no param, auto-select based on status
+    else if (ongoing.length > 0) {
+      setActiveTab("ongoing");
+    } else if (upcoming.length > 0) {
+      setActiveTab("upcoming");
+    }
+  }, [route.params?.activeTab]);
 
   // History state
   const [historyBookings, setHistoryBookings] = useState<BookingItem[]>([]);
@@ -88,7 +105,11 @@ export default function BookingScreen() {
       return;
     }
 
-    if (booking.status === "otp" || booking.status === "in_progress") {
+    if (
+      booking.status === "otp" ||
+      booking.status === "in_progress" ||
+      booking.status === "assigned"
+    ) {
       navigation.navigate("BookingDetails", { bookingId: booking._id });
       return;
     }
@@ -108,7 +129,7 @@ export default function BookingScreen() {
     switch (activeTab) {
       case "ongoing":
         return {
-          title: "No Ongoing Services",
+          title: "No Oncoming Services",
           subtitle: "Book a service and track its live status here.",
         };
       case "upcoming":
@@ -125,7 +146,7 @@ export default function BookingScreen() {
   };
 
   const tabs: { key: TabType; label: string; icon: string }[] = [
-    { key: "ongoing", label: "Ongoing", icon: "pulse-outline" },
+    { key: "ongoing", label: "Oncoming", icon: "pulse-outline" },
     { key: "upcoming", label: "Upcoming", icon: "calendar-outline" },
     { key: "history", label: "History", icon: "time-outline" },
   ];

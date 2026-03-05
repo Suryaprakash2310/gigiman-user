@@ -13,7 +13,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import AppHeader from '../components/ui/AppHeader';
 import AppText from "@/src/components/ui/AppText";
 import { useBooking } from "@/src/context/BookingContext";
 import { BookingParamList } from "@/src/navigation/stacks/BookingStack";
@@ -63,7 +62,7 @@ const OrbitRing = ({
       styles.ringContainer,
       { width: size, height: size, borderRadius: size / 2 }
     ]}>
-     
+
       <View style={[
         styles.ringBorder,
         {
@@ -155,14 +154,14 @@ export default function BookingSearchScreen() {
 
 
   useEffect(() => {
-    const booking = bookings.find(b => b._id === bookingId);
+    const booking = bookings.find(b => String(b._id) === String(bookingId));
     if (!booking) return;
 
-    if (booking.status === "otp") {
+    if (booking.status === "otp" || (booking.status as string) === "assigned") {
       navigation.replace("BookingDetails", { bookingId });
     }
 
-  }, [bookings]);
+  }, [bookings, bookingId, navigation]);
 
   /* 🔌 SOCKET */
   useEffect(() => {
@@ -184,14 +183,23 @@ export default function BookingSearchScreen() {
       //navigation.goBack();
     };
 
-    //socket.on("servicer-accepted", onAccepted);
+    const onAccepted = (data: any) => {
+      const b = data.booking || data;
+      console.log("✅ Servicer accepted event in SearchScreen ID:", b?._id);
+
+      if (b && String(b._id) === String(bookingId)) {
+        navigation.replace("BookingDetails", { bookingId });
+      }
+    };
+
+    socket.on("servicer-accepted", onAccepted);
     socket.on("no-servicer-available", onNoProvider);
 
     return () => {
-      //socket.off("servicer-accepted", onAccepted);
+      socket.off("servicer-accepted", onAccepted);
       socket.off("no-servicer-available", onNoProvider);
     };
-  }, []);
+  }, [bookingId, navigation]);
 
   // useEffect(() => {
   //   const onTeamAssigned = (booking: any) => {
@@ -264,7 +272,7 @@ export default function BookingSearchScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
-       <TouchableOpacity
+      <TouchableOpacity
         style={[styles.backButton, { top: insets.top + 12 }]}
         onPress={() => navigation.navigate("BookingsMain")}
         activeOpacity={0.7}

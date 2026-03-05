@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
+  BackHandler,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -25,8 +26,8 @@ import { useTheme } from "@/src/theme/useTheme";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 import api from "../api/client";
 import AppHeader from "../components/ui/AppHeader";
-import { socket } from "../socket/socket";
 import { useAuth } from "../hook/useAuth";
+import { socket } from "../socket/socket";
 
 
 type DetailsRoute = RouteProp<BookingParamList, "BookingDetails">;
@@ -326,13 +327,31 @@ export default function BookingOtp() {
   // }
 
 
+  useEffect(() => {
+    const onBackPress = () => {
+      navigation.navigate("BookingsMain", { activeTab: "ongoing" });
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress
+    );
+
+    return () => subscription.remove();
+  }, [navigation]);
+
+  const handleBack = () => {
+    navigation.navigate("BookingsMain", { activeTab: "ongoing" });
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: "#F8FAFC" }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader showBack={true} />
+        <AppHeader showBack={true} onBackPress={handleBack} />
         {/* Header Section */}
         <View style={styles.header}>
           <Animated.View

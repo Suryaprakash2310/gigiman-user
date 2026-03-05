@@ -1,27 +1,36 @@
 import { BookingItem, BookingStatus } from "@/src/context/BookingContext";
 
 function normalizeStatus(booking: any): BookingStatus {
-  const backendStatus = booking.status?.toLowerCase();
+  const status = booking.status?.toLowerCase();
+  const assignment = booking.assignmentStatus?.toLowerCase();
 
-  switch (backendStatus) {
-    case "pending":
-      // Provider accepted → OTP stage
-      return "otp";
+  // 1. Check for Terminal Statuses
+  if (status === "completed") return "completed";
+  if (status === "cancelled" || status === "cancalled" || status === "failed") return "cancelled";
 
-    case "in_progress":
-      return "in_progress";
+  // 2. Check for Scheduled Status
+  if (assignment === "scheduled" || status === "scheduled") return "scheduled";
 
-    case "completed":
-      return "completed";
+  // 3. Check for Active / In-Progress Statuses
+  if (status === "in_progress") return "in_progress";
 
-    case "cancelled":
-    case "cancalled":
-      return "cancelled";
+  // 4. Check for Assigned / OTP Statuses
+  // If assignment is "searching", we stay on searching screen
+  if (assignment === "searching") return "searching";
 
-    default:
-      // Before acceptance
-      return "searching";
+  if (
+    status === "otp" ||
+    status === "accepted" ||
+    status === "assigned" ||
+    assignment === "assigned" ||
+    assignment === "offered"
+  ) {
+    // If technician is assigned, we go to OTP
+    return "otp";
   }
+
+  // 5. Default to Searching
+  return "searching";
 }
 
 export function mapBookingToBookingItem(
@@ -66,7 +75,7 @@ export function mapBookingToBookingItem(
 
     address: booking.address,
 
-    status: booking.status,
+    status: normalizeStatus(booking),
 
     otp: otp ?? booking.StartWorkOTP ?? booking.otp,
 

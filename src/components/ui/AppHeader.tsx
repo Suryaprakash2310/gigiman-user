@@ -1,19 +1,20 @@
+import { useTheme } from "@/src/theme/useTheme";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import {
-  View,
+  StyleProp,
   StyleSheet,
   TouchableOpacity,
+  View,
   ViewStyle,
-  StyleProp,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import AppText from "./AppText";
-import { useTheme } from "@/src/theme/useTheme";
-import { useNavigation } from "@react-navigation/native";
 
 interface AppHeaderProps {
   title?: string;
   showBack?: boolean;
+  onBackPress?: () => void;
   rightIcon?: string;
   onRightPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -23,6 +24,7 @@ interface AppHeaderProps {
 export default function AppHeader({
   title,
   showBack = true,
+  onBackPress,
   rightIcon,
   onRightPress,
   style,
@@ -47,7 +49,7 @@ export default function AppHeader({
       <View style={styles.left}>
         {showBack && (
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={onBackPress || (() => navigation.goBack())}
             style={[styles.iconBtn, { backgroundColor: theme.colors.background }]}
           >
             <Ionicons

@@ -8,7 +8,7 @@ import LiveTrackingScreen from "@/src/screens/LiveTrackingScreen";
 import ReviewScreen from "@/src/screens/ReviewScreen";
 
 export type BookingParamList = {
-  BookingsMain: undefined;
+  BookingsMain: { activeTab?: string };
   Searching: { bookingId: string };
   BookingDetails: { bookingId: string };
   Review: { bookingId: string };
