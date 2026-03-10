@@ -56,10 +56,9 @@ export default function ServiceCategory({ route, navigation }: any) {
 
       if (domainId) {
         const res = await ServiceAPI.getSubServicesByDomainId(domainId);
-        const services = res?.services || [];
-        const svc = services.find((s: any) => s.serviceName === serviceName);
+       const services = res?.services || [];
+        const svc = services.find((s: any) => s.serviceName === serviceName); 
         const cats = (svc?.serviceCategory || []) as CategoryItem[];
-
         setState((prev) => ({
           ...prev,
           items: cats,
@@ -176,7 +175,7 @@ export default function ServiceCategory({ route, navigation }: any) {
       ]}
     >
       <AppHeader showBack title={serviceName} />
-     <View >
+     <View style={{ flex: 1 }}>
       <FlatList
       style={{ flex: 1 }}
         data={state.items}

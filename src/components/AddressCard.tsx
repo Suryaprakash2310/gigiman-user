@@ -9,9 +9,9 @@ export type AddressType = 'home' | 'work' | 'other';
 export interface Address {
   id: string;
   label: AddressType;
-  title: string;      // e.g. "Home", "Work", or custom
-  line1: string;      // e.g. "12, MG Road"
-  line2?: string;     // optional extra info
+  title: string;
+  line1: string;
+  line2?: string;
   landmark?: string;
   city: string;
   pincode: string;
@@ -23,22 +23,22 @@ interface Props {
   onPressEdit: () => void;
   onPressDelete: () => void;
   onPressSetDefault?: () => void;
+  onPress?: () => void;
   showDefaultBadge?: boolean;
 }
 
-const labelMap: Record<AddressType, { text: string; icon: string }> = {
-  home: { text: 'Home', work: 'Work', other: 'Other' } as any, // workaround below
-} as any;
 const typeMeta: Record<AddressType, { text: string; icon: keyof typeof Feather.glyphMap }> = {
   home: { text: 'Home', icon: 'home' },
   work: { text: 'Work', icon: 'briefcase' },
   other: { text: 'Other', icon: 'map-pin' },
 };
+
 const AddressCard: React.FC<Props> = ({
   address,
   onPressEdit,
   onPressDelete,
   onPressSetDefault,
+  onPress,
   showDefaultBadge = true,
 }) => {
   const { theme } = useTheme();
@@ -46,8 +46,12 @@ const AddressCard: React.FC<Props> = ({
   const meta = typeMeta[address.label];
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      {/* TOP ROW: TYPE + DEFAULT BADGE */}
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
+      style={[styles.card, { backgroundColor: theme.colors.surface }]}
+    >
+      {/* TOP ROW */}
       <View style={styles.topRow}>
         <View style={styles.typeChip}>
           <Feather
@@ -106,7 +110,13 @@ const AddressCard: React.FC<Props> = ({
       {/* ACTIONS ROW */}
       <View style={styles.actionsRow}>
         {onPressSetDefault && !address.isDefault && (
-          <TouchableOpacity onPress={onPressSetDefault} activeOpacity={0.8}>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onPressSetDefault();
+            }}
+            activeOpacity={0.8}
+          >
             <AppText size="small" weight="semibold" color="primary">
               Set as default
             </AppText>
@@ -115,19 +125,32 @@ const AddressCard: React.FC<Props> = ({
 
         <View style={{ flex: 1 }} />
 
-        <TouchableOpacity onPress={onPressEdit} activeOpacity={0.8} style={{ marginRight: 16 }}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            onPressEdit();
+          }}
+          activeOpacity={0.8}
+          style={{ marginRight: 16 }}
+        >
           <AppText size="small" color="primary" weight="semibold">
             Edit
           </AppText>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onPressDelete} activeOpacity={0.8}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            onPressDelete();
+          }}
+          activeOpacity={0.8}
+        >
           <AppText size="small" color="danger" weight="semibold">
             Remove
           </AppText>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

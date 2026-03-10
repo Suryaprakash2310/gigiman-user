@@ -7,16 +7,15 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileAPI, updateProfile } from '../api/profile.api';
+import { useTheme } from '@/src/theme/useTheme';
+
 
 export default function PersonalDetailsPage() {
-    // Force light theme colors as per requirement
-    const themeColors = {
-        background: '#F9FAFB',
-        surface: '#FFFFFF',
-        text: '#0F172A',
-        border: '#E2E8F0',
-        success: '#10B981',
-    };
+    
+      const { theme, setMode } = useTheme();
+    
+      //const styles = createStyles(theme);
+
 
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
@@ -29,7 +28,7 @@ export default function PersonalDetailsPage() {
         // Call updateProfile API to save changes
         (async () => {
             try {
-                const payload: any = { fullName: values.fullName };
+                const payload: any = { fullName: values.fullName,avatar: avatar }; // Add other fields as needed
                 if (avatar !== undefined) payload.avatar = avatar; // string | null
 
                 const res = await updateProfile(payload);
@@ -57,17 +56,17 @@ export default function PersonalDetailsPage() {
     }, []);
 
     return (
-        <View style={[styles.container, { backgroundColor: themeColors.background, paddingTop: insets.top }]}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
             {/* Header */}
-            <View style={[styles.header, { backgroundColor: themeColors.surface }]}>
+            <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
                 <TouchableOpacity
                     onPress={handleBack}
                     style={styles.backButton}
                     activeOpacity={0.7}
                 >
-                    <Feather name="chevron-left" size={24} color={themeColors.text} />
+                    <Feather name="chevron-left" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <AppText size="h3" weight="bold" style={{ color: themeColors.text, flex: 1, textAlign: 'center', marginRight: 40 }}>
+                <AppText size="h3" weight="bold" style={{ color: theme.colors.text, flex: 1, textAlign: 'center', marginRight: 40 }}>
                     Personal details
                 </AppText>
             </View>
@@ -80,7 +79,7 @@ export default function PersonalDetailsPage() {
                     </View>
                 </View>
 
-                <AppText size="h3" weight="bold" style={[styles.sectionTitle, { color: themeColors.text }]}>
+                <AppText size="h3" weight="bold" style={[styles.sectionTitle, { color: theme.colors.text }]}>
                     Manage your details
                 </AppText>
 

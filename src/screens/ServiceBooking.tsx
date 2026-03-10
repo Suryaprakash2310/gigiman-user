@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -36,6 +36,7 @@ import ScheduleSelector from '@/src/components/booking/ScheduleSelector';
 import ServiceDescription from '@/src/components/booking/ServiceDescription';
 import ServiceHeader from '@/src/components/booking/ServiceHeader';
 import { AppTabsParamList } from '@/src/navigation/AppStack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Nav = BottomTabNavigationProp<AppTabsParamList, 'BookingTab'>;
 
@@ -44,6 +45,7 @@ interface Props {
     params: {
       serviceCategoryId: string;
       serviceData?: any;
+      selectedAddress?: any;
     };
   };
 }
@@ -79,11 +81,53 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-
+  const [selectedAddress, setSelectedAddress] = useState<any>(null);
   // Load service on mount
   useEffect(() => {
     loadService();
   }, [serviceCategoryId]);
+
+  useFocusEffect(
+  React.useCallback(() => {
+    if (route.params?.selectedAddress) {
+      setSelectedAddress(route.params.selectedAddress);
+    }
+  }, [route.params?.selectedAddress])
+);
+  useEffect(() => {
+    loadDefaultAddress();
+  }, []);
+
+  const loadDefaultAddress = async () => {
+    try {
+      const raw = await AsyncStorage.getItem('gigiman_saved_addresses');
+      if (!raw) return;
+
+      const list = JSON.parse(raw);
+      const defaultAddress = list.find((a: any) => a.isDefault);
+
+      if (defaultAddress) {
+        setSelectedAddress(defaultAddress);
+      }
+    } catch (err) {
+      console.log('Failed loading address', err);
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      const location = await getCurrentLocation();
+
+      setSelectedAddress({
+        line1: "Current Location",
+        latitude: location.latitude,
+        longitude: location.longitude
+      });
+
+    } catch (err) {
+      Alert.alert("Location Error", "Unable to get current location");
+    }
+  };
 
   const loadService = useCallback(async () => {
     try {
@@ -139,8 +183,20 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     try {
       setBooking(true);
 
-      const location = await getCurrentLocation();
-      const scheduleDateTime =
+      let coordinates;
+      let addressText;
+
+      if (selectedAddress) {
+        coordinates = [
+          selectedAddress.longitude,
+          selectedAddress.latitude,
+        ];
+        addressText = selectedAddress.line1;
+      } else {
+        const location = await getCurrentLocation();
+        coordinates = [location.longitude, location.latitude];
+        addressText = "Current Location";
+      } const scheduleDateTime =
         bookingMode === 'schedule'
           ? new Date(
             selectedDate!.getFullYear(),
@@ -155,8 +211,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         userId: user._id,
         serviceCategoryName: category.serviceCategoryName,
         domainService: category.domainService,
-        address: user.address ?? 'Saved address',
-        coordinates: [location.longitude, location.latitude],
+        address: addressText,
+        coordinates: coordinates,
         serviceCount: quantity,
       };
 
@@ -310,6 +366,34 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             label="How many services needed?"
           />
         </Animated.View>
+
+        <View style={styles.locationCard}>
+          <Ionicons name="location-outline" size={20} color={theme.colors.primary} />
+
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <AppText weight="bold">Service Location</AppText>
+
+            <AppText size="small" color="textMuted">
+              {selectedAddress?.line1 ?? "Select address"}
+            </AppText>
+          </View>
+
+          <AppText
+            weight="bold"
+            style={{ color: theme.colors.primary, marginRight: 12 }}
+            onPress={handleUseCurrentLocation}
+          >
+            Use Current
+          </AppText>
+
+          <AppText
+            weight="bold"
+            style={{ color: theme.colors.primary }}
+            onPress={() => navigation.navigate("ProfileTab", { screen: "SavedAddressesScreen", params: { selectMode: true } } as any)}
+          >
+            Change
+          </AppText>
+        </View>
 
         {/* Booking Mode Selector */}
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
@@ -465,6 +549,15 @@ const createStyles = (theme: any) =>
     },
     bookButton: {
       borderRadius: theme.radius.lg,
+    },
+    locationCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 16,
+      marginTop: 12,
+      borderRadius: 12,
     },
   });
 

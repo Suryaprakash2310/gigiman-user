@@ -14,6 +14,7 @@ import {
   PROFILE_MENU,
   SUPPORT_MENU,
 } from '../../configs/profileMenu';
+import ThemeToggle from '@/src/components/ui/ThemeToggle';
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
@@ -92,6 +93,14 @@ export default function ProfileScreen() {
             />
           ))}
         </View>
+        <View style={{ marginBottom: 24 }}>
+          <AppText weight="bold" size="h3" style={{ marginBottom: 8 }}>
+            Appearance
+          </AppText>
+
+          <ThemeToggle />
+        </View>
+
 
         {/* LOGOUT */}
         <View style={styles.menuBlock}>

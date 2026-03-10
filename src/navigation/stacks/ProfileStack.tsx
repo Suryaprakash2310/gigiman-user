@@ -7,6 +7,10 @@ import PersonalDetailsPage from '@/src/screens/PersonalDetailsPages';
 import HelpCenterPage from '@/src/screens/HelpCenterPage';
 import SavedAddressesScreen from '@/src/screens/profile/SavedAddressesScreen';
 import MyBookingsScreen from '@/src/screens/profile/MyBookingScreen';
+import AboutPage from '@/src/screens/AboutPage';
+import TermsAndConditionsPage from '@/src/screens/TermsAndConditionsPage';
+import AddEditAddressScreen from '@/src/screens/profile/AddEditAddressScreen';
+import MapPinLocationScreen from '@/src/screens/profile/MapPinLocationScreen';
 
 // Placeholder
 
@@ -25,6 +29,10 @@ export default function ProfileStack() {
       <Stack.Screen name="HelpCenterPage" component={HelpCenterPage} />
        <Stack.Screen name="SavedAddressesScreen" component={SavedAddressesScreen} />
        <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+      <Stack.Screen name="AboutPage" component={AboutPage} />
+      <Stack.Screen name="TermsAndConditionsPage" component={TermsAndConditionsPage} />
+      <Stack.Screen name="AddEditAddress" component={AddEditAddressScreen} />
+      <Stack.Screen name="MapPinLocation" component={MapPinLocationScreen} />
     </Stack.Navigator>
   );
 }

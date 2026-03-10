@@ -18,6 +18,7 @@ export type ServiceParamList = {
   ServiceCategory: {serviceName: string;}
   Booking: {
     serviceCategoryId: string;
+    selectedAddress?: any;
   };
   ScheduleBooking: {
     serviceName: string;

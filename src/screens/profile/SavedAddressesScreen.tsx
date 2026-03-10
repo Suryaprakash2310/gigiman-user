@@ -1,16 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/src/theme/useTheme';
 //import AppHeader from '@/src/components/ui/AppHeader';
 import AppButton from '@/src/components/ui/AppButton';
 import AppText from '@/src/components/ui/AppText';
-
+import { getCurrentLocation } from "@/src/utils/location";
 import AddressCard, { Address } from '@/src/components/AddressCard';
 import AppHeader from '@/src/components/ui/AppHeader';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
+import axios from 'axios';
 
 const STORAGE_KEY = 'gigiman_saved_addresses';
 
@@ -19,7 +21,8 @@ export default function SavedAddressesScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const styles = createStyles(theme, insets);
-
+  const route = useRoute<any>();
+  const selectMode = route.params?.selectMode ?? false;
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,11 +52,28 @@ export default function SavedAddressesScreen() {
     }
   };
 
+  
+
+
+
   useFocusEffect(
     useCallback(() => {
       loadAddresses();
     }, [])
   );
+
+  const handleSelectAddress = (address: Address) => {
+
+  if (!selectMode) return;
+
+  navigation.navigate("ServiceTab", {
+    screen: "Booking",
+    params: {
+      selectedAddress: address
+    }
+  });
+
+};
 
   const handleAddAddress = () => {
     navigation.navigate('AddEditAddress'); // Screen you’ll create
@@ -75,10 +95,14 @@ export default function SavedAddressesScreen() {
     }));
     saveAddresses(updated);
   };
+  const handleBack = () => {
+    navigation.navigate('ProfileTab');
+  };
 
   const renderItem = ({ item }: { item: Address }) => (
     <AddressCard
       address={item}
+      onPress={() => handleSelectAddress(item)}
       onPressEdit={() => handleEditAddress(item)}
       onPressDelete={() => handleDeleteAddress(item.id)}
       onPressSetDefault={() => handleSetDefault(item.id)}
@@ -88,7 +112,7 @@ export default function SavedAddressesScreen() {
   return (
     <View style={styles.container}>
       {/* <AppHeader title="Saved Addresses" /> */}
-      <AppHeader showBack={true} />
+      <AppHeader showBack={true} onBackPress={handleBack}/>
 
       <View style={styles.body}>
         {/* Top text */}
@@ -112,6 +136,8 @@ export default function SavedAddressesScreen() {
             </AppText>
           </View>
         )}
+
+        
 
         {/* List */}
         <FlatList
@@ -160,4 +186,5 @@ const createStyles = (theme: any, insets: any) =>
       backgroundColor: theme.colors.surface,
       opacity: 0.6,
     },
+    
   });

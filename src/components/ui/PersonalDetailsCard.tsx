@@ -3,6 +3,7 @@ import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import AppButton from './AppButton';
 import AppInput from './AppInput';
 import AppText from './AppText';
+import { useTheme } from '@/src/theme/useTheme';
 
 interface PersonalDetails {
     fullName: string;
@@ -24,17 +25,17 @@ export default function PersonalDetailsCard({
     onSubmit,
 }: Props) {
     // Force light theme colors
-    const themeColors = {
-        surface: '#FFFFFF',
-        text: '#0F172A',
-        textMuted: '#64748B',
-        border: '#E2E8F0',
-        success: '#10B981',
-        danger: '#EF4444',
-        cardShadow: 'rgba(0,0,0,0.06)',
-        primary: '#3B82F6',
-    };
-
+    // const themeColors = {
+    //     surface: '#FFFFFF',
+    //     text: '#0F172A',
+    //     textMuted: '#64748B',
+    //     border: '#E2E8F0',
+    //     success: '#10B981',
+    //     danger: '#EF4444',
+    //     cardShadow: 'rgba(0,0,0,0.06)',
+    //     primary: '#3B82F6',
+    // };
+        const { theme } = useTheme();
     const [values, setValues] = useState<PersonalDetails>(initialValues);
     const [editingField, setEditingField] = useState<keyof PersonalDetails | null>(null);
     const [errors, setErrors] = useState<Partial<Record<keyof PersonalDetails, string>>>({});
@@ -108,9 +109,9 @@ export default function PersonalDetailsCard({
         const error = errors[field];
 
         return (
-            <View style={[styles.fieldContainer, { borderBottomColor: themeColors.border }]}>
+            <View style={[styles.fieldContainer, { borderBottomColor: theme.colors.border }]}>
                 <View style={styles.fieldContent}>
-                    <AppText size="body" weight="semibold" style={[styles.label, { color: themeColors.text }]}>
+                    <AppText size="body" weight="semibold" style={[styles.label, { color: theme.colors.text }]}>
                         {label}
                     </AppText>
 
@@ -123,7 +124,7 @@ export default function PersonalDetailsCard({
                                         top: 12,
                                         left: 12,
                                         zIndex: 1,
-                                        color: themeColors.text,
+                                        color: theme.colors.text,
                                     }}
                                 >
                                     +91
@@ -139,15 +140,15 @@ export default function PersonalDetailsCard({
                                     paddingLeft: field === 'phoneNo' ? 45 : 16,
                                     height: 45,
                                     paddingVertical: 0,
-                                    color: themeColors.text,
-                                    backgroundColor: themeColors.surface,
-                                    borderColor: error ? themeColors.danger : themeColors.border,
+                                    color: theme.colors.text,
+                                    backgroundColor: theme.colors.surface,
+                                    borderColor: error ? theme.colors.danger : theme.colors.border,
                                 }}
                                 error={error}
                             />
                         </View>
                     ) : (
-                        <AppText size="body" style={[styles.valueText, { color: themeColors.textMuted }]}>
+                        <AppText size="body" style={[styles.valueText, { color: theme.colors.textMuted }]}>
                             {field === 'phoneNo' ? `+91 ${value}` : value}
                         </AppText>
                     )}
@@ -155,7 +156,7 @@ export default function PersonalDetailsCard({
 
                 {!isEditing && editableFields.includes(field) && (
                     <TouchableOpacity onPress={() => handleEdit(field)} style={styles.editButton}>
-                        <AppText size="body" weight="medium" style={{ color: themeColors.primary }}>
+                        <AppText size="body" weight="medium" style={{ color: theme.colors.primary }}>
                             Edit
                         </AppText>
                     </TouchableOpacity>
@@ -165,7 +166,7 @@ export default function PersonalDetailsCard({
     };
 
     return (
-        <View style={[styles.card, { backgroundColor: themeColors.surface, shadowColor: themeColors.cardShadow }]}>
+        <View style={[styles.card, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.cardShadow }]}>
             {renderField('Name', 'fullName', values.fullName, 'Enter your name')}
             {renderField('Email', 'email', values.email, 'Enter your email')}
             {renderField('Phone Number', 'phoneNo', values.phoneNo, 'Enter phone number')}
@@ -174,7 +175,7 @@ export default function PersonalDetailsCard({
                 <AppButton
                     title="Save Changes"
                     onPress={handleSave}
-                    style={{ backgroundColor: themeColors.success, width: '100%' }}
+                    style={{ backgroundColor: theme.colors.success, width: '100%' }}
                 />
             </View>
         </View>

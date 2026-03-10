@@ -34,6 +34,18 @@ export const SUPPORT_MENU = [
     icon: 'headphones',
     screen: 'HelpCenterPage',
   },
+  {
+    id: 'about',
+    label: 'About Gigi',
+    icon: 'info',
+    screen: 'AboutPage',
+  },
+  {
+    id: 'terms',
+    label: 'Terms & Conditions',
+    icon: 'file-text',
+    screen: 'TermsAndConditionsPage',
+  }
 ];
 
 export const LOGOUT_MENU = [

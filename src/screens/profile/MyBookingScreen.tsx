@@ -8,92 +8,64 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRoute } from "@react-navigation/native";
-
-import { useBooking } from "@/src/context/BookingContext";
 import AppHeader from "@/src/components/ui/AppHeader";
 import { useTheme } from "@/src/theme/useTheme";
-
+import { BookingAPI } from "@/src/api/booking.api";
 const { width } = Dimensions.get("window");
 
 export default function MyBookingsScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const route = useRoute<any>();
-
-  const { ongoing, upcoming } = useBooking();
-
-  const [activeTab, setActiveTab] = useState<"ongoing" | "upcoming">(
-    route?.params?.tab || "ongoing"
-  );
-
-  useEffect(() => {
-    if (route?.params?.tab) {
-      setActiveTab(route.params.tab);
-    }
-  }, [route?.params?.tab]);
-
   const styles = makeStyles(theme, insets);
 
-  const data = activeTab === "ongoing" ? ongoing : upcoming;
+  const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const bookings = await BookingAPI.getUserBookings();
+        setHistory(bookings || []);
+      } catch (e) {
+        setError("Failed to load booking history");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   return (
     <View style={styles.wrapper}>
-      <AppHeader title="My Bookings" showBack showShadow />
-
-      {/* 🔵 TAB SWITCH */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === "ongoing" && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab("ongoing")}
-        >
-          <Text style={styles.tabText}>Ongoing ({ongoing.length})</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === "upcoming" && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab("upcoming")}
-        >
-          <Text style={styles.tabText}>Upcoming ({upcoming.length})</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 📦 LIST */}
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.content}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No bookings found</Text>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.service}>
-                {item.serviceCategoryName}
-              </Text>
-              <Text style={styles.amount}>
-                ₹{item.totalPrice || 0}
-              </Text>
+      <AppHeader title="Booking History" showBack showShadow />
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.primary} />
+      ) : error ? (
+        <Text style={styles.empty}>{error}</Text>
+      ) : (
+        <FlatList
+          data={history}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.content}
+          ListEmptyComponent={<Text style={styles.empty}>No booking history found</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.row}>
+                <Text style={styles.service}>{item.serviceCategoryName}</Text>
+                <Text style={styles.amount}>₹{item.totalPrice || 0}</Text>
+              </View>
+              <Text style={styles.sub}>{item.address}</Text>
+              <View style={styles.footer}>
+                <Text style={styles.status}>{item.status}</Text>
+              </View>
             </View>
-
-            <Text style={styles.sub}>{item.address}</Text>
-
-            <View style={styles.footer}>
-              <Text style={styles.status}>{item.status}</Text>
-            </View>
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
     </View>
   );
 }

@@ -10,8 +10,9 @@ import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
-import { Easing, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTheme } from '@/src/theme/useTheme';
+import { Easing } from 'react-native-reanimated';
 
 export interface AppBottomSheetRef {
   expand: () => void;
