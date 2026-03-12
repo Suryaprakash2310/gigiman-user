@@ -236,11 +236,9 @@ export default function BookingSearchScreen() {
       updateStatus(bookingId, "otp");
       upsertBooking({
         _id: bookingId,
-        serviceCategoryName: bookings.find(b => b._id === bookingId)?.serviceCategoryName || "",
-        address: bookings.find(b => b._id === bookingId)?.address || "",
         status: "otp",
         otp: String(otp),
-      });
+      } as any);
 
       navigation.replace("BookingDetails", { bookingId });
     };

@@ -169,8 +169,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         return prev.map(b =>
           b._id === booking._id
             ? {
-              ...booking, // Always use the latest booking from API
-              otp: booking.otp ?? b.otp // Only preserve OTP if missing
+              ...b,       // Preserve existing fields (name, price, etc.)
+              ...booking, // Apply updates
+              otp: booking.otp ?? b.otp // Ensure OTP is preserved/updated
             }
             : b
         );

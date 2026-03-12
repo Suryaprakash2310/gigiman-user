@@ -22,8 +22,7 @@ function normalizeStatus(booking: any): BookingStatus {
     status === "otp" ||
     status === "accepted" ||
     status === "assigned" ||
-    assignment === "assigned" ||
-    assignment === "offered"
+    assignment === "assigned"
   ) {
     // If technician is assigned, we go to OTP
     return "otp";
