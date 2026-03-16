@@ -30,7 +30,7 @@ export const lightTheme: AppTheme = {
   colors: {
     background: '#F9FAFB',    //'#F9FAFB',
     surface: '#FFFFFF',
-    primary: '#1e60cb',              //'#285B5B',       // soft teal
+    primary: '#285B5B',              //'#285B5B',       // soft teal
     primaryDark: '#07533B',
     accent: '#F59E0B',        // warm orange – action, excitement
     text: '#0F172A',

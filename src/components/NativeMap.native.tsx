@@ -1,24 +1,24 @@
-import MapboxGL from "@rnmapbox/maps";
-import React from "react";
-import { MAPBOX_ACCESS_TOKEN } from "../config/env";
+// import MapboxGL from "@rnmapbox/maps";
+// import React from "react";
+// import { MAPBOX_ACCESS_TOKEN } from "../config/env";
 
-// Set your access token here
-if (MAPBOX_ACCESS_TOKEN) {
-    MapboxGL.setAccessToken(MAPBOX_ACCESS_TOKEN);
-}
+// // Set your access token here
+// if (MAPBOX_ACCESS_TOKEN) {
+//     MapboxGL.setAccessToken(MAPBOX_ACCESS_TOKEN);
+// }
 
-interface MapViewProps {
-    children?: React.ReactNode;
-    style?: any;
-    initialRegion?: {
-        latitude: number;
-        longitude: number;
-        latitudeDelta: number;
-        longitudeDelta: number;
-    };
-    showsUserLocation?: boolean;
-    showsMyLocationButton?: boolean; // Not directly supported, ignored for now
-}
+// interface MapViewProps {
+//     children?: React.ReactNode;
+//     style?: any;
+//     initialRegion?: {
+//         latitude: number;
+//         longitude: number;
+//         latitudeDelta: number;
+//         longitudeDelta: number;
+//     };
+//     showsUserLocation?: boolean;
+//     showsMyLocationButton?: boolean; // Not directly supported, ignored for now
+// }
 // import React, { forwardRef, useImperativeHandle, useRef } from "react";
 // import { StyleSheet, View } from "react-native";
 // // import { MAPBOX_ACCESS_TOKEN } from "../config/env";
