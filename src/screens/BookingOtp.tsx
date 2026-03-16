@@ -379,7 +379,7 @@ export default function BookingOtp() {
             role={booking.serviceCategoryName}
             experience="5 years exp"
             rating={booking.rating ?? 4.9}
-            reviews={845}
+            reviews={booking.reviews ?? 0}
             image="https://randomuser.me/api/portraits/men/32.jpg"
           />
 
@@ -472,7 +472,7 @@ export default function BookingOtp() {
 
               <View style={styles.partRow}>
                 <AppText>Service</AppText>
-                <AppText>{serviceProposal.serviceCategoryName}</AppText>
+                <AppText>{serviceProposal.serviceCategoryName || serviceProposal.serviceName}</AppText>
               </View>
 
               <View style={styles.partRow}>
@@ -612,9 +612,20 @@ export default function BookingOtp() {
                   {booking.serviceCategoryName}
                 </AppText>
               </View>
+
+              {booking.extraServices?.filter(s => s.status === "APPROVED").map((extra, index) => (
+                <View key={extra._id || index} style={styles.summaryRow}>
+                  <AppText style={{ color: "#475569" }}>+ {extra.serviceName}</AppText>
+                  <AppText style={{ color: "#475569" }}>
+                    ₹{extra.price}
+                  </AppText>
+                </View>
+              ))}
+
+              <View style={styles.divider} />
               <View style={styles.summaryRow}>
-                <AppText style={{ color: "#475569" }}>Price</AppText>
-                <AppText style={{ color: "#475569" }}>
+                <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
+                <AppText style={{ color: "#0F766E" }} weight="bold">
                   ₹{booking.totalPrice}
                 </AppText>
               </View>

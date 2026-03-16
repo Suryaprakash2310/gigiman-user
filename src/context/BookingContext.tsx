@@ -35,16 +35,25 @@ export type BookingItem = {
   scheduleDateTime?: string;
   name?: string;
   rating?: number;
+  reviews?: number;
   otp?: string;
   dateLabel?: string;
   timeLabel?: string;
   durationInMinutes?: number;
   pendingServiceProposal?: ServiceProposal | null;
+  extraServices?: {
+    _id: string;
+    serviceName: string;
+    price: number;
+    status: string;
+  }[];
 };
 
 export type ServiceProposal = {
+  _id?: string;
   serviceCategoryId: string;
   serviceCategoryName: string;
+  serviceName?: string;
   price: number;
   durationInMinutes: number;
   employeeCount: number;

@@ -45,7 +45,11 @@ export function useBookingOtpLogic() {
     if (!serviceProposal) return;
     socket.emit("extra-service-approve", {
       bookingId,
+<<<<<<< Updated upstream
       extraServiceId: booking?.serviceCategoryName,
+=======
+      extraServiceId: serviceProposal._id,
+>>>>>>> Stashed changes
       approve: true,
       userId: user?._id,
     });
@@ -53,13 +57,27 @@ export function useBookingOtpLogic() {
       pendingServiceProposal: null,
       totalPrice: serviceProposal.price + (booking?.totalPrice ?? 0),
       durationInMinutes: serviceProposal.durationInMinutes + (booking?.durationInMinutes ?? 0),
+<<<<<<< Updated upstream
+=======
+      extraServices: [
+        ...(booking?.extraServices || []),
+        {
+          _id: serviceProposal._id || "optimistic",
+          serviceName: serviceProposal.serviceCategoryName || serviceProposal.serviceName || "Extra Service",
+          price: serviceProposal.price,
+          status: "APPROVED"
+        }
+      ]
+>>>>>>> Stashed changes
     });
   };
   const handleRejectService = () => {
     if (!serviceProposal) return;
     socket.emit("extra-service-approve", {
       bookingId,
+      extraServiceId: serviceProposal._id,
       approve: false,
+      userId: user?._id,
     });
     updateBookingItem(bookingId, {
       pendingServiceProposal: null,
@@ -120,7 +138,19 @@ export function useBookingOtpLogic() {
           pendingServiceProposal: null,
           totalPrice: data.totalPrice,
           durationInMinutes: data.durationInMinutes ?? booking?.durationInMinutes,
+<<<<<<< Updated upstream
+=======
+          extraServices: data.extraServices ?? booking?.extraServices,
+>>>>>>> Stashed changes
         });
+        
+        // Refetch booking fully to populate updated `extraServices` arrays
+        api.get(`/booking/${bookingId}`).then(res => {
+          if (res.data?.booking) {
+             upsertBooking(mapBookingToBookingItem(res.data.booking));
+          }
+        }).catch(err => console.warn(err));
+
       }
       if (data.status === "REJECTED") {
         updateBookingItem(bookingId, {

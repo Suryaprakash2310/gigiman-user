@@ -12,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -25,6 +26,7 @@ import CalendarModal from '@/src/components/ui/CalendarModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { ServiceAPI } from '@/src/api/service.api';
+import { CouponAPI } from '@/src/api/coupon.api';
 import { useAuthContext } from '@/src/context/AuthContext';
 import { useBooking } from '@/src/context/BookingContext';
 import { useTheme } from '@/src/theme/useTheme';
@@ -88,6 +90,15 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const [referralCode, setReferralCode] = useState("");
   const [referralDiscount, setReferralDiscount] = useState(0);
   const [checkingReferral, setCheckingReferral] = useState(false);
+
+  // Coupon State
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+
   // Load service on mount
   useEffect(() => {
     loadService();
@@ -187,6 +198,44 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     Alert.alert("Referral Applied", `You saved ₹${discount.toFixed(0)}`);
   };
 
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    if (!category) return;
+
+    try {
+      setCouponLoading(true);
+      setCouponError('');
+      setCouponSuccess('');
+      
+      const cartTotal = category.price * quantity;
+      const res = await CouponAPI.validateCoupon(couponCode, cartTotal);
+      
+      if (res.success) {
+        setAppliedCoupon(res.coupon);
+        setDiscountAmount(res.discountAmount || 0);
+        setCouponSuccess(`Coupon applied! Saved ₹${res.discountAmount || 0}`);
+      }
+    } catch (err: any) {
+      setCouponError(err.response?.data?.message || 'Invalid coupon code');
+      setAppliedCoupon(null);
+      setDiscountAmount(0);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode('');
+    setAppliedCoupon(null);
+    setDiscountAmount(0);
+    setCouponSuccess('');
+    setCouponError('');
+  };
+
   const handleBookNow = useCallback(async () => {
     if (!user?._id) {
       Alert.alert('Login Required', 'Please login to book a service');
@@ -250,6 +299,10 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         payload.bookingType = BOOKING_TYPE.SCHEDULED;
       }
 
+      if (appliedCoupon) {
+        payload.couponCode = appliedCoupon.code;
+      }
+
       const res = await apiClient.post(
         scheduleDateTime ? '/booking/schedule' : '/booking/auto-assign',
         payload
@@ -302,7 +355,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     } finally {
       setBooking(false);
     }
-  }, [user, category, bookingMode, selectedDate, selectedTime, quantity, navigation, upsertBooking]);
+  }, [user, category, bookingMode, selectedDate, selectedTime, quantity, appliedCoupon, navigation, upsertBooking]);
 
   // Loading state
   if (loading) {
@@ -480,17 +533,71 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
       {/* Fixed Bottom Action Bar */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+
+        {/* Coupon Input Section */}
+        <View style={styles.couponSection}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Ionicons name="pricetag-outline" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+            {appliedCoupon ? (
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <AppText weight="bold" style={{ color: theme.colors.success }}>{appliedCoupon.code} Applied</AppText>
+                <TouchableOpacity onPress={removeCoupon} style={{ padding: 4 }}>
+                  <Ionicons name="close-circle" size={20} color={theme.colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.couponInputContainer}>
+                <TextInput
+                  style={styles.couponInput}
+                  placeholder="Enter Coupon Code"
+                  placeholderTextColor={theme.colors.textMuted}
+                  value={couponCode}
+                  onChangeText={(text) => {
+                    setCouponCode(text.toUpperCase());
+                    setCouponError('');
+                  }}
+                  autoCapitalize="characters"
+                />
+                <TouchableOpacity
+                  style={styles.applyButton}
+                  onPress={applyCoupon}
+                  disabled={couponLoading || !couponCode.trim()}
+                >
+                  {couponLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <AppText weight="bold" style={{ color: '#fff', fontSize: 12 }}>APPLY</AppText>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+          {couponError ? (
+            <AppText size="small" color="danger" style={{ marginTop: 4 }}>{couponError}</AppText>
+          ) : null}
+        </View>
+
         <View style={styles.priceDisplay}>
           <AppText size="body" color="textMuted">
             Total:
           </AppText>
-          <AppText
-            weight="bold"
-            size="h2"
-            style={{ color: theme.colors.primary }}
-          >
-            ₹{totalPrice}
-          </AppText>
+          <View style={{ alignItems: 'flex-end' }}>
+            {discountAmount > 0 ? (
+              <AppText
+                size="small"
+                style={{ color: theme.colors.textMuted, textDecorationLine: 'line-through' }}
+              >
+                ₹{totalPrice}
+              </AppText>
+            ) : null}
+            <AppText
+              weight="bold"
+              size="h2"
+              style={{ color: theme.colors.primary }}
+            >
+              ₹{totalPrice - discountAmount}
+            </AppText>
+          </View>
         </View>
 
         <AppButton
@@ -634,7 +741,38 @@ const createStyles = (theme: any) =>
       padding: theme.spacing.md,
       backgroundColor: theme.colors.background,
     },
-    
+    couponSection: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.md,
+      padding: 12,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    couponInputContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    couponInput: {
+      flex: 1,
+      height: 36,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radius.sm,
+      paddingHorizontal: 12,
+      marginRight: 8,
+      color: theme.colors.text,
+      fontFamily: theme.fonts?.regular || 'System',
+    },
+    applyButton: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: 16,
+      height: 36,
+      borderRadius: theme.radius.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 
 export default ServiceBookingScreen;

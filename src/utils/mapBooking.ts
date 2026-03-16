@@ -58,6 +58,11 @@ export function mapBookingToBookingItem(
     booking.rating ||
     undefined;
 
+  const techReviews = 
+    booking.technician?.reviews ||
+    booking.reviews ||
+    0;
+
   const price = booking.totalPrice ?? booking.cost ?? booking.amount;
 
   return {
@@ -82,6 +87,9 @@ export function mapBookingToBookingItem(
 
     name: techName,
     rating: techRating,
+    reviews: techReviews,
+
+    extraServices: booking.extraServices || [],
 
     isScheduled: booking.isScheduled,
     scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,

@@ -1,30 +1,29 @@
 
 // src/screens/HomeScreen.tsx
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-  Image,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import React, { useEffect, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/src/theme/useTheme";
-import AppText from "@/src/components/ui/AppText";
 import AppButton from "@/src/components/ui/AppButton";
+import AppText from "@/src/components/ui/AppText";
+import { useTheme } from "@/src/theme/useTheme";
 
-import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
 import { AppTabsParamList } from "../navigation/AppStack";
 
-import { getPopularServices } from "../api/dashboard.api";
-import FanInstall from '@/assets/images/FanInstall.svg';
 import { BannerAPI } from "../api/banner.api";
+import { getBanners, getPopularServices } from "../api/dashboard.api";
 
 const { width } = Dimensions.get("window");
 
@@ -66,19 +65,34 @@ export default function HomeScreen() {
   const [popularServices, setPopularServices] = useState<any[]>([]);
   const [loadingPopular, setLoadingPopular] = useState(true);
 
+  const [banners, setBanners] = useState<any[]>([]);
+  const [loadingBanners, setLoadingBanners] = useState(true);
+
   useEffect(() => {
-    const load = async () => {
+    const loadData = async () => {
       try {
-        const res = await getPopularServices();
-        setPopularServices(res);
+        const [popularRes, bannersRes] = await Promise.all([
+          getPopularServices().catch(e => {
+            console.log("popular error", e);
+            return [];
+          }),
+          getBanners().catch(e => {
+            console.log("banner error", e);
+            return [];
+          })
+        ]);
+
+        setPopularServices(popularRes);
+        setBanners(bannersRes);
       } catch (e) {
-        console.log("popular error", e);
+        console.log("data load error", e);
       } finally {
         setLoadingPopular(false);
+        setLoadingBanners(false);
       }
     };
 
-    load();
+    loadData();
   }, []);
 
   return (
@@ -93,7 +107,7 @@ export default function HomeScreen() {
 
         <Hero navigation={navigation} />
 
-        <OffersCarousel />
+        <OffersCarousel banners={banners} loading={loadingBanners} />
 
         <QuickActions navigation={navigation} />
 
@@ -196,7 +210,7 @@ const Hero = ({ navigation }: any) => {
 
 
 
-const OffersCarousel = () => {
+const OffersCarousel = ({ banners, loading }: { banners: any[], loading: boolean }) => {
   const styles = createStyles(useTheme().theme);
   const [offers, setOffers] = useState<any[]>([]);
 
@@ -213,14 +227,26 @@ const OffersCarousel = () => {
     fetchBanners();
   }, []);
 
+  if (loading) {
+    return (
+      <View style={{ height: 120, justifyContent: 'center', alignItems: 'center', marginBottom: 30 }}>
+        <AppText color="textMuted">Loading banners...</AppText>
+      </View>
+    );
+  }
+
+  if (!banners || banners.length === 0) {
+    return null; // Don't render the carousel if there are no banners
+  }
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       style={{ marginBottom: 30 }}
     >
-      {offers.map((o, i) => (
-        <View key={i} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
+      {banners.map((o, i) => (
+        <View key={o._id || i} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
           <Image source={{ uri: o.img }} style={styles.offerImg} />
 
           <View style={styles.offerOverlay}>
@@ -232,6 +258,16 @@ const OffersCarousel = () => {
               {o.description}
             </AppText>
           </View>
+          {o.title ? (
+            <View style={styles.offerOverlay}>
+              <AppText weight="bold" style={{ color: "#fff" }}>
+                {o.title}
+              </AppText>
+              {o.description ? (
+                <AppText style={{ color: "#fff" }}>{o.description}</AppText>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       ))}
     </ScrollView>
@@ -369,7 +405,7 @@ const UserReviewCard = ({ review, index }: any) => {
   return (
     <Animated.View entering={FadeInRight.delay(index * 120).springify()}>
       <View style={styles.card}>
-        
+
         {/* USER HEADER */}
         <View style={styles.header}>
           <Image source={{ uri: review.avatar }} style={styles.avatar} />
@@ -556,7 +592,7 @@ const popularServiceStyles = (theme: any) =>
     },
   });
 
-  const reviewStyles = (theme: any) =>
+const reviewStyles = (theme: any) =>
   StyleSheet.create({
     card: {
       width: width * 0.75,
