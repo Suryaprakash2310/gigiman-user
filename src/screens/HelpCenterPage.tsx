@@ -12,7 +12,7 @@ export default function HelpCenterPage() {
     // Force light theme colors
     const { theme } = useTheme();
     const insets = useSafeAreaInsets();
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
 
     const handleBack = () => {
         navigation.goBack();
@@ -110,9 +110,16 @@ export default function HelpCenterPage() {
 
                     <AppButton
                         title="Submit a New Ticket"
-                        onPress={() => { }}
-                        style={{ backgroundColor: theme.colors.primaryDark, width: '100%' }}
+                        onPress={() => navigation.navigate('CreateTicketScreen')}
+                        style={{ backgroundColor: theme.colors.primaryDark, width: '100%', marginBottom: 12 }}
                         textStyle={{ color: theme.colors.text }}
+                    />
+
+                    <AppButton
+                        title="My Support Tickets"
+                        onPress={() => navigation.navigate('SupportTicketsScreen')}
+                        variant="outline"
+                        style={{ width: '60%' }}
                     />
                 </View>
 

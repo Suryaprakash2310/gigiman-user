@@ -25,6 +25,12 @@ export const PROFILE_MENU = [
     icon: 'credit-card',
     screen: 'PaymentHistoryPage',
   },
+  {
+    id: 'invite',
+    label: 'Invite & Earn 🎁',
+    icon: 'gift',
+    screen: 'InviteReferralScreen',
+  },
 ];
 
 export const SUPPORT_MENU = [

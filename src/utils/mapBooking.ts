@@ -18,6 +18,8 @@ function normalizeStatus(booking: any): BookingStatus {
   // If assignment is "searching", we stay on searching screen
   if (assignment === "searching") return "searching";
 
+  //if (status === "pending") return "otp";
+
   if (
     status === "otp" ||
     status === "accepted" ||
@@ -61,7 +63,7 @@ export function mapBookingToBookingItem(
   return {
     _id: booking._id,
 
-    serviceCategoryName: booking.serviceCategoryName,
+    serviceCategoryName: booking.serviceCategoryName ? booking.serviceCategoryName : booking.serviceCategory ? [booking.serviceCategory] : [],
     totalPrice: price,
 
     dateLabel: booking.scheduleDateTime

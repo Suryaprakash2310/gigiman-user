@@ -13,6 +13,7 @@ import AddressCard, { Address } from '@/src/components/AddressCard';
 import AppHeader from '@/src/components/ui/AppHeader';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import axios from 'axios';
+import { deleteAddressAPI, getAddressesAPI } from '@/src/api/auth';
 
 const STORAGE_KEY = 'gigiman_saved_addresses';
 
@@ -28,20 +29,24 @@ export default function SavedAddressesScreen() {
 
   // Load from local cache
   const loadAddresses = async () => {
-    try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed: Address[] = JSON.parse(raw);
-        setAddresses(parsed);
-      } else {
-        setAddresses([]);
-      }
-    } catch (err) {
-      console.log('Failed to load addresses', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+
+    const res = await getAddressesAPI();
+    const formatted = res.data.addresses.map((a: any) => ({
+      id: a._id,
+      title: a.title,
+      line1: a.address,
+      latitude: a.location?.coordinates?.[1],
+      longitude: a.location?.coordinates?.[0]
+    }));
+    setAddresses(formatted);
+
+  } catch (err) {
+    console.log("Failed to load addresses", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const saveAddresses = async (list: Address[]) => {
     setAddresses(list);
@@ -80,14 +85,21 @@ export default function SavedAddressesScreen() {
   };
 
   const handleEditAddress = (address: Address) => {
-    navigation.navigate('AddEditAddress', { addressId: address.id });
+    navigation.navigate('AddEditAddress', { addressId: address.id, address: address });
   };
 
-  const handleDeleteAddress = (addressId: string) => {
-    const updated = addresses.filter(a => a.id !== addressId);
-    saveAddresses(updated);
-  };
+  const handleDeleteAddress = async (addressId: string) => {
 
+  try {
+
+    const res = await deleteAddressAPI(addressId);
+    setAddresses(res.data.addresses);
+
+  } catch (err) {
+    console.log("Delete failed", err);
+  }
+
+};
   const handleSetDefault = (addressId: string) => {
     const updated = addresses.map(a => ({
       ...a,
@@ -104,15 +116,15 @@ export default function SavedAddressesScreen() {
       address={item}
       onPress={() => handleSelectAddress(item)}
       onPressEdit={() => handleEditAddress(item)}
-      onPressDelete={() => handleDeleteAddress(item.id)}
-      onPressSetDefault={() => handleSetDefault(item.id)}
+      onPressDelete={() => item.id && handleDeleteAddress(item.id)}
+      onPressSetDefault={() => item.id && handleSetDefault(item.id)}
     />
   );
 
   return (
     <View style={styles.container}>
       {/* <AppHeader title="Saved Addresses" /> */}
-      <AppHeader showBack={true} onBackPress={handleBack}/>
+      <AppHeader showBack/>
 
       <View style={styles.body}>
         {/* Top text */}
@@ -142,7 +154,7 @@ export default function SavedAddressesScreen() {
         {/* List */}
         <FlatList
           data={addresses}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id ? String(item.id) : ''}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}

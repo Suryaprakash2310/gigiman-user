@@ -9,6 +9,7 @@ export default function GlobalBookingListener() {
   const { upsertBooking, updateStatus } = useBooking();
 
   useEffect(() => {
+    if (!socket) return;
     const onServicerAccepted = ({ booking, otp }: any) => {
       console.log("🟢 SERVICER ACCEPTED:", booking._id);
 
@@ -22,6 +23,24 @@ export default function GlobalBookingListener() {
       });
     };
 
+    /* otp generated */
+    const onOtpGenerated = ({ bookingId, otp }: any) => {
+      console.log("🔑 OTP generated:", bookingId);
+
+      updateStatus(bookingId, "otp");
+
+      upsertBooking({
+        _id: bookingId,
+        status: "otp",
+        otp: String(otp),
+      } as any);
+    };
+
+    /* no provider available */
+    const onNoProvider = () => {
+      console.log("❌ No technician available");
+    };
+
     const onBookingCompleted = ({ bookingId }: any) => {
       console.log("✅ BOOKING COMPLETED:", bookingId);
 
@@ -33,14 +52,20 @@ export default function GlobalBookingListener() {
       });
     };
 
-    socket.on("servicer-accepted", onServicerAccepted);
+   // socket.on("servicer-accepted", onServicerAccepted);
+   socket.on("servicer-accepted", onServicerAccepted);
+    socket.on("otp-generated", onOtpGenerated);
+    socket.on("no-servicer-available", onNoProvider);
     socket.on("booking-completed", onBookingCompleted);
 
     return () => {
+      // socket.off("servicer-accepted", onServicerAccepted);
       socket.off("servicer-accepted", onServicerAccepted);
+      socket.off("otp-generated", onOtpGenerated);
+      socket.off("no-servicer-available", onNoProvider);
       socket.off("booking-completed", onBookingCompleted);
     };
-  }, []);
+  }, [socket]);
 
   return null;
 }

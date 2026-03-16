@@ -61,6 +61,7 @@ type BookingContextType = {
   upcoming: BookingItem[];
 
   upsertBooking: (booking: BookingItem) => void;
+  updateBookingItem: (id: string, updates: Partial<BookingItem>) => void;
   updateStatus: (id: string, status: BookingStatus) => void;
   cancelBooking: (id: string) => void;
   getBookingById: (id: string) => BookingItem | null;
@@ -169,9 +170,13 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         return prev.map(b =>
           b._id === booking._id
             ? {
-              ...b,       // Preserve existing fields (name, price, etc.)
-              ...booking, // Apply updates
-              otp: booking.otp ?? b.otp // Ensure OTP is preserved/updated
+              ...b,
+              ...booking,
+              otp: booking.otp ?? b.otp,
+              // Never fallback to stale pendingServiceProposal if it was explicitly cleared
+              pendingServiceProposal: booking.pendingServiceProposal !== undefined 
+                ? booking.pendingServiceProposal 
+                : b.pendingServiceProposal
             }
             : b
         );
@@ -180,12 +185,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const updateStatus = (id: string, status: BookingStatus) => {
+  const updateBookingItem = (id: string, updates: Partial<BookingItem>) => {
     setBookings(prev =>
-      prev.map(b =>
-        b._id === id ? { ...b, status } : b
-      )
+      prev.map(b => (b._id === id ? { ...b, ...updates } : b))
     );
+  };
+
+  const updateStatus = (id: string, status: BookingStatus) => {
+    updateBookingItem(id, { status });
   };
 
   const cancelBooking = (id: string) => {
@@ -244,6 +251,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         ongoing,
         upcoming,
         upsertBooking,
+        updateBookingItem,
         updateStatus,
         cancelBooking,
         getBookingById,

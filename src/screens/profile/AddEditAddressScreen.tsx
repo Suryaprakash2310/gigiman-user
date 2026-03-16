@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -16,7 +16,9 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import AppHeader from "@/src/components/ui/AppHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
+import { wp, hp } from "@/src/utils/responsive";
 import { useTheme } from "@/src/theme/useTheme";
+import { addAddressAPI, updateAddressAPI } from "@/src/api/auth";
 
 const STORAGE_KEY = "gigiman_saved_addresses";
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
@@ -31,42 +33,47 @@ export default function AddEditAddressScreen() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
-
+  const [addressType, setAddressType] = useState("home");
+  const addressId = route.params?.addressId;
+  const isEdit = !!addressId;
   /*
    SEARCH ADDRESS
   */
 
-  const searchAddress = async (text: string) => {
+  const debounceRef = useRef<any>(null);
 
-    setQuery(text);
+const searchAddress = (text: string) => {
+
+  setQuery(text);
+
+  if (debounceRef.current) {
+    clearTimeout(debounceRef.current);
+  }
+
+  debounceRef.current = setTimeout(async () => {
 
     if (text.length < 3) {
       setResults([]);
       return;
     }
 
-    try {
+    const encoded = encodeURIComponent(text);
 
-      const encoded = encodeURIComponent(text);
-
-      const res = await axios.get(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json`,
-        {
-          params: {
-            access_token: MAPBOX_TOKEN,
-            limit: 5,
-            country: "IN"
-          }
+    const res = await axios.get(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json`,
+      {
+        params: {
+          access_token: MAPBOX_TOKEN,
+          limit: 5,
+          country: "IN"
         }
-      );
+      }
+    );
 
-      setResults(res.data.features);
+    setResults(res.data.features);
 
-    } catch (err) {
-      console.log("Mapbox search error", err);
-    }
-  };
-
+  }, 400);
+};
   /*
    SELECT SEARCH RESULT → OPEN MAP
   */
@@ -102,69 +109,74 @@ export default function AddEditAddressScreen() {
     setQuery(addr.line1);
 
   }, [route.params?.selectedAddressFromMap]);
+  
 
+  useEffect(() => {
+  if (!route.params?.address) return;
+
+  const addr = route.params.address;
+
+  setQuery(addr.line1 || addr.address);
+  setSelectedLocation({
+    address: addr.line1 || addr.address,
+    latitude: addr.latitude,
+    longitude: addr.longitude,
+  });
+
+}, [route.params]);
   /*
    SAVE ADDRESS
   */
 
   const saveAddress = async () => {
 
-    if (!selectedLocation) {
-      Alert.alert("Select Address", "Please select address from suggestions or map");
-      return;
-    }
+  if (!selectedLocation) {
+    Alert.alert("Select Address", "Please select address first");
+    return;
+  }
 
-    try {
+  try {
 
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      const list = raw ? JSON.parse(raw) : [];
+    if (isEdit) {
 
-      const newAddress = {
-        id: Date.now().toString(),
-        label: "other",
-        title: "Address",
-        line1: selectedLocation.address,
-        city: "",
-        pincode: "",
+      await updateAddressAPI(addressId, {
+        title: addressType,
+        address: selectedLocation.address,
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude
-      };
+      });
 
-      list.push(newAddress);
+    } else {
 
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      await addAddressAPI({
+        title: addressType,
+        address: selectedLocation.address,
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude
+      });
 
-      navigation.goBack();
-
-    } catch (err) {
-      console.log("Save address error", err);
     }
-  };
+
+    //navigation.goBack();
+    navigation.navigate("SavedAddressesScreen");
+
+  } catch (err) {
+    console.log("Save address error", err);
+  }
+
+};
 
   return (
-
-    <View style={styles.container}>
-
-      <AppHeader showBack title="Add Address" />
-
-      <ScrollView contentContainerStyle={styles.body}>
-
-        <AppText weight="semibold" style={{ marginBottom: 6 }}>
-          Search Address
-        </AppText>
-
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.container}>
+        <AppHeader showBack title="Add Address" />
+        <AppText weight="semibold" style={styles.label}>Search Address</AppText>
         <TextInput
           style={styles.input}
           placeholder="Search your location"
           value={query}
           onChangeText={searchAddress}
         />
-
-        <AppButton
-          title="Select From Map"
-          onPress={() => navigation.navigate("MapPinLocation")}
-        />
-
         {results.length > 0 && (
           <FlatList
             data={results}
@@ -177,62 +189,119 @@ export default function AddEditAddressScreen() {
                 <AppText>{item.place_name}</AppText>
               </TouchableOpacity>
             )}
+            style={styles.resultList}
           />
         )}
-
         {selectedLocation && (
           <View style={styles.selectedBox}>
             <AppText weight="semibold">Selected Address</AppText>
-
             <AppText size="small" color="textMuted">
               {selectedLocation.address}
             </AppText>
           </View>
         )}
-
+        <View style={styles.typeContainer}>
+          <TouchableOpacity
+            style={[styles.typeButton, addressType === "home" && styles.typeSelected]}
+            onPress={() => setAddressType("home")}
+          >
+            <AppText>🏠 Home</AppText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeButton, addressType === "office" && styles.typeSelected]}
+            onPress={() => setAddressType("office")}
+          >
+            <AppText>🏢 Office</AppText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeButton, addressType === "other" && styles.typeSelected]}
+            onPress={() => setAddressType("other")}
+          >
+            <AppText>📍 Other</AppText>
+          </TouchableOpacity>
+        </View>
         <AppButton
           title="Save Address"
           onPress={saveAddress}
-          style={{ marginTop: 20 }}
+          style={styles.saveBtn}
         />
-
-      </ScrollView>
-
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: "center",
+      paddingVertical: hp(4),
+      paddingHorizontal: wp(5),
+      backgroundColor: theme.colors.background,
+    },
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background
+      backgroundColor: theme.colors.background,
+      width: "100%",
+      maxWidth: 480,
+      alignSelf: "center",
     },
-
-    body: {
-      padding: 20
+    label: {
+      marginBottom: theme.spacing.sm,
+      fontSize: theme.typography.h3,
     },
-
     input: {
       borderWidth: 1,
       borderColor: theme.colors.border,
-      borderRadius: 10,
-      padding: 12,
-      marginBottom: 10
-    },
-
-    resultItem: {
-      padding: 12,
-      borderBottomWidth: 1,
-      borderColor: "#eee"
-    },
-
-    selectedBox: {
-      padding: 12,
-      borderRadius: 10,
+      borderRadius: theme.radius.md,
+      padding: theme.spacing.md,
+      marginBottom: theme.spacing.md,
+      fontSize: theme.typography.body,
       backgroundColor: theme.colors.surface,
-      marginTop: 10
-    }
-
+      color: theme.colors.text,
+      width: "100%",
+    },
+    resultList: {
+      maxHeight: hp(25),
+      marginBottom: theme.spacing.md,
+    },
+    resultItem: {
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.sm,
+      borderBottomWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    selectedBox: {
+      padding: theme.spacing.md,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.surface,
+      marginTop: theme.spacing.md,
+      marginBottom: theme.spacing.md,
+    },
+    typeContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+    },
+    typeButton: {
+      flex: 1,
+      paddingVertical: theme.spacing.md,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: "center",
+      marginHorizontal: theme.spacing.xs,
+      backgroundColor: theme.colors.surface,
+    },
+    typeSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primaryDark,
+    },
+    saveBtn: {
+      marginTop: theme.spacing.xl,
+      width: "100%",
+      alignSelf: "center",
+    },
   });

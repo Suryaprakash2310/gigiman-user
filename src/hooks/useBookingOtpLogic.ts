@@ -15,7 +15,7 @@ export function useBookingOtpLogic() {
   const { user } = useAuth();
   const route = useRoute<RouteProp<BookingParamList, "BookingDetails">>();
   const { bookingId } = route.params;
-  const { getBookingById, upsertBooking } = useBooking();
+  const { getBookingById, upsertBooking, updateBookingItem } = useBooking();
   const booking = getBookingById(bookingId);
   const serviceProposal = booking?.pendingServiceProposal;
   const navigation = useNavigation<any>();
@@ -45,14 +45,14 @@ export function useBookingOtpLogic() {
     if (!serviceProposal) return;
     socket.emit("extra-service-approve", {
       bookingId,
-      extraServiceId: booking.serviceCategoryName,
+      extraServiceId: booking?.serviceCategoryName,
       approve: true,
       userId: user?._id,
     });
-    upsertBooking({
-      ...booking!,
+    updateBookingItem(bookingId, {
       pendingServiceProposal: null,
       totalPrice: serviceProposal.price + (booking?.totalPrice ?? 0),
+      durationInMinutes: serviceProposal.durationInMinutes + (booking?.durationInMinutes ?? 0),
     });
   };
   const handleRejectService = () => {
@@ -61,8 +61,7 @@ export function useBookingOtpLogic() {
       bookingId,
       approve: false,
     });
-    upsertBooking({
-      ...booking!,
+    updateBookingItem(bookingId, {
       pendingServiceProposal: null,
     });
   };
@@ -71,9 +70,20 @@ export function useBookingOtpLogic() {
   const handleApprove = async () => {
     if (!PendingRequest) return;
     setPartActionLoading(true);
-    await api.post(`/booking/approve/${PendingRequest.requestId}`);
-    setPendingRequest(null);
-    setPartActionLoading(false);
+    try {
+      await api.post(`/booking/approve/${PendingRequest.requestId}`);
+      
+      // Refetch booking after approving parts to ensure totalPrice updates reflect
+      const res = await api.get(`/booking/${bookingId}`);
+      if (res.data?.booking) {
+        upsertBooking(mapBookingToBookingItem(res.data.booking));
+      }
+    } catch (error) {
+      console.warn("Failed to approve part or refetch:", error);
+    } finally {
+      setPendingRequest(null);
+      setPartActionLoading(false);
+    }
   };
   const handleReject = async () => {
     if (!PendingRequest) return;
@@ -106,15 +116,14 @@ export function useBookingOtpLogic() {
     const onExtraResponse = (data: any) => {
       if (data.bookingId !== bookingId) return;
       if (data.status === "APPROVED") {
-        upsertBooking({
-          ...booking!,
+        updateBookingItem(bookingId, {
           pendingServiceProposal: null,
           totalPrice: data.totalPrice,
+          durationInMinutes: data.durationInMinutes ?? booking?.durationInMinutes,
         });
       }
       if (data.status === "REJECTED") {
-        upsertBooking({
-          ...booking!,
+        updateBookingItem(bookingId, {
           pendingServiceProposal: null,
         });
       }
@@ -123,13 +132,12 @@ export function useBookingOtpLogic() {
     return () => {
       socket.off("extra-service-response", onExtraResponse);
     };
-  }, [bookingId, booking]);
+  }, [bookingId]);
 
   useEffect(() => {
     const onExtraServiceProposed = (data: any) => {
       if (data.bookingId !== bookingId) return;
-      upsertBooking({
-        ...booking!,
+      updateBookingItem(bookingId, {
         pendingServiceProposal: data.extraService,
       });
     };
@@ -137,7 +145,7 @@ export function useBookingOtpLogic() {
     return () => {
       socket.off("extra-service-proposed", onExtraServiceProposed);
     };
-  }, [bookingId, booking]);
+  }, [bookingId]);
 
   useEffect(() => {
     socket.on("tool-request-created", payload => {

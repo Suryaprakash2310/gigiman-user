@@ -11,6 +11,10 @@ import AboutPage from '@/src/screens/AboutPage';
 import TermsAndConditionsPage from '@/src/screens/TermsAndConditionsPage';
 import AddEditAddressScreen from '@/src/screens/profile/AddEditAddressScreen';
 import MapPinLocationScreen from '@/src/screens/profile/MapPinLocationScreen';
+import CreateTicketScreen from '@/src/screens/CreateTicketScreen';
+import SupportTicketsScreen from '@/src/screens/SupportTicketsScreen';
+import TicketDetailScreen from '@/src/screens/TicketDetailScreen';
+import InviteReferralScreen from '@/src/screens/profile/InviteReferralScreen';
 
 // Placeholder
 
@@ -33,6 +37,10 @@ export default function ProfileStack() {
       <Stack.Screen name="TermsAndConditionsPage" component={TermsAndConditionsPage} />
       <Stack.Screen name="AddEditAddress" component={AddEditAddressScreen} />
       <Stack.Screen name="MapPinLocation" component={MapPinLocationScreen} />
+      <Stack.Screen name="CreateTicketScreen" component={CreateTicketScreen} />
+      <Stack.Screen name="SupportTicketsScreen" component={SupportTicketsScreen} />
+      <Stack.Screen name="TicketDetailScreen" component={TicketDetailScreen} />
+      <Stack.Screen name="InviteReferralScreen" component={InviteReferralScreen} />
     </Stack.Navigator>
   );
 }

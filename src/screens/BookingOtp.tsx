@@ -106,16 +106,20 @@ export default function BookingOtp() {
     }
   }, []);
   const fetchBooking = async () => {
-    try {
-      const res = await api.get(`/booking/${bookingId}`);
-      if (res.data?.booking) {
-        const mapped = mapBookingToBookingItem(res.data.booking);
-        upsertBooking(mapped);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch booking details:", err);
+  try {
+    const res = await api.get(`/booking/${bookingId}`);
+    if (res.data?.booking) {
+      const mapped = mapBookingToBookingItem(res.data.booking);
+
+      upsertBooking({
+        ...mapped,
+        otp: mapped.otp ?? booking?.otp   // 🔑 PRESERVE OTP
+      });
     }
-  };
+  } catch (err) {
+    console.warn("Failed to fetch booking details:", err);
+  }
+};
 
 
   useEffect(() => {
@@ -676,7 +680,7 @@ export default function BookingOtp() {
       <View style={[styles.footer, { backgroundColor: "#F8FAFC" }]}>
         <TouchableOpacity
           style={[styles.trackButton, { backgroundColor: brightCyan }]}
-          onPress={() => navigation.navigate("LiveTracking", { bookingId })}
+          // onPress={() => navigation.navigate("LiveTracking", { bookingId })}
         >
           <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
             Track Technician

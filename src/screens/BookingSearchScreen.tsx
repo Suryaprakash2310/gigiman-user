@@ -184,20 +184,28 @@ export default function BookingSearchScreen() {
     };
 
     const onAccepted = (data: any) => {
-      const b = data.booking || data;
-      console.log("✅ Servicer accepted event in SearchScreen ID:", b?._id);
+  console.log("🔥 USER RECEIVED servicer-accepted:", data);
 
-      if (b && String(b._id) === String(bookingId)) {
-        navigation.replace("BookingDetails", { bookingId });
-      }
-    };
+  const booking = data.booking;
+  const otp = data.otp;
 
-    socket.on("servicer-accepted", onAccepted);
-    socket.on("no-servicer-available", onNoProvider);
+  if (!booking) return;
+
+  const mapped = mapBookingToBookingItem(booking, otp);
+
+  upsertBooking(mapped);
+
+  navigation.replace("BookingDetails", {
+    bookingId: booking._id,
+  });
+};
+
+    //socket.on("servicer-accepted", onAccepted);
+    //socket.on("no-servicer-available", onNoProvider);
 
     return () => {
-      socket.off("servicer-accepted", onAccepted);
-      socket.off("no-servicer-available", onNoProvider);
+      //socket.off("servicer-accepted", onAccepted);
+      //socket.off("no-servicer-available", onNoProvider);
     };
   }, [bookingId, navigation]);
 

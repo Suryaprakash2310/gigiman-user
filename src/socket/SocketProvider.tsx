@@ -9,31 +9,39 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!accessToken) {
+      console.log("🔴 No token, disconnect socket");
       socket.disconnect();
       return;
     }
 
-    socket.auth = { token: accessToken };
-
-    socket.connect();
-
     console.log("🔌 Connecting socket...");
 
-    socket.on("connect", () => {
+    socket.auth = { token: accessToken };
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const onConnect = () => {
       console.log("✅ Socket connected:", socket.id);
-    });
+    };
 
-    socket.on("disconnect", (reason) => {
+    const onDisconnect = (reason: string) => {
       console.log("❌ Socket disconnected:", reason);
-    });
+    };
 
-    socket.on("connect_error", (err) => {
+    const onError = (err: any) => {
       console.log("⚠️ Socket error:", err.message);
-    });
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect_error", onError);
 
     return () => {
-      socket.removeAllListeners(); // 🔥 prevents memory leak
-      socket.disconnect();
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect_error", onError);
     };
   }, [accessToken]);
 

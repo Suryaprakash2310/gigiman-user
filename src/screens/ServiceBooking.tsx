@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -82,18 +83,23 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
+
+  //referal code
+  const [referralCode, setReferralCode] = useState("");
+  const [referralDiscount, setReferralDiscount] = useState(0);
+  const [checkingReferral, setCheckingReferral] = useState(false);
   // Load service on mount
   useEffect(() => {
     loadService();
   }, [serviceCategoryId]);
 
   useFocusEffect(
-  React.useCallback(() => {
-    if (route.params?.selectedAddress) {
-      setSelectedAddress(route.params.selectedAddress);
-    }
-  }, [route.params?.selectedAddress])
-);
+    React.useCallback(() => {
+      if (route.params?.selectedAddress) {
+        setSelectedAddress(route.params.selectedAddress);
+      }
+    }, [route.params?.selectedAddress])
+  );
   useEffect(() => {
     loadDefaultAddress();
   }, []);
@@ -160,6 +166,26 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const handleQuantityDecrease = useCallback(() => {
     setQuantity((prev) => Math.max(prev - 1, 1));
   }, []);
+
+  const handleApplyReferral = () => {
+
+    if (!referralCode) {
+      Alert.alert("Enter referral code");
+      return;
+    }
+
+    // Temporary logic
+    if (!category) {
+      Alert.alert("Service Error", "Service details not found");
+      return;
+    }
+    const price = category.price * quantity;
+    const discount = price * 0.05;
+
+    setReferralDiscount(discount);
+
+    Alert.alert("Referral Applied", `You saved ₹${discount.toFixed(0)}`);
+  };
 
   const handleBookNow = useCallback(async () => {
     if (!user?._id) {
@@ -419,6 +445,35 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           </Animated.View>
         )}
 
+        <View style={styles.referralCard}>
+
+          <AppText weight="bold">Referral Code</AppText>
+
+          <View style={styles.referralRow}>
+
+            <TextInput
+              placeholder="Enter referral code"
+              value={referralCode}
+              onChangeText={setReferralCode}
+              style={styles.referralInput}
+            />
+
+            <AppButton
+              title={checkingReferral ? "Checking..." : "Apply"}
+              onPress={handleApplyReferral}
+              style={{ marginLeft: 10 }}
+            />
+
+          </View>
+
+          {referralDiscount > 0 && (
+            <AppText style={{ color: "green", marginTop: 6 }}>
+              Discount Applied: ₹{referralDiscount}
+            </AppText>
+          )}
+
+        </View>
+
         {/* Spacer */}
         <View style={styles.spacer} />
       </ScrollView>
@@ -559,6 +614,27 @@ const createStyles = (theme: any) =>
       marginTop: 12,
       borderRadius: 12,
     },
+    referralCard: {
+      padding: 16,
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 16,
+      marginTop: 12,
+      borderRadius: 12,
+    },
+    referralRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 12,
+    },
+    referralInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radius.md,
+      padding: theme.spacing.md,
+      backgroundColor: theme.colors.background,
+    },
+    
   });
 
 export default ServiceBookingScreen;

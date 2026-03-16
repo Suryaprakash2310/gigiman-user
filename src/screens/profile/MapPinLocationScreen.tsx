@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
+import { View, StyleSheet } from "react-native";
 import MapView, { Region } from "react-native-maps";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import axios from "axios";
@@ -15,45 +15,51 @@ const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 export default function MapPinLocationScreen() {
 
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const route = useRoute<any>();
+
   const mapRef = useRef<MapView>(null);
+  const debounceRef = useRef<any>(null);
 
   const [region, setRegion] = useState<Region | null>(null);
   const [address, setAddress] = useState<string>("");
 
   const initLocation = async () => {
 
-    if (route.params?.latitude && route.params?.longitude) {
+    try {
 
-      const regionData = {
-        latitude: route.params.latitude,
-        longitude: route.params.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      };
+      if (route.params?.latitude && route.params?.longitude) {
 
-      setRegion(regionData);
+        const regionData: Region = {
+          latitude: route.params.latitude,
+          longitude: route.params.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
 
-      reverseGeocode(regionData.latitude, regionData.longitude);
+        setRegion(regionData);
+        reverseGeocode(regionData.latitude, regionData.longitude);
 
-    } else {
+      } else {
 
-      const location = await getCurrentLocation();
+        const location = await getCurrentLocation();
 
-      const regionData = {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      };
+        const regionData: Region = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
 
-      setRegion(regionData);
+        setRegion(regionData);
+        reverseGeocode(location.latitude, location.longitude);
 
-      reverseGeocode(location.latitude, location.longitude);
+      }
+
+    } catch (error) {
+      console.log("Location error:", error);
     }
-
   };
 
   const reverseGeocode = async (lat: number, lng: number) => {
@@ -66,11 +72,14 @@ export default function MapPinLocationScreen() {
           params: {
             access_token: MAPBOX_TOKEN,
             limit: 1
+          },
+          headers: {
+            "User-Agent": "gigi-user-app"
           }
         }
       );
 
-      const place = res.data.features[0];
+      const place = res.data.features?.[0];
 
       if (place) {
         setAddress(place.place_name);
@@ -83,18 +92,30 @@ export default function MapPinLocationScreen() {
 
   const onRegionChangeComplete = (regionData: Region) => {
 
+    if (!region) return;
+
+    const latDiff = Math.abs(regionData.latitude - region.latitude);
+    const lngDiff = Math.abs(regionData.longitude - region.longitude);
+
+    if (latDiff < 0.0001 && lngDiff < 0.0001) {
+      return;
+    }
+
     setRegion(regionData);
 
-    reverseGeocode(regionData.latitude, regionData.longitude);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      reverseGeocode(regionData.latitude, regionData.longitude);
+    }, 600);
   };
 
   const confirmLocation = () => {
 
-    if (!region) {
-     console.log("No region selected");
-      return;
-    }
-    console.log("Selected Location:", region, address);
+    if (!region) return;
+
     navigation.navigate({
       name: "AddEditAddress",
       params: {
@@ -106,49 +127,58 @@ export default function MapPinLocationScreen() {
       },
       merge: true
     });
-    
 
-    //navigation.goBack();
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     initLocation();
   }, []);
 
-  if (!region) return null;
+  if (!region) {
+
+    return (
+      <View style={styles.loadingContainer}>
+        <AppText>Loading map...</AppText>
+      </View>
+    );
+
+  }
 
   return (
     <View style={styles.container}>
 
       <AppHeader title="Select Location" showBack />
 
-      <MapView
+      {/* <MapView
         ref={mapRef}
         style={styles.map}
+        provider="google"
         initialRegion={region}
-        showsUserLocation
+        region={region}
+        showsUserLocation={true}
+        showsMyLocationButton={true}
         onRegionChangeComplete={onRegionChangeComplete}
         onPress={(e) => {
 
           const { latitude, longitude } = e.nativeEvent.coordinate;
 
-          setRegion({
+          const newRegion: Region = {
             latitude,
             longitude,
             latitudeDelta: 0.01,
             longitudeDelta: 0.01
-          });
+          };
 
+          setRegion(newRegion);
           reverseGeocode(latitude, longitude);
-        }}
-      />
 
-      {/* Center Pin */}
+        }}
+      /> */}
+
       <View pointerEvents="none" style={styles.pinContainer}>
         <AppText style={styles.pin}>📍</AppText>
       </View>
 
-      {/* Address */}
       <View style={styles.addressBox}>
         <AppText numberOfLines={2}>{address}</AppText>
       </View>
@@ -170,6 +200,12 @@ const createStyles = (theme: any) =>
 
     map: {
       flex: 1
+    },
+
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center"
     },
 
     pinContainer: {

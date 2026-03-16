@@ -8,6 +8,7 @@ import PhoneNumScreen from '../screens/PhoneNumScreen';
 import OtpScreen from '../screens/OtpScreen';
 import SetupProfileScreen from '../screens/onboarding/SetUpProfileScreen';
 import AddressScreen from '../screens/onboarding/AddressScreen';
+import OnboardSlider from '../screens/OnboardSlider';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,6 +26,7 @@ export default function AuthStack() {
       {/* 🔐 Not logged in */}
       {!user && (
         <>
+          <Stack.Screen name="OnboardingFlow" component={OnboardSlider} />
           <Stack.Screen name="PhoneLogin" component={PhoneNumScreen} />
           <Stack.Screen name="OtpScreen" component={OtpScreen} />
         </>

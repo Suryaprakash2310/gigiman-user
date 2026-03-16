@@ -1,66 +1,73 @@
-//import { useTheme } from "@/src/theme/useTheme";
-import { useTheme } from '@/src/theme/useTheme';
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-//import { useTheme } from '../theme/useTheme';
+import { useTheme } from "@/src/theme/useTheme";
 
 type PromoCardProps = {
   title: string;
   subtitle: string;
   buttonLabel: string;
+  onPress?: () => void;
 };
 
-export default function OnboardingCard({ title, subtitle, buttonLabel }: PromoCardProps) {
-
+export default function OnboardingCard({
+  title,
+  subtitle,
+  buttonLabel,
+  onPress,
+}: PromoCardProps) {
   const { theme } = useTheme();
 
   const styles = StyleSheet.create({
-  card: {
-    backgroundColor: theme.colors.background,
-    padding: 20,
-    borderRadius: 20,
-    gap: theme.spacing.md,
-    zIndex: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  heading: {
-    fontSize: theme.typography.h2,
-    fontWeight: "bold",
-    color: theme.colors.text,
-  },
-  subtext: {
-    fontSize: theme.typography.body,
-    color: theme.colors.textMuted,
-    lineHeight: 20,
-  },
-  ctaButton: {
-    marginTop: 8,
-    backgroundColor: theme.colors.button,
-    padding: 8,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  ctaText: {
-    color: theme.colors.text,
-    fontWeight: "600",
-    fontSize: theme.typography.body,
-  },
-});
+    card: {
+      backgroundColor: theme.colors.surface,
+      padding: 24,
+      borderRadius: 26,
+      gap: 14,
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 8,
+    },
+
+    heading: {
+      fontSize: theme.typography.h2,
+      fontWeight: "bold",
+      color: theme.colors.text,
+      textAlign: "center",
+    },
+
+    subtext: {
+      fontSize: theme.typography.body,
+      color: theme.colors.textMuted,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+
+    button: {
+      marginTop: 12,
+      backgroundColor: theme.colors.button,
+      paddingVertical: 14,
+      borderRadius: 16,
+      alignItems: "center",
+    },
+
+    buttonText: {
+      color: "#fff",
+      fontWeight: "bold",
+      fontSize: 16,
+    },
+  });
+
   return (
     <View style={styles.card}>
       <Text style={styles.heading}>{title}</Text>
 
       <Text style={styles.subtext}>{subtitle}</Text>
 
-      <TouchableOpacity style={styles.ctaButton}>
-        <Text style={styles.ctaText}>{buttonLabel}</Text>
+      <TouchableOpacity style={styles.button} onPress={onPress}>
+        <Text style={styles.buttonText}>{buttonLabel}</Text>
       </TouchableOpacity>
     </View>
   );
 }
-
-

@@ -24,6 +24,7 @@ import { AppTabsParamList } from "../navigation/AppStack";
 
 import { getPopularServices } from "../api/dashboard.api";
 import FanInstall from '@/assets/images/FanInstall.svg';
+import { BannerAPI } from "../api/banner.api";
 
 const { width } = Dimensions.get("window");
 
@@ -197,19 +198,20 @@ const Hero = ({ navigation }: any) => {
 
 const OffersCarousel = () => {
   const styles = createStyles(useTheme().theme);
+  const [offers, setOffers] = useState<any[]>([]);
 
-  const offers = [
-    {
-      title: "Special Offer",
-      desc: "20% OFF first booking",
-      img: "https://img.freepik.com/free-vector/sale-banner-template-design_79295-17.jpg",
-    },
-    {
-      title: "Cleaning Discount",
-      desc: "Flat ₹100 OFF",
-      img: "https://img.freepik.com/free-vector/flat-design-sale-banner-template_23-2149320459.jpg",
-    },
-  ];
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const banners = await BannerAPI.getBanners();
+        setOffers(banners);
+      } catch (err) {
+        console.log("Failed to load banners", err);
+      }
+    };
+
+    fetchBanners();
+  }, []);
 
   return (
     <ScrollView
@@ -220,18 +222,21 @@ const OffersCarousel = () => {
       {offers.map((o, i) => (
         <View key={i} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
           <Image source={{ uri: o.img }} style={styles.offerImg} />
+
           <View style={styles.offerOverlay}>
             <AppText weight="bold" style={{ color: "#fff" }}>
               {o.title}
             </AppText>
-            <AppText style={{ color: "#fff" }}>{o.desc}</AppText>
+
+            <AppText style={{ color: "#fff" }}>
+              {o.description}
+            </AppText>
           </View>
         </View>
       ))}
     </ScrollView>
   );
 };
-
 
 const QuickActions = ({ navigation }: any) => {
   const styles = createStyles(useTheme().theme);
@@ -287,12 +292,12 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
                 colors={[theme.colors.surface, theme.colors.border]}
                 style={styles.placeholder}
               >
-                <FanInstall
+                {/* <FanInstall
                   width="60%"
                   height="60%"
                   fill={theme.colors.textMuted}
                   style={{ opacity: 0.4 }}
-                />
+                /> */}
               </LinearGradient>
             )}
 
