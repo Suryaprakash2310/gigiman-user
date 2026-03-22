@@ -8,7 +8,9 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert,
+  Vibration
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -28,6 +30,7 @@ import api from "../api/client";
 import AppHeader from "../components/ui/AppHeader";
 import { useAuth } from "../hook/useAuth";
 import { socket } from "../socket/socket";
+import { initiateMaskedCall } from "@/src/api/call.api";
 
 
 type DetailsRoute = RouteProp<BookingParamList, "BookingDetails">;
@@ -44,9 +47,7 @@ export default function BookingOtp() {
   const handleApproveService = () => {
     if (!serviceProposal) return;
 
-    console.log("✅ Approving visit proposal:", bookingId);
-
-
+    console.log("[SOCKET EMIT] ✅ Approving visit proposal:", bookingId);
 
     socket.emit("extra-service-approve", {
       bookingId,
@@ -58,16 +59,49 @@ export default function BookingOtp() {
     upsertBooking({
       ...booking!,
       pendingServiceProposal: null,
-      totalPrice: booking.totalPrice,  // backend already summed
-      //serviceCategoryName: serviceProposal.serviceCategoryName,
+      totalPrice: serviceProposal.price + (booking.totalPrice ?? 0),
+      durationInMinutes: serviceProposal.durationInMinutes + (booking.durationInMinutes ?? 0),
     });
     fetchBooking();
+  };
+
+  const confirmCancelBooking = () => {
+    Alert.alert(
+      "Confirm Cancellation",
+      "Are you sure you want to cancel this booking? This action cannot be undone.",
+      [
+        { text: "No, keep it", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: () => {
+            console.log("[SOCKET EMIT] 📤 user-cancel-booking:", bookingId);
+            socket.emit("user-cancel-booking", { bookingId });
+          }
+        }
+      ]
+    );
+  };
+
+  const handleShowInfo = () => {
+    Alert.alert(
+      "Booking Options",
+      "What would you like to do?",
+      [
+        { text: "Close", style: "cancel" },
+        {
+          text: "Cancel Booking",
+          style: "destructive",
+          onPress: () => confirmCancelBooking()
+        }
+      ]
+    );
   };
 
   const handleRejectService = () => {
     if (!serviceProposal) return;
 
-    console.log("❌ Rejecting visit proposal:", bookingId);
+    console.log("[SOCKET EMIT] ❌ Rejecting visit proposal:", bookingId);
 
     socket.emit("extra-service-approve", {
       bookingId,
@@ -91,41 +125,32 @@ export default function BookingOtp() {
   };
 
   // Fetch full booking from API to ensure technician name is available
+  const fetchBooking = async () => {
+    try {
+      const res = await api.get(`/booking/${bookingId}`);
+      if (res.data?.booking) {
+        const mapped = mapBookingToBookingItem(res.data.booking);
+
+        upsertBooking({
+          ...mapped,
+          otp: mapped.otp ?? booking?.otp   // 🔑 PRESERVE OTP
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch booking details:", err);
+    }
+  };
+
   useEffect(() => {
-    // const fetchBooking = async () => {
-    //   try {
-    //     const res = await api.get(`/booking/${bookingId}`);
-    //     if (res.data?.booking) {
-    //       const mapped = mapBookingToBookingItem(res.data.booking);
-    //       upsertBooking(mapped);
-    //     }
-    //   } catch (err) {
-    //     console.warn("Failed to fetch booking details:", err);
-    //   }
-    // };
     if (!booking?.name) {
       fetchBooking();
     }
-  }, []);
-  const fetchBooking = async () => {
-  try {
-    const res = await api.get(`/booking/${bookingId}`);
-    if (res.data?.booking) {
-      const mapped = mapBookingToBookingItem(res.data.booking);
-
-      upsertBooking({
-        ...mapped,
-        otp: mapped.otp ?? booking?.otp   // 🔑 PRESERVE OTP
-      });
-    }
-  } catch (err) {
-    console.warn("Failed to fetch booking details:", err);
-  }
-};
+  }, [bookingId, booking?.name]);
 
 
   useEffect(() => {
     const onExtraResponse = (data: any) => {
+      console.log("[SOCKET RECEIVE] 📥 extra-service-response:", data);
       if (data.bookingId !== bookingId) return;
 
       if (data.status === "APPROVED") {
@@ -153,7 +178,7 @@ export default function BookingOtp() {
   }, [bookingId, booking]);
   useEffect(() => {
     const onExtraServiceProposed = (data: any) => {
-      console.log("🔥 USER received extra-service-proposed:", data);
+      console.log("[SOCKET RECEIVE] 🔥 USER received extra-service-proposed:", data);
 
       if (data.bookingId !== bookingId) return;
 
@@ -195,26 +220,30 @@ export default function BookingOtp() {
 
 
   useEffect(() => {
-    socket.on("tool-request-created", payload => {
+    const onToolRequestCreated = (payload: any) => {
       setPendingRequest(payload);
-      console.log("🧰 Tool request created:", payload);
-    });
+      console.log("[SOCKET RECEIVE] 🧰 tool-request-created:", payload);
+    };
+
+    socket.on("tool-request-created", onToolRequestCreated);
 
     return () => {
-      socket.off("tool-request-created");
+      socket.off("tool-request-created", onToolRequestCreated);
     };
   }, []);
 
   // part socket
   useEffect(() => {
-    // Technician requested parts
-    socket.on("tool-requested", (payload) => {
-      console.log("🧰 Part request received:", payload);
+    const onToolRequested = (payload: any) => {
+      console.log("[SOCKET RECEIVE] 🧰 tool-requested received:", payload);
       setPendingRequest(payload);
-    });
+    };
+
+    // Technician requested parts
+    socket.on("tool-requested", onToolRequested);
 
     return () => {
-      socket.off("tool-requested");
+      socket.off("tool-requested", onToolRequested);
     };
   }, []);
 
@@ -287,6 +316,55 @@ export default function BookingOtp() {
     fetchBooking();
   };
 
+  const [calling, setCalling] = useState(false);
+  const [lastCallTime, setLastCallTime] = useState(0);
+
+  const handleMaskedCall = async () => {
+    if (!bookingId) return;
+
+    // Cooldown: 30 sec
+    if (Date.now() - lastCallTime < 30000) {
+      Alert.alert("Please wait", "Please wait at least 30 seconds before calling again.");
+      return;
+    }
+
+    try {
+      setCalling(true);
+      setLastCallTime(Date.now());
+      Vibration.vibrate(100);
+
+      console.log("[API CALL] 📞 Mask call:", bookingId);
+
+      await initiateMaskedCall(bookingId);
+
+      Alert.alert(
+        "Connecting...",
+        "You will receive a call shortly. Please keep your phone reachable."
+      );
+
+    } catch (err: any) {
+      console.log("❌ Call failed:", err?.response?.data);
+
+      Alert.alert(
+        "Call Failed",
+        err?.response?.data?.message || "Unable to connect call. Please try again later."
+      );
+    } finally {
+      setCalling(false);
+    }
+  };
+
+  const handleCallPress = () => {
+    Alert.alert(
+      "Call Technician",
+      "This will connect you via a secure masked number to protect your privacy.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Call Now", onPress: handleMaskedCall }
+      ]
+    );
+  };
+
 
 
 
@@ -357,7 +435,12 @@ export default function BookingOtp() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader showBack={true} onBackPress={handleBack} />
+        <AppHeader
+          showBack={true}
+          onBackPress={handleBack}
+          rightIcon="information-circle-outline"
+          onRightPress={handleShowInfo}
+        />
         {/* Header Section */}
         <View style={styles.header}>
           <Animated.View
@@ -561,41 +644,16 @@ export default function BookingOtp() {
               </AppText>
             </View>
 
-            <View style={styles.actionButtons}>
+            <View style={{ paddingHorizontal: 20 }}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: brightCyan }]}
+                style={[styles.callButton, calling && { opacity: 0.6 }]}
+                onPress={handleCallPress}
+                disabled={calling}
               >
-                <Ionicons
-                  name="call"
-                  size={20}
-                  color="#0F172A"
-                  style={{ marginRight: 4 }}
-                />
-                <AppText weight="bold" style={{ color: "#0F172A" }}>
-                  Call
+                <AppText style={styles.callText}>
+                  {calling ? "Connecting..." : "📞 Call Technician"}
                 </AppText>
               </TouchableOpacity>
-
-              {/* <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  {
-                    backgroundColor: "white",
-                    borderWidth: 1,
-                    borderColor: "#CCFBF1",
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={20}
-                  color={primaryTeal}
-                  style={{ marginRight: 8 }}
-                />
-                <AppText weight="bold" style={{ color: primaryTeal }}>
-                  Chat
-                </AppText>
-              </TouchableOpacity> */}
             </View>
 
             {/* Summary */}
@@ -693,7 +751,7 @@ export default function BookingOtp() {
       <View style={[styles.footer, { backgroundColor: "#F8FAFC" }]}>
         <TouchableOpacity
           style={[styles.trackButton, { backgroundColor: brightCyan }]}
-          // onPress={() => navigation.navigate("LiveTracking", { bookingId })}
+        // onPress={() => navigation.navigate("LiveTracking", { bookingId })}
         >
           <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
             Track Technician
@@ -913,5 +971,20 @@ const styles = StyleSheet.create({
     borderColor: "#E0F2FE",
     backgroundColor: "#F0F9FF",
   },
-
+  callButton: {
+    backgroundColor: "#0D9488",
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  callText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });

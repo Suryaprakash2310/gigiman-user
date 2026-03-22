@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
+import { Alert } from "react-native";
 import { socket } from "@/src/socket/socket";
 import { useBooking } from "@/src/context/BookingContext";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
@@ -11,7 +12,7 @@ export default function GlobalBookingListener() {
   useEffect(() => {
     if (!socket) return;
     const onServicerAccepted = ({ booking, otp }: any) => {
-      console.log("🟢 SERVICER ACCEPTED:", booking._id);
+      console.log("[SOCKET RECEIVE] 🟢 servicer-accepted payload for:", booking._id);
 
       const mapped = mapBookingToBookingItem(booking, otp);
 
@@ -25,7 +26,7 @@ export default function GlobalBookingListener() {
 
     /* otp generated */
     const onOtpGenerated = ({ bookingId, otp }: any) => {
-      console.log("🔑 OTP generated:", bookingId);
+      console.log("[SOCKET RECEIVE] 🔑 otp-generated payload for:", bookingId);
 
       updateStatus(bookingId, "otp");
 
@@ -38,11 +39,11 @@ export default function GlobalBookingListener() {
 
     /* no provider available */
     const onNoProvider = () => {
-      console.log("❌ No technician available");
+      console.log("[SOCKET RECEIVE] ❌ no-servicer-available");
     };
 
     const onBookingCompleted = ({ bookingId }: any) => {
-      console.log("✅ BOOKING COMPLETED:", bookingId);
+      console.log("[SOCKET RECEIVE] ✅ booking-completed payload for:", bookingId);
 
       updateStatus(bookingId, "completed");
 
@@ -52,11 +53,23 @@ export default function GlobalBookingListener() {
       });
     };
 
+    /* user cancelled */
+    const onUserCancelBooking = (payload: any) => {
+      console.log("📥 user-cancel-booking received:", payload);
+      const id = payload?.bookingId || payload;
+      if (id) {
+        updateStatus(id, "cancelled");
+        Alert.alert("Booking Cancelled", "The user cancelled the booking");
+        navigation.replace?.("BookingsMain") || navigation.navigate("BookingsMain");
+      }
+    };
+
    // socket.on("servicer-accepted", onServicerAccepted);
    socket.on("servicer-accepted", onServicerAccepted);
     socket.on("otp-generated", onOtpGenerated);
     socket.on("no-servicer-available", onNoProvider);
     socket.on("booking-completed", onBookingCompleted);
+    socket.on("user-cancel-booking", onUserCancelBooking);
 
     return () => {
       // socket.off("servicer-accepted", onServicerAccepted);
@@ -64,6 +77,7 @@ export default function GlobalBookingListener() {
       socket.off("otp-generated", onOtpGenerated);
       socket.off("no-servicer-available", onNoProvider);
       socket.off("booking-completed", onBookingCompleted);
+      socket.off("user-cancel-booking", onUserCancelBooking);
     };
   }, [socket]);
 

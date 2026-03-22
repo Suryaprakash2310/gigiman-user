@@ -1,25 +1,130 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { 
+    View, 
+    StyleSheet, 
+    ScrollView, 
+    TouchableOpacity, 
+    ActivityIndicator, 
+    FlatList, 
+    TextInput, 
+    KeyboardAvoidingView, 
+    Platform,
+    Alert
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 
 import AppText from '@/src/components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
-import { Ticket } from './SupportTicketsScreen';
+import { ticketApi } from '@/src/api/ticket.api';
+import { Ticket, TicketMessage } from '@/src/types/ticket';
+import { socket } from '@/src/socket/socket';
 
 export default function TicketDetailScreen() {
     const { theme } = useTheme();
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
-    
-    // In a real app we'd type the navigation route
     const route = useRoute<any>();
-    const ticket: Ticket = route.params?.ticket;
+    
+    const ticketId = route.params?.ticketId;
+    const [ticket, setTicket] = useState<Ticket | null>(null);
+    const [messages, setMessages] = useState<TicketMessage[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [newMessage, setNewMessage] = useState('');
+    const [sending, setSending] = useState(false);
+    
+    const flatListRef = useRef<FlatList>(null);
+
+    const fetchTicketDetails = useCallback(async () => {
+        if (!ticketId) return;
+        setLoading(true);
+        try {
+            const response = await ticketApi.getTicketById(ticketId);
+            if (response.success) {
+                setTicket(response.ticket);
+                setMessages(response.messages || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch ticket details:', error);
+            Alert.alert('Error', 'Failed to load ticket details.');
+        } finally {
+            setLoading(false);
+        }
+    }, [ticketId]);
+
+    useEffect(() => {
+        fetchTicketDetails();
+        
+        if (ticketId) {
+            // Join ticket chat room
+            socket.connect();
+            socket.emit('join-ticket-chat', { ticketId });
+
+            // Listen for new messages
+            const handleNewMessage = (payload: { ticketId: string, message: TicketMessage }) => {
+                if (payload.ticketId === ticketId) {
+                    setMessages(prev => [...prev, payload.message]);
+                }
+            };
+
+            socket.on('receive-ticket-chat-message', handleNewMessage);
+
+            return () => {
+                socket.off('receive-ticket-chat-message', handleNewMessage);
+            };
+        }
+    }, [ticketId, fetchTicketDetails]);
+
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        if (messages.length > 0) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [messages]);
 
     const handleBack = () => {
         navigation.goBack();
     };
+
+    const handleSendMessage = async () => {
+        if (!newMessage.trim() || !ticketId || sending) return;
+
+        setSending(true);
+        try {
+            // We use the socket to emit the message as per the backend handler
+            socket.emit('send-ticket-chat-message', {
+                ticketId,
+                message: newMessage.trim(),
+                type: 'text'
+            });
+
+            // Optimistically add the message or wait for socket response?
+            // The backend socket handler emits "receive-ticket-chat-message" to EVERYONE ELSE.
+            // So we should manually add our own message or the backend should confirm.
+            // Let's call the API to send the message for better reliability and then clearing input.
+            const response = await ticketApi.sendChatMessage(ticketId, newMessage.trim());
+            if (response.success) {
+                setMessages(prev => [...prev, response.message]);
+                setNewMessage('');
+            }
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            Alert.alert('Error', 'Failed to send message.');
+        } finally {
+            setSending(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
+    }
 
     if (!ticket) {
         return (
@@ -35,14 +140,96 @@ export default function TicketDetailScreen() {
     const getStatusColor = (status: string) => {
         switch(status) {
             case 'Resolved': return theme.colors.success;
-            case 'In Review': return theme.colors.accent; // fallback for warning
-            case 'Pending': return theme.colors.primary;
+            case 'In progress': return theme.colors.accent;
+            case 'Open': return theme.colors.primary;
+            case 'Closed': return theme.colors.textMuted;
             default: return theme.colors.textMuted;
         }
     };
 
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    const renderMessage = ({ item }: { item: TicketMessage }) => {
+        const isMe = item.senderModel === 'User';
+        return (
+            <View style={[
+                styles.messageContainer, 
+                isMe ? styles.myMessage : styles.theirMessage,
+                { backgroundColor: isMe ? theme.colors.primary : theme.colors.surface }
+            ]}>
+                <AppText size="body" style={{ color: isMe ? '#FFFFFF' : theme.colors.text }}>
+                    {item.message}
+                </AppText>
+                <AppText size="caption" style={{ 
+                    color: isMe ? 'rgba(255,255,255,0.7)' : theme.colors.textMuted,
+                    alignSelf: 'flex-end',
+                    marginTop: 4
+                }}>
+                    {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </AppText>
+            </View>
+        );
+    };
+
+    const renderHeader = () => (
+        <View style={styles.headerContainer}>
+            {/* Status Header Card */}
+            <View style={[styles.detailCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.idContainer}>
+                        <Feather name="file-text" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+                        <AppText size="h3" weight="bold" style={{ color: theme.colors.text }}>
+                            {ticket!._id.substring(ticket!._id.length - 8).toUpperCase()}
+                        </AppText>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket!.status) + '20' }]}>
+                        <AppText size="caption" weight="medium" style={{ color: getStatusColor(ticket!.status) }}>
+                            {ticket!.status}
+                        </AppText>
+                    </View>
+                </View>
+
+                <View style={styles.dividerContainer}>
+                    <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+                </View>
+
+                <View style={styles.infoRow}>
+                    <Feather name="calendar" size={16} color={theme.colors.textMuted} style={{ marginRight: 8 }} />
+                    <AppText size="body" style={{ color: theme.colors.textMuted }}>
+                        {formatDate(ticket!.createdAt)}
+                    </AppText>
+                </View>
+            </View>
+
+            {/* Issue Details Card */}
+            <View style={[styles.detailCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <AppText size="body" weight="bold" style={{ color: theme.colors.text, marginBottom: 8 }}>
+                    {ticket!.category}
+                </AppText>
+                <AppText size="body" style={{ color: theme.colors.text, lineHeight: 20 }}>
+                    {ticket!.message}
+                </AppText>
+            </View>
+            
+            {ticket!.supportType === 'Chat' && <AppText size="caption" weight="bold" style={{ color: theme.colors.textMuted, marginVertical: 8, textAlign: 'center' }}>MESSAGE HISTORY</AppText>}
+        </View>
+    );
+
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
+        <KeyboardAvoidingView 
+            style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+        >
             {/* Header */}
             <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
                 <TouchableOpacity
@@ -58,95 +245,68 @@ export default function TicketDetailScreen() {
                 <View style={styles.backButton} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                
-                {/* Status Header Card */}
-                <View style={[styles.detailCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                    <View style={styles.cardHeader}>
-                         <View style={styles.idContainer}>
-                            <Feather name="file-text" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
-                            <AppText size="h3" weight="bold" style={{ color: theme.colors.text }}>
-                                {ticket.id}
-                            </AppText>
-                        </View>
-                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket.status) + '20' }]}>
-                            <AppText size="caption" weight="medium" style={{ color: getStatusColor(ticket.status) }}>
-                                {ticket.status}
-                            </AppText>
-                        </View>
-                    </View>
+            {ticket.supportType === 'Chat' ? (
+                <>
+                    <FlatList
+                        ref={flatListRef}
+                        data={messages}
+                        keyExtractor={(item) => item._id}
+                        renderItem={renderMessage}
+                        ListHeaderComponent={renderHeader}
+                        contentContainerStyle={styles.chatContent}
+                        showsVerticalScrollIndicator={false}
+                    />
 
-                    <View style={styles.dividerContainer}>
-                        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+                    {/* Chat Input */}
+                    <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, paddingBottom: insets.bottom + 8 }]}>
+                        <TextInput
+                            style={[styles.input, { color: theme.colors.text, backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                            placeholder="Type your message..."
+                            placeholderTextColor={theme.colors.textMuted}
+                            value={newMessage}
+                            onChangeText={setNewMessage}
+                            multiline
+                        />
+                        <TouchableOpacity 
+                            style={[styles.sendButton, { backgroundColor: theme.colors.primary }]}
+                            onPress={handleSendMessage}
+                            disabled={sending || !newMessage.trim()}
+                        >
+                            {sending ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                                <Feather name="send" size={20} color="#FFFFFF" />
+                            )}
+                        </TouchableOpacity>
                     </View>
-
-                    <View style={styles.infoRow}>
-                        <Feather name="calendar" size={16} color={theme.colors.textMuted} style={{ marginRight: 8 }} />
-                        <AppText size="body" style={{ color: theme.colors.textMuted }}>
-                            Submitted on {ticket.date}
-                        </AppText>
-                    </View>
-                </View>
-
-                {/* Issue Details Card */}
-                <View style={[styles.detailCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                    <AppText size="h3" weight="bold" style={{ color: theme.colors.text, marginBottom: 16 }}>
-                        Issue Details
-                    </AppText>
+                </>
+            ) : (
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    {renderHeader()}
                     
-                    <View style={styles.detailGroup}>
-                        <AppText size="caption" style={{ color: theme.colors.textMuted, marginBottom: 4 }}>
-                            Issue Type
-                        </AppText>
-                        <AppText size="body" weight="medium" style={{ color: theme.colors.text }}>
-                            {ticket.issueType}
-                        </AppText>
-                    </View>
-
-                    {ticket.bookingId && (
-                        <View style={styles.detailGroup}>
-                            <AppText size="caption" style={{ color: theme.colors.textMuted, marginBottom: 4 }}>
-                                Related Booking
-                            </AppText>
-                            <AppText size="body" weight="medium" style={{ color: theme.colors.text }}>
-                                {ticket.bookingId}
+                    {/* Admin Response Card for non-chat tickets */}
+                    {ticket.adminReply && (
+                        <View style={[
+                            styles.detailCard, 
+                            { 
+                                backgroundColor: theme.colors.primary + '10', 
+                                borderColor: theme.colors.primary + '30' 
+                            }
+                        ]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                <Feather name="message-circle" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+                                <AppText size="h3" weight="bold" style={{ color: theme.colors.text }}>
+                                    Support Response
+                                </AppText>
+                            </View>
+                            <AppText size="body" style={{ color: theme.colors.text, lineHeight: 22 }}>
+                                {ticket.adminReply}
                             </AppText>
                         </View>
                     )}
-
-                    <View style={styles.detailGroup}>
-                        <AppText size="caption" style={{ color: theme.colors.textMuted, marginBottom: 4 }}>
-                            Description
-                        </AppText>
-                        <AppText size="body" style={{ color: theme.colors.text, lineHeight: 22 }}>
-                            {ticket.description}
-                        </AppText>
-                    </View>
-                </View>
-
-                {/* Admin Response Card */}
-                {ticket.adminResponse && (
-                    <View style={[
-                        styles.detailCard, 
-                        { 
-                            backgroundColor: theme.colors.primary + '10', 
-                            borderColor: theme.colors.primary + '30' 
-                        }
-                    ]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                            <Feather name="message-circle" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
-                            <AppText size="h3" weight="bold" style={{ color: theme.colors.text }}>
-                                Support Response
-                            </AppText>
-                        </View>
-                        <AppText size="body" style={{ color: theme.colors.text, lineHeight: 22 }}>
-                            {ticket.adminResponse}
-                        </AppText>
-                    </View>
-                )}
-
-            </ScrollView>
-        </View>
+                </ScrollView>
+            )}
+        </KeyboardAvoidingView>
     );
 }
 
@@ -182,6 +342,12 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 40,
     },
+    headerContainer: {
+        padding: 16,
+    },
+    chatContent: {
+        paddingBottom: 20,
+    },
     detailCard: {
         borderRadius: 16,
         borderWidth: 1,
@@ -213,7 +379,43 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    detailGroup: {
-        marginBottom: 16,
+    messageContainer: {
+        maxWidth: '80%',
+        padding: 12,
+        borderRadius: 16,
+        marginBottom: 8,
+        marginHorizontal: 16,
+    },
+    myMessage: {
+        alignSelf: 'flex-end',
+        borderBottomRightRadius: 4,
+    },
+    theirMessage: {
+        alignSelf: 'flex-start',
+        borderBottomLeftRadius: 4,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        borderTopWidth: 1,
+    },
+    input: {
+        flex: 1,
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginRight: 8,
+        maxHeight: 100,
+        borderWidth: 1,
+    },
+    sendButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
     }
 });
+

@@ -27,7 +27,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onDisconnect = (reason: string) => {
-      console.log("❌ Socket disconnected:", reason);
+      console.log(`❌ Socket disconnected: ${reason}`);
+      if (reason === "io server disconnect") {
+        // the disconnection was initiated by the server, you need to reconnect manually
+        socket.connect();
+      } else if (reason === "transport close" || reason === "ping timeout") {
+        console.log("🔄 Auto-reconnecting socket in 3s...");
+        setTimeout(() => {
+          if (!socket.connected) {
+            socket.connect();
+          }
+        }, 3000);
+      }
     };
 
     const onError = (err: any) => {

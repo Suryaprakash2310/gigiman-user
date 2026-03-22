@@ -184,21 +184,21 @@ export default function BookingSearchScreen() {
     };
 
     const onAccepted = (data: any) => {
-  console.log("🔥 USER RECEIVED servicer-accepted:", data);
+      console.log("[SOCKET RECEIVE] 🔥 USER RECEIVED servicer-accepted:", data);
 
-  const booking = data.booking;
-  const otp = data.otp;
+      const booking = data.booking;
+      const otp = data.otp;
 
-  if (!booking) return;
+      if (!booking) return;
 
-  const mapped = mapBookingToBookingItem(booking, otp);
+      const mapped = mapBookingToBookingItem(booking, otp);
 
-  upsertBooking(mapped);
+      upsertBooking(mapped);
 
-  navigation.replace("BookingDetails", {
-    bookingId: booking._id,
-  });
-};
+      navigation.replace("BookingDetails", {
+        bookingId: booking._id,
+      });
+    };
 
     //socket.on("servicer-accepted", onAccepted);
     //socket.on("no-servicer-available", onNoProvider);
@@ -237,7 +237,7 @@ export default function BookingSearchScreen() {
 
   useEffect(() => {
     const onOtpGenerated = ({ bookingId, otp }: any) => {
-      console.log("🟢 OTP RECEIVED:", bookingId, otp);
+      console.log("[SOCKET RECEIVE] 🟢 OTP RECEIVED:", bookingId, otp);
 
       // Only update status & OTP — don't overwrite existing booking data
       // (serviceCategoryName, address, name, etc. from servicer-accepted)
@@ -257,6 +257,39 @@ export default function BookingSearchScreen() {
       socket.off("otp-generated", onOtpGenerated);
     };
   }, []);
+
+  const confirmCancelBooking = () => {
+    Alert.alert(
+      "Confirm Cancellation",
+      "Are you sure you want to cancel this booking search? This action cannot be undone.",
+      [
+        { text: "No, keep waiting", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: () => {
+            console.log("[SOCKET EMIT] 📤 user-cancel-booking:", bookingId);
+            socket.emit("user-cancel-booking", { bookingId });
+          }
+        }
+      ]
+    );
+  };
+
+  const handleShowInfo = () => {
+    Alert.alert(
+      "Search Options",
+      "What would you like to do?",
+      [
+        { text: "Close", style: "cancel" },
+        {
+          text: "Cancel Booking",
+          style: "destructive",
+          onPress: () => confirmCancelBooking()
+        }
+      ]
+    );
+  };
 
 
 
@@ -284,6 +317,14 @@ export default function BookingSearchScreen() {
         activeOpacity={0.7}
       >
         <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.infoButton, { top: insets.top + 12 }]}
+        onPress={handleShowInfo}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="information-circle-outline" size={26} color={theme.colors.text} />
       </TouchableOpacity>
       <View style={styles.orbitContainer}>
         {/* Outer Ring - Slow */}
@@ -382,6 +423,17 @@ const styles = StyleSheet.create({
   backButton: {
     position: 'absolute',
     left: 16,
+    zIndex: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoButton: {
+    position: 'absolute',
+    right: 16,
     zIndex: 20,
     width: 38,
     height: 38,

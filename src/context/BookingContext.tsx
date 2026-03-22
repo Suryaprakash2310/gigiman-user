@@ -89,7 +89,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   useEffect(() => {
     const onServicerAccepted = ({ booking, otp }: any) => {
-      console.log("🔥 SERVICER ACCEPTED (GLOBAL):", booking._id);
+      console.log("[SOCKET RECEIVE] 🔥 servicer-accepted (GLOBAL):", booking._id);
 
       const mapped = mapBookingToBookingItem(booking, otp);
       upsertBooking(mapped);
@@ -104,7 +104,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onServiceProposed = ({ bookingId, proposal }: any) => {
-      console.log("🧠 SERVICE PROPOSED:", bookingId);
+      console.log("[SOCKET RECEIVE] 🧠 service-proposed (GLOBAL):", bookingId);
 
       setBookings(prev =>
         prev.map(b =>
@@ -123,7 +123,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const onServiceApproved = ({ bookingId, totalPrice, service }: any) => {
-      console.log("🎉 Service approved confirmed:", bookingId);
+      console.log("[SOCKET RECEIVE] 🎉 service-approved confirmed:", bookingId, totalPrice);
 
       setBookings(prev =>
         prev.map(b =>

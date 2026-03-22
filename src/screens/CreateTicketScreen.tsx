@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -8,34 +8,69 @@ import AppText from '@/src/components/ui/AppText';
 import AppInput from '@/src/components/ui/AppInput';
 import AppButton from '@/src/components/ui/AppButton';
 import { useTheme } from '@/src/theme/useTheme';
+import { ticketApi } from '@/src/api/ticket.api';
+import { SupportType, TicketCategory } from '@/src/types/ticket';
 
-const ISSUE_TYPES = [
-    'Service Quality',
-    'Late Arrival',
-    'Payment Issue',
-    'Safety Concern',
-    'Technical Issue',
-    'Other'
-];
+const ISSUE_MAPPING: { [key: string]: { category: TicketCategory, supportType: SupportType } } = {
+    'Service Quality': { category: 'Complaint', supportType: 'Ticket' },
+    'Late Arrival': { category: 'Complaint', supportType: 'Ticket' },
+    'Payment Issue': { category: 'Payment Issue', supportType: 'Ticket' },
+    'Technical Issue': { category: 'Technical Issue', supportType: 'Ticket' },
+    'Live Chat Support': { category: 'Query', supportType: 'Chat' },
+    'Request Call Back': { category: 'Call Request', supportType: 'Call' },
+    'Other': { category: 'Query', supportType: 'Ticket' }
+};
+
+const ISSUE_TYPES = Object.keys(ISSUE_MAPPING);
 
 export default function CreateTicketScreen() {
     const { theme } = useTheme();
     const insets = useSafeAreaInsets();
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
 
     const [issueType, setIssueType] = useState(ISSUE_TYPES[0]);
     const [bookingId, setBookingId] = useState('');
     const [description, setDescription] = useState('');
     const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const handleBack = () => {
         navigation.goBack();
     };
 
-    const handleSubmit = () => {
-        // Mock submit
-        alert('Ticket submitted successfully!');
-        navigation.goBack();
+    const handleSubmit = async () => {
+        if (!description.trim()) {
+            Alert.alert('Error', 'Please enter a description');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const mapping = ISSUE_MAPPING[issueType];
+            const response = await ticketApi.createTicket({
+                message: description,
+                category: mapping.category,
+                supportType: mapping.supportType,
+                bookingId: bookingId || undefined,
+                priority: 'Medium'
+            });
+
+            if (response.success) {
+                Alert.alert('Success', 'Ticket submitted successfully!');
+                if (mapping.supportType === 'Chat') {
+                    navigation.replace('TicketDetailScreen', { ticketId: response.ticket._id });
+                } else {
+                    navigation.goBack();
+                }
+            } else {
+                Alert.alert('Error', 'Failed to submit ticket');
+            }
+        } catch (error) {
+            console.error('Submit ticket error:', error);
+            Alert.alert('Error', 'An unexpected error occurred');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -61,8 +96,8 @@ export default function CreateTicketScreen() {
                     Please provide details about your issue so we can help you as quickly as possible.
                 </AppText>
 
-                {/* Issue Type Dropdown (Mock) */}
-                <View style={[styles.inputGroup, { marginBottom: theme.spacing.lg }]}>
+                {/* Issue Type Dropdown */}
+                <View style={[styles.inputGroup, { marginBottom: theme.spacing.lg, zIndex: 1000 }]}>
                     <AppText size="body" style={{ color: theme.colors.text, marginBottom: theme.spacing.xs }}>
                         Issue Type
                     </AppText>
@@ -123,7 +158,7 @@ export default function CreateTicketScreen() {
                     style={{ height: 120, textAlignVertical: 'top' }}
                 />
 
-                {/* Image Upload (Mock) */}
+                {/* Image Upload (Mock for now, but placeholder for real implementation) */}
                 <View style={{ marginBottom: 32 }}>
                     <AppText size="body" style={{ color: theme.colors.text, marginBottom: theme.spacing.xs }}>
                         Attachment (Optional)
@@ -135,6 +170,7 @@ export default function CreateTicketScreen() {
                             borderRadius: theme.radius.md
                         }]}
                         activeOpacity={0.7}
+                        onPress={() => Alert.alert('Coming Soon', 'Image upload will be available in the next update.')}
                     >
                         <View style={[styles.uploadIconContainer, { backgroundColor: theme.colors.background }]}>
                             <Feather name="upload-cloud" size={24} color={theme.colors.primary} />
@@ -151,8 +187,10 @@ export default function CreateTicketScreen() {
                 </View>
 
                 <AppButton
-                    title="Submit Ticket"
+                    title={loading ? "Submitting..." : "Submit Ticket"}
                     onPress={handleSubmit}
+                    disabled={loading}
+                    loading={loading}
                     style={{ width: '100%', marginBottom: 16 }}
                 />
             </ScrollView>
@@ -213,7 +251,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 5,
-        zIndex: 10,
+        zIndex: 1001,
     },
     dropdownItem: {
         flexDirection: 'row',
@@ -238,3 +276,4 @@ const styles = StyleSheet.create({
         marginRight: 16,
     }
 });
+

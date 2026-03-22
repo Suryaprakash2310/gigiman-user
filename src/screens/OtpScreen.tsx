@@ -9,7 +9,7 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { verifyOtpApi } from "../api/auth";
+import { sendOtpApi, verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
 import AppText from '../components/ui/AppText';
@@ -163,12 +163,18 @@ const OtpScreen: React.FC = () => {
   // };
   /** Called when resend pressed */
   const handleResend = () => {
-    console.log("Resend pressed");
-
-    // TODO: Call resend API
-
-    // Reset fields visually
-    otpRef.current?.reset();
+    setLoading(true);
+    setError(null);
+    sendOtpApi(phone)
+      .then(() => {
+        otpRef.current?.reset();
+      })
+      .catch((err) => {
+        setError(err?.response?.data?.message || "Failed to resend OTP");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   return (

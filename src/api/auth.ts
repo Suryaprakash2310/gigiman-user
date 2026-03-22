@@ -13,6 +13,7 @@ export const sendOtpApi = (phoneNo: string) => {
   return api.post("/user/send-otp", { phoneNo });
 };
 
+
 export const verifyOtpApi = (phoneNo: string, otp: string) => {
   return api.post("/user/verify-otp", { phoneNo, otp });
 };
