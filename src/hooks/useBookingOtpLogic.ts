@@ -1,14 +1,13 @@
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useEffect, useState } from "react";
-import { useTheme } from "@/src/theme/useTheme";
+import api from "@/src/api/client";
 import { useBooking } from "@/src/context/BookingContext";
 import { useAuth } from "@/src/hook/useAuth";
-import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
-import api from "@/src/api/client";
-import { socket } from "@/src/socket/socket";
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring } from "react-native-reanimated";
-import { RouteProp } from "@react-navigation/native";
 import { BookingParamList } from "@/src/navigation/stacks/BookingStack";
+import { socket } from "@/src/socket/socket";
+import { useTheme } from "@/src/theme/useTheme";
+import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { useEffect, useState } from "react";
+import { useAnimatedStyle, useSharedValue, withDelay, withSpring } from "react-native-reanimated";
 
 export function useBookingOtpLogic() {
   const { theme } = useTheme();
@@ -45,11 +44,7 @@ export function useBookingOtpLogic() {
     if (!serviceProposal) return;
     socket.emit("extra-service-approve", {
       bookingId,
-<<<<<<< Updated upstream
-      extraServiceId: booking?.serviceCategoryName,
-=======
       extraServiceId: serviceProposal._id,
->>>>>>> Stashed changes
       approve: true,
       userId: user?._id,
     });
@@ -57,18 +52,6 @@ export function useBookingOtpLogic() {
       pendingServiceProposal: null,
       totalPrice: serviceProposal.price + (booking?.totalPrice ?? 0),
       durationInMinutes: serviceProposal.durationInMinutes + (booking?.durationInMinutes ?? 0),
-<<<<<<< Updated upstream
-=======
-      extraServices: [
-        ...(booking?.extraServices || []),
-        {
-          _id: serviceProposal._id || "optimistic",
-          serviceName: serviceProposal.serviceCategoryName || serviceProposal.serviceName || "Extra Service",
-          price: serviceProposal.price,
-          status: "APPROVED"
-        }
-      ]
->>>>>>> Stashed changes
     });
   };
   const handleRejectService = () => {
@@ -90,7 +73,7 @@ export function useBookingOtpLogic() {
     setPartActionLoading(true);
     try {
       await api.post(`/booking/approve/${PendingRequest.requestId}`);
-      
+
       // Refetch booking after approving parts to ensure totalPrice updates reflect
       const res = await api.get(`/booking/${bookingId}`);
       if (res.data?.booking) {
@@ -138,16 +121,12 @@ export function useBookingOtpLogic() {
           pendingServiceProposal: null,
           totalPrice: data.totalPrice,
           durationInMinutes: data.durationInMinutes ?? booking?.durationInMinutes,
-<<<<<<< Updated upstream
-=======
-          extraServices: data.extraServices ?? booking?.extraServices,
->>>>>>> Stashed changes
         });
-        
+
         // Refetch booking fully to populate updated `extraServices` arrays
         api.get(`/booking/${bookingId}`).then(res => {
           if (res.data?.booking) {
-             upsertBooking(mapBookingToBookingItem(res.data.booking));
+            upsertBooking(mapBookingToBookingItem(res.data.booking));
           }
         }).catch(err => console.warn(err));
 

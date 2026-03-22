@@ -663,7 +663,7 @@ export default function BookingOtp() {
                     Duration
                   </AppText>
                   <AppText weight="medium" style={styles.detailText}>
-                    {booking.durationInMinutes ? `${booking.durationInMinutes} mins` : "N/A"}
+                    {booking.durationInMinutes != null ? `${booking.durationInMinutes} mins` : "N/A"}
                   </AppText>
                 </View>
               </View>
