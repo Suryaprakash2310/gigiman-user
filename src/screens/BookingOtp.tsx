@@ -50,7 +50,7 @@ export default function BookingOtp() {
 
     socket.emit("extra-service-approve", {
       bookingId,
-      extraServiceId: booking.serviceCategoryName,
+      extraServiceId: serviceProposal?._id,
       approve: true,
       userId: user?._id,
     });
@@ -71,7 +71,9 @@ export default function BookingOtp() {
 
     socket.emit("extra-service-approve", {
       bookingId,
+      extraServiceId: serviceProposal?._id,
       approve: false,
+      userId: user?._id,
     });
 
     upsertBooking({
