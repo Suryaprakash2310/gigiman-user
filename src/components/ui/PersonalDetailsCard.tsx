@@ -24,17 +24,7 @@ export default function PersonalDetailsCard({
     },
     onSubmit,
 }: Props) {
-    // Force light theme colors
-    // const themeColors = {
-    //     surface: '#FFFFFF',
-    //     text: '#0F172A',
-    //     textMuted: '#64748B',
-    //     border: '#E2E8F0',
-    //     success: '#10B981',
-    //     danger: '#EF4444',
-    //     cardShadow: 'rgba(0,0,0,0.06)',
-    //     primary: '#3B82F6',
-    // };
+    
         const { theme } = useTheme();
     const [values, setValues] = useState<PersonalDetails>(initialValues);
     const [editingField, setEditingField] = useState<keyof PersonalDetails | null>(null);

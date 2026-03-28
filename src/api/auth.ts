@@ -40,21 +40,5 @@ export const updateAddressAPI = (addressId: string, data: any) => {
   return api.put(`/user/address/${addressId}`, data);
 };
 
-// // 📤 Send OTP
-// export const sendOtp = async (phoneNo: string) => {
-//   const res = await api.post("/auth/send-otp", { phoneNo });
-//   return res.data;
-// };
 
-// // ✅ Verify OTP
-// export const verifyOtp = async (phoneNo: string, otp: string) => {
-//   const res = await api.post("/auth/verify-otp", { phoneNo, otp });
-//   return res.data;
-// };
-
-// // 👤 Get profile
-// export const getProfile = async () => {
-//   const res = await api.get("/auth/profile");
-//   return res.data;
-// };
 

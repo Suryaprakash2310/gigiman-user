@@ -9,8 +9,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!accessToken) {
-      console.log("🔴 No token, disconnect socket");
+      console.log("🔴 No token → cleaning socket");
+
+      socket.removeAllListeners(); // 🔥 critical
       socket.disconnect();
+
       return;
     }
 

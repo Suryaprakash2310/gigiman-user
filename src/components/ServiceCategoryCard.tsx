@@ -9,8 +9,6 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme/useTheme';
 import AppText from './ui/AppText';
-//import AppText from './AppText';
-//import { useTheme } from '../../theme/useTheme';
 
 // Get screen dimensions
 const { width } = Dimensions.get('window');

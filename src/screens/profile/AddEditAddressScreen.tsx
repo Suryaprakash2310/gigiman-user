@@ -9,7 +9,6 @@ import {
   ScrollView
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
@@ -20,7 +19,6 @@ import { wp, hp } from "@/src/utils/responsive";
 import { useTheme } from "@/src/theme/useTheme";
 import { addAddressAPI, updateAddressAPI } from "@/src/api/auth";
 
-const STORAGE_KEY = "gigiman_saved_addresses";
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 
 export default function AddEditAddressScreen() {

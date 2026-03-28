@@ -149,31 +149,7 @@ export default function MapPinLocationScreen() {
 
       <AppHeader title="Select Location" showBack />
 
-      {/* <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider="google"
-        initialRegion={region}
-        region={region}
-        showsUserLocation={true}
-        showsMyLocationButton={true}
-        onRegionChangeComplete={onRegionChangeComplete}
-        onPress={(e) => {
-
-          const { latitude, longitude } = e.nativeEvent.coordinate;
-
-          const newRegion: Region = {
-            latitude,
-            longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01
-          };
-
-          setRegion(newRegion);
-          reverseGeocode(latitude, longitude);
-
-        }}
-      /> */}
+      
 
       <View pointerEvents="none" style={styles.pinContainer}>
         <AppText style={styles.pin}>📍</AppText>

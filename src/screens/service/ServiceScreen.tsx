@@ -174,7 +174,7 @@ export default function ServicesScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView
+    <View
       style={[
         styles.safe,
         { paddingTop: Platform.OS === "android" ? insets.top : 0 },
@@ -322,7 +322,7 @@ export default function ServicesScreen({ navigation }: any) {
           />
         )}
       </AppBottomSheet>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -5,14 +5,11 @@ import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/src/theme/useTheme';
-//import AppHeader from '@/src/components/ui/AppHeader';
 import AppButton from '@/src/components/ui/AppButton';
 import AppText from '@/src/components/ui/AppText';
 import { getCurrentLocation } from "@/src/utils/location";
 import AddressCard, { Address } from '@/src/components/AddressCard';
 import AppHeader from '@/src/components/ui/AppHeader';
-import Ionicons from '@expo/vector-icons/build/Ionicons';
-import axios from 'axios';
 import { deleteAddressAPI, getAddressesAPI } from '@/src/api/auth';
 
 const STORAGE_KEY = 'gigiman_saved_addresses';

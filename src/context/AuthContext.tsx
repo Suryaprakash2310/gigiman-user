@@ -1,6 +1,6 @@
-// src/context/AuthContext.tsx
 import { socket } from "@/src/socket/socket";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from "react-native";
 import React, {
   createContext,
   ReactNode,
@@ -72,52 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
 
-  // useEffect(() => {
-  //   if (!accessToken || !user?._id) return;
-
-  //   // Add error listener before connecting
-  //   socket.on("connect_error", (err) => {
-  //     //console.error("❌ Socket Connection Error:", err.message);
-  //   });
-
-  //   socket.connect();
-
-  //   const onConnect = () => {
-  //     console.log("✅ USER socket connected:", socket.id);
-
-  //     socket.emit("register-user", {
-  //       userId: user._id,
-  //     });
-
-  //     console.log("📨 register-user emitted");
-  //   };
-
-  //   socket.on("connect", onConnect);
-
-  //   return () => {
-  //     socket.off("connect", onConnect);
-  //     socket.off("connect_error");
-  //     socket.disconnect();
-  //   };
-  // }, [accessToken, user?._id]);
-
-
-  // useEffect(() => {
-  //   socket.on("connect", () => {
-  //     console.log("✅ Socket connected:", socket.id);
-  //   });
-
-  //   socket.on("disconnect", () => {
-  //     console.log("❌ Socket disconnected");
-  //   });
-
-  //   return () => {
-  //     socket.off("connect");
-  //     socket.off("disconnect");
-  //   };
-  // }, []);
-
-
+  
 
   // 🔐 Login
   const login: AuthContextType['login'] = async ({
@@ -139,6 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 🚪 Logout
   const logout = async () => {
+    DeviceEventEmitter.emit("RESET_BOOKINGS");
+
+    socket.removeAllListeners();
+    socket.disconnect();
+
+    console.log("🚪 Logout complete: session cleared");
+
     setUser(null);
     setAccessToken(null);
     setRefreshToken(null);

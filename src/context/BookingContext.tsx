@@ -1,5 +1,7 @@
 import { socket } from "@/src/socket/socket";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
+import { DeviceEventEmitter } from "react-native";
+import { useAuthContext } from "@/src/context/AuthContext";
 import React, {
   createContext,
   ReactNode,
@@ -77,6 +79,7 @@ type BookingContextType = {
 
   getLatestActiveBooking: () => BookingItem | null;
   activeBookings: BookingItem[];
+  resetBookings: () => void;
 };
 
 const BookingContext = createContext<BookingContextType | null>(null);
@@ -87,6 +90,17 @@ const BookingContext = createContext<BookingContextType | null>(null);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const { accessToken } = useAuthContext();
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("RESET_BOOKINGS", () => {
+      console.log("🧹 BookingContext cleared from logout event");
+      setBookings([]);
+    });
+
+    return () => sub.remove();
+  }, []);
+
   useEffect(() => {
     const onServicerAccepted = ({ booking, otp }: any) => {
       console.log("[SOCKET RECEIVE] 🔥 servicer-accepted (GLOBAL):", booking._id);
@@ -148,6 +162,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!accessToken) return;
+
+    console.log("📦 Fetching bookings for new session");
+
+    setBookings([]); // 🔥 clear old user data first
+
     const fetchInitialBookings = async () => {
       try {
         const [active, scheduled] = await Promise.all([
@@ -158,15 +178,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         const activeMapped = (active || []).map((b: any) => mapBookingToBookingItem(b));
         const scheduledMapped = (scheduled || []).map((b: any) => mapBookingToBookingItem(b));
 
-        activeMapped.forEach(upsertBooking);
-        scheduledMapped.forEach(upsertBooking);
+        setBookings([...activeMapped, ...scheduledMapped]);
       } catch (err) {
-        console.warn("Failed to fetch initial bookings:", err);
+        console.warn("Booking fetch failed:", err);
       }
     };
 
     fetchInitialBookings();
-  }, []);
+  }, [accessToken]);
 
   /* ----------------------------- */
   /* SINGLE SOURCE OF TRUTH        */
@@ -174,22 +193,26 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const upsertBooking = (booking: BookingItem) => {
     setBookings(prev => {
+      if (!prev.length) return [booking]; // new session safe
+
       const exists = prev.find(b => b._id === booking._id);
+
       if (exists) {
         return prev.map(b =>
           b._id === booking._id
             ? {
-              ...b,
-              ...booking,
-              otp: booking.otp ?? b.otp,
-              // Never fallback to stale pendingServiceProposal if it was explicitly cleared
-              pendingServiceProposal: booking.pendingServiceProposal !== undefined 
-                ? booking.pendingServiceProposal 
-                : b.pendingServiceProposal
-            }
+                ...b,
+                ...booking,
+                otp: booking.otp ?? b.otp,
+                pendingServiceProposal:
+                  booking.pendingServiceProposal !== undefined
+                    ? booking.pendingServiceProposal
+                    : b.pendingServiceProposal
+              }
             : b
         );
       }
+
       return [booking, ...prev];
     });
   };
@@ -210,6 +233,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const getBookingById = (id: string) =>
     bookings.find(b => b._id === id) ?? null;
+
+  const resetBookings = () => {
+    console.log("🧹 Resetting booking state (logout)");
+    setBookings([]);
+  };
 
   /* ============================= */
   /*            FILTERS            */
@@ -266,6 +294,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         getBookingById,
         getLatestActiveBooking,
         activeBookings,
+        resetBookings,
       }}
     >
       {children}

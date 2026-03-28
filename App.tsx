@@ -13,16 +13,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <BookingProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <BookingProvider>
             <SocketProvider>
               <ThemeProvider>
                 <RootNavigation />
                 <StatusBar style="auto" />
               </ThemeProvider>
             </SocketProvider>
-          </AuthProvider>
-        </BookingProvider>
+          </BookingProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

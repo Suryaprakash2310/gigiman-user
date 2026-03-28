@@ -39,57 +39,6 @@ const OtpScreen: React.FC = () => {
 
   /** OtpInput ref (correct way) */
   const otpRef = useRef<OtpInputRef>(null);
-
-  /** Called when OTP fully typed */
-  // const handleOtpComplete = async(otp: string) => {
-  //   console.log("OTP entered:", otp);
-
-  //   // TODO → Call your backend verify API here
-  //     // 1️⃣ Mock backend response for now
-  // const mockResponse = {
-  //     user: {
-  //       id: "12345",
-  //       phone,
-  //       name: "",           // empty → new user
-  //     },
-  //     accessToken: "mock_access",
-  //     refreshToken: "mock_refresh",
-  //     isNewUser: false,      // backend sends this normally
-  //     hasAddress: false,
-  // };
-
-  // // 2️⃣ Store user + tokens securely
-  // await login({
-  //   user: mockResponse.user,
-  //   accessToken: mockResponse.accessToken,
-  //   refreshToken: mockResponse.refreshToken,
-  // });
-
-  // // 3️⃣ Continue onboarding flow
-  // if (mockResponse.isNewUser || !mockResponse.user.name) {
-  //   navigation.replace("SetupProfile");
-  // } 
-  // else if (!mockResponse.hasAddress) {
-  //   navigation.replace("AddressScreen");
-  // } 
-  // else {
-  //   navigation.reset({ index: 0, routes: [{ name: "HomeTab" }] });
-  // }
-
-
-  //   // navigation.reset({
-  //   //   index: 0,
-  //   //   routes: [{ name: 'SetupProfile' }],
-  //   // });
-  // };
-  // const handleOtpComplete = async (otp: any) => {
-  //   try {
-  //     setLoading(true);
-  //     setError(null);
-
-  //     const res = await verifyOtpApi(phone, otp);
-  //     console.log("verifyOtpApi response:", res);
-
   const handleOtpComplete = async (otp: string) => {
     try {
       setLoading(true);
@@ -128,39 +77,6 @@ const OtpScreen: React.FC = () => {
     }
   };
 
-
-
-
-  //const { token, user } = res.data;
-
-  // await login({
-  //   user: {
-  //     id: user._id,
-  //     phone: user.phoneMasked,
-  //     name: user.fullName,
-  //   },
-  //   accessToken: token,
-  //   refreshToken: token, // same for now
-  // });
-  // // Navigation decision
-  // if (!user.fullName) {
-  //   navigation.replace("SetupProfile");
-  // } else if (!user.address) {
-  //   navigation.replace("AddressScreen");
-  // } else {
-  //   navigation.reset({
-  //     index: 0,
-  //     routes: [{ name: "HomeTab" }],
-  //   });
-  // }
-  //   } catch (err: any) {
-  //     setError(err?.response?.data?.message || "Invalid OTP");
-  //     console.error("OTP error:", err?.message, err?.response?.data);
-  //     otpRef.current?.reset();
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   /** Called when resend pressed */
   const handleResend = () => {
     setLoading(true);

@@ -13,9 +13,6 @@ import { useTheme } from '@/src/theme/useTheme';
 export default function PersonalDetailsPage() {
     
       const { theme, setMode } = useTheme();
-    
-      //const styles = createStyles(theme);
-
 
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();

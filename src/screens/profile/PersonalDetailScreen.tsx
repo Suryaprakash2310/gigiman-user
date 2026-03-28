@@ -3,11 +3,9 @@ import React, { useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-//import AppHeader from "@/src/components/ui/AppHeader";
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
 import AvatarUpload from "@/src/components/ui/AvatorUpload";
-//import AvatarUpload from "@/src/components/ui/AvatarUpload";
 
 export default function PersonalDetailsScreen() {
   const { theme } = useTheme();
@@ -21,7 +19,6 @@ export default function PersonalDetailsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* <AppHeader title="Personal Details" /> */}
 
       <ScrollView
         showsVerticalScrollIndicator={false}

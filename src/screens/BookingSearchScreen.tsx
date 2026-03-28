@@ -165,18 +165,7 @@ export default function BookingSearchScreen() {
 
   /* 🔌 SOCKET */
   useEffect(() => {
-    // const onAccepted = ({ booking, otp }: any) => {
-    //   const mapped = mapBookingToBookingItem(booking, otp);
-
-
-    //   console.log("📦 ----Booking stored in context:", booking, otp);
-    //   upsertBooking(mapped);
-
-    //   //socket.on("servicer-accepted", onAccepted);
-    //   navigation.replace("BookingDetails", {
-    //     bookingId: booking._id,
-    //   });
-    // };
+    
 
     const onNoProvider = () => {
       Alert.alert("No technicians available");
@@ -209,31 +198,7 @@ export default function BookingSearchScreen() {
     };
   }, [bookingId, navigation]);
 
-  // useEffect(() => {
-  //   const onTeamAssigned = (booking: any) => {
-  //     console.log("🟢 TEAM ASSIGNED TO USER:", booking);
-  //
-  //     const mapped = mapBookingToBookingItem(booking);
-  //     upsertBooking(mapped);
-  //
-  //     navigation.replace("BookingDetails", {
-  //       bookingId: booking._id,
-  //     });
-  //   };
-  //
-  //   const onNoTeamAvailable = () => {
-  //     Alert.alert("No teams available");
-  //     navigation.goBack();
-  //   };
-  //
-  //   socket.on("team-assigned", onTeamAssigned);
-  //   socket.on("no-team-available", onNoTeamAvailable);
-  //
-  //   return () => {
-  //     socket.off("team-assigned", onTeamAssigned);
-  //     socket.off("no-team-available", onNoTeamAvailable);
-  //   };
-  // }, []);
+ 
 
   useEffect(() => {
     const onOtpGenerated = ({ bookingId, otp }: any) => {
