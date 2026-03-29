@@ -307,7 +307,8 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
       service._id || service.serviceId || service.domainServiceId;
 
     navigation.navigate("ServiceTab" as any, {
-      serviceCategoryId: serviceId,
+      screen: "Booking",
+      params: { serviceCategoryId: serviceId, fromMain: true },
     });
   };
 

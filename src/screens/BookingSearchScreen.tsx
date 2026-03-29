@@ -125,7 +125,7 @@ export default function BookingSearchScreen() {
   const route = useRoute<Route>();
   const navigation = useNavigation<any>();
   const { bookingId } = route.params;
-  const { upsertBooking, updateStatus, bookings } = useBooking();
+  const { upsertBooking, updateStatus, bookings, cancelBooking } = useBooking();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const [searchMessage, setSearchMessage] = useState("Scanning nearby area...");
@@ -235,6 +235,10 @@ export default function BookingSearchScreen() {
           onPress: () => {
             console.log("[SOCKET EMIT] 📤 user-cancel-booking:", bookingId);
             socket.emit("user-cancel-booking", { bookingId });
+            
+            // 🟡 Optimistic UI Update & Navigation
+            cancelBooking(bookingId);
+            navigation.navigate("BookingsMain", { activeTab: "ongoing" });
           }
         }
       ]

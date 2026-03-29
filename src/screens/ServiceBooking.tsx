@@ -49,6 +49,7 @@ interface Props {
       serviceCategoryId: string;
       serviceData?: any;
       selectedAddress?: any;
+      fromMain?: boolean;
     };
   };
 }
@@ -66,11 +67,11 @@ interface ServiceCategory {
 const { width } = Dimensions.get('window');
 
 const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
-  const { serviceCategoryId, serviceData } = route.params;
+  const { serviceCategoryId, serviceData, fromMain } = route.params;
   const { user } = useAuthContext();
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const navigation = useNavigation<Nav>();
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { upsertBooking } = useBooking();
 
@@ -357,11 +358,20 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     }
   }, [user, category, bookingMode, selectedDate, selectedTime, quantity, appliedCoupon, navigation, upsertBooking]);
 
+  const handleBack = useCallback(() => {
+    if (fromMain) {
+      // If reached directly from Home, navigate to the Service list
+      navigation.navigate('MainServiceScreen');
+    } else {
+      navigation.goBack();
+    }
+  }, [fromMain, navigation]);
+
   // Loading state
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <AppHeader showBack title="Service Details" />
+        <AppHeader showBack onBackPress={handleBack} title="Service Details" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <AppText size="body" color="textMuted" style={styles.loadingText}>
@@ -376,7 +386,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   if (!category) {
     return (
       <SafeAreaView style={styles.safe}>
-        <AppHeader showBack title="Service Details" />
+        <AppHeader showBack onBackPress={handleBack} title="Service Details" />
         <View style={styles.errorContainer}>
           <Ionicons
             name="alert-circle"
@@ -408,7 +418,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
       ]}
     >
-      <AppHeader showBack title="Service Details" />
+      <AppHeader showBack onBackPress={handleBack} title="Service Details" />
 
       <ScrollView
         style={styles.scrollView}

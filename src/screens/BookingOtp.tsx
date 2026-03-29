@@ -40,7 +40,7 @@ export default function BookingOtp() {
   const { user } = useAuth();
   const route = useRoute<DetailsRoute>();
   const { bookingId } = route.params;
-  const { getBookingById, upsertBooking } = useBooking();
+  const { getBookingById, upsertBooking, cancelBooking } = useBooking();
 
   const booking = getBookingById(bookingId);
   const serviceProposal = booking?.pendingServiceProposal;
@@ -77,6 +77,10 @@ export default function BookingOtp() {
           onPress: () => {
             console.log("[SOCKET EMIT] 📤 user-cancel-booking:", bookingId);
             socket.emit("user-cancel-booking", { bookingId });
+
+            // 🟡 Optimistic UI Update & Navigation
+            cancelBooking(bookingId);
+            navigation.navigate("BookingsMain", { activeTab: "ongoing" });
           }
         }
       ]

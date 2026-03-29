@@ -56,10 +56,10 @@ export default function CustomTabBar({
             route.name === "HomeTab"
               ? "Home"
               : route.name === "ServiceTab"
-              ? "Services"
-              : route.name === "BookingTab"
-              ? "Bookings"
-              : "Profile";
+                ? "Services"
+                : route.name === "BookingTab"
+                  ? "Bookings"
+                  : "Profile";
 
           const onPress = () => {
             if (!isFocused) {
