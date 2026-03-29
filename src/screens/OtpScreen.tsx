@@ -1,5 +1,5 @@
 // OtpScreen.tsx
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +19,7 @@ import { useTheme } from '../theme/useTheme';
 
 type OtpRouteParams = {
   phone?: string;
+  otp?: string;
 };
 
 const OtpScreen: React.FC = () => {
@@ -34,11 +35,22 @@ const OtpScreen: React.FC = () => {
     useRoute<RouteProp<Record<string, OtpRouteParams>, string>>();
 
   const phone = route?.params?.phone ?? '';
+  const initialOtp = route?.params?.otp ?? '';
 
   const styles = createStyles(theme);
 
   /** OtpInput ref (correct way) */
   const otpRef = useRef<OtpInputRef>(null);
+
+  useEffect(() => {
+    if (initialOtp) {
+      // Slight delay to allow the component to render before setting the value
+      setTimeout(() => {
+        otpRef.current?.setValue(String(initialOtp));
+      }, 500); 
+    }
+  }, [initialOtp]);
+
   const handleOtpComplete = async (otp: string) => {
     try {
       setLoading(true);
