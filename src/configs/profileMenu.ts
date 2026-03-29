@@ -19,12 +19,12 @@ export const PROFILE_MENU = [
     icon: 'map-pin',
     screen: 'SavedAddressesScreen',
   },
-  {
-    id: 'payments',
-    label: 'Payment History',
-    icon: 'credit-card',
-    screen: 'PaymentHistoryPage',
-  },
+  // {
+  //   id: 'payments',
+  //   label: 'Payment History',
+  //   icon: 'credit-card',
+  //   screen: 'PaymentHistoryPage',
+  // },
   {
     id: 'invite',
     label: 'Invite & Earn 🎁',
