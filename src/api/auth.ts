@@ -14,8 +14,12 @@ export const sendOtpApi = (phoneNo: string) => {
 };
 
 
-export const verifyOtpApi = (phoneNo: string, otp: string) => {
-  return api.post("/user/verify-otp", { phoneNo, otp });
+export const verifyOtpApi = (phoneNo: string, firebaseToken: string) => {
+  return api.post("/user/verify-otp", { phoneNo, firebaseToken });
+};
+
+export const verifyFirebaseTokenAPI = (token: string) => {
+  return api.post("/user/verify-firebase-token", { idToken: token });
 };
 
 

@@ -2,6 +2,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
+import auth from '@react-native-firebase/auth';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -43,12 +44,13 @@ const PhoneNumScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await sendOtpApi(phone);
-      console.log("otp::", res.data.otp);
-      // alert(`OTP sent: ${res.data.otp}`); // For testing, remove in production
-      navigation.navigate("OtpScreen", { phone, otp: res.data.otp });
+      await sendOtpApi(phone); // optional init/logging
+      
+      const confirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+      
+      navigation.navigate("OtpScreen", { phone, confirmation });
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to send OTP");
+      setError(err?.message || err?.response?.data?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }

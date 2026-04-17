@@ -9,6 +9,7 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { sendOtpApi, verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
@@ -19,7 +20,7 @@ import { useTheme } from '../theme/useTheme';
 
 type OtpRouteParams = {
   phone?: string;
-  otp?: string;
+  confirmation?: FirebaseAuthTypes.ConfirmationResult;
 };
 
 const OtpScreen: React.FC = () => {
@@ -35,28 +36,34 @@ const OtpScreen: React.FC = () => {
     useRoute<RouteProp<Record<string, OtpRouteParams>, string>>();
 
   const phone = route?.params?.phone ?? '';
-  const initialOtp = route?.params?.otp ?? '';
+  const initialConfirmation = route?.params?.confirmation || null;
+  const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(initialConfirmation);
 
   const styles = createStyles(theme);
 
   /** OtpInput ref (correct way) */
   const otpRef = useRef<OtpInputRef>(null);
 
-  useEffect(() => {
-    if (initialOtp) {
-      // Slight delay to allow the component to render before setting the value
-      setTimeout(() => {
-        otpRef.current?.setValue(String(initialOtp));
-      }, 500); 
-    }
-  }, [initialOtp]);
-
   const handleOtpComplete = async (otp: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await verifyOtpApi(phone, otp);
+      if (!confirmation) {
+          throw new Error("Missing confirmation object. Please go back and resend.");
+      }
+
+      // 1. Verify code using Firebase
+      const userCredential = await confirmation.confirm(otp);
+      
+      // 2. Get firebase ID token
+      const firebaseToken = await userCredential?.user.getIdToken();
+      if (!firebaseToken) {
+          throw new Error("Failed to get Firebase token.");
+      }
+
+      // 3. Call backend /verify-otp with firebaseToken
+      const res = await verifyOtpApi(phone, firebaseToken);
       const data = res.data;
 
       // 🟡 NEW USER
@@ -82,7 +89,7 @@ const OtpScreen: React.FC = () => {
       });
 
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Invalid OTP");
+      setError(err?.message || err?.response?.data?.message || "Invalid OTP");
       otpRef.current?.reset();
     } finally {
       setLoading(false);
@@ -90,19 +97,19 @@ const OtpScreen: React.FC = () => {
   };
 
   /** Called when resend pressed */
-  const handleResend = () => {
+  const handleResend = async () => {
     setLoading(true);
     setError(null);
-    sendOtpApi(phone)
-      .then(() => {
-        otpRef.current?.reset();
-      })
-      .catch((err) => {
-        setError(err?.response?.data?.message || "Failed to resend OTP");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    try {
+       await sendOtpApi(phone); // Optional backend call
+       const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+       setConfirmation(newConfirmation);
+       otpRef.current?.reset();
+    } catch (err: any) {
+       setError(err?.message || err?.response?.data?.message || "Failed to resend OTP");
+    } finally {
+       setLoading(false);
+    }
   };
 
   return (
