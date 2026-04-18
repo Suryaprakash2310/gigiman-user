@@ -90,7 +90,7 @@ export default function ReviewScreen() {
       {/* COMMENT */}
       <View style={styles.inputWrap}>
         <AppText weight="semibold" style={styles.label}>
-          Additional comments (optional)
+          Additional comments
         </AppText>
 
         <AppInput

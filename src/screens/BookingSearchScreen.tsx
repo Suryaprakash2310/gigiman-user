@@ -165,7 +165,7 @@ export default function BookingSearchScreen() {
 
   /* 🔌 SOCKET */
   useEffect(() => {
-    
+
 
     const onNoProvider = () => {
       Alert.alert("No technicians available");
@@ -198,7 +198,7 @@ export default function BookingSearchScreen() {
     };
   }, [bookingId, navigation]);
 
- 
+
 
   useEffect(() => {
     const onOtpGenerated = ({ bookingId, otp }: any) => {
@@ -235,7 +235,7 @@ export default function BookingSearchScreen() {
           onPress: () => {
             console.log("[SOCKET EMIT] 📤 user-cancel-booking:", bookingId);
             socket.emit("user-cancel-booking", { bookingId });
-            
+
             // 🟡 Optimistic UI Update & Navigation
             cancelBooking(bookingId);
             navigation.navigate("BookingsMain", { activeTab: "ongoing" });
@@ -278,11 +278,12 @@ export default function BookingSearchScreen() {
     return () => clearInterval(interval);
   }, []);
 
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
       <TouchableOpacity
         style={[styles.backButton, { top: insets.top + 12 }]}
-        onPress={() => navigation.navigate("BookingsMain")}
+        onPress={() => navigation.replace("BookingsMain")}
         activeOpacity={0.7}
       >
         <Ionicons name="chevron-back" size={22} color={theme.colors.text} />

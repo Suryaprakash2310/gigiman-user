@@ -2,15 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   BackHandler,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Alert,
-  Vibration
+  Vibration,
+  View
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -19,6 +19,7 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 
+import { initiateMaskedCall } from "@/src/api/call.api";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
 import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
@@ -30,7 +31,6 @@ import api from "../api/client";
 import AppHeader from "../components/ui/AppHeader";
 import { useAuth } from "../hook/useAuth";
 import { socket } from "../socket/socket";
-import { initiateMaskedCall } from "@/src/api/call.api";
 
 
 type DetailsRoute = RouteProp<BookingParamList, "BookingDetails">;
@@ -44,25 +44,44 @@ export default function BookingOtp() {
 
   const booking = getBookingById(bookingId);
   const serviceProposal = booking?.pendingServiceProposal;
-  const handleApproveService = () => {
-    if (!serviceProposal) return;
+  const proposalScale = useSharedValue(0);
+  const bookingRef = React.useRef(booking);
+  //const currentBooking = bookingRef.current;
+  useEffect(() => {
+    bookingRef.current = booking;
+  }, [booking]);
 
-    console.log("[SOCKET EMIT] ✅ Approving visit proposal:", bookingId);
+  useEffect(() => {
+    if (serviceProposal) {
+      proposalScale.value = withSpring(1);
+    } else {
+      proposalScale.value = 0;
+    }
+  }, [serviceProposal]);
+  const [serviceActionLoading, setServiceActionLoading] = useState(false);
 
-    socket.emit("extra-service-approve", {
-      bookingId,
-      extraServiceId: serviceProposal?._id,
-      approve: true,
-      userId: user?._id,
-    });
-    // optimistic UI (smooth UX)
-    upsertBooking({
-      ...booking!,
-      pendingServiceProposal: null,
-      totalPrice: serviceProposal.price + (booking.totalPrice ?? 0),
-      durationInMinutes: serviceProposal.durationInMinutes + (booking.durationInMinutes ?? 0),
-    });
-    fetchBooking();
+  const handleApproveService = async () => {
+    if (!serviceProposal || serviceActionLoading) return;
+    const currentBooking = bookingRef.current;
+    if (!currentBooking || !currentBooking._id) return;
+
+    try {
+      setServiceActionLoading(true);
+      socket.emit("extra-service-approve", {
+        bookingId,
+        extraServiceId: serviceProposal?._id,
+        approve: true,
+        userId: user?._id,
+      });
+      // optimistic UI (smooth UX)
+      upsertBooking({
+        ...currentBooking,
+        pendingServiceProposal: null,
+      });
+      await fetchBooking();
+    } finally {
+      setServiceActionLoading(false);
+    }
   };
 
   const confirmCancelBooking = () => {
@@ -75,7 +94,7 @@ export default function BookingOtp() {
           text: "Yes, Cancel",
           style: "destructive",
           onPress: () => {
-            console.log("[SOCKET EMIT] 📤 user-cancel-booking:", bookingId);
+
             socket.emit("user-cancel-booking", { bookingId });
 
             // 🟡 Optimistic UI Update & Navigation
@@ -102,30 +121,36 @@ export default function BookingOtp() {
     );
   };
 
-  const handleRejectService = () => {
-    if (!serviceProposal) return;
-
+  const handleRejectService = async () => {
+    const currentBooking = bookingRef.current;
+    if (!serviceProposal || serviceActionLoading) return;
+    if (!currentBooking || !currentBooking._id) return;
     console.log("[SOCKET EMIT] ❌ Rejecting visit proposal:", bookingId);
 
-    socket.emit("extra-service-approve", {
-      bookingId,
-      extraServiceId: serviceProposal?._id,
-      approve: false,
-      userId: user?._id,
-    });
+    try {
+      setServiceActionLoading(true);
+      socket.emit("extra-service-approve", {
+        bookingId,
+        extraServiceId: serviceProposal?._id,
+        approve: false,
+        userId: user?._id,
+      });
 
-    upsertBooking({
-      ...booking!,
-      pendingServiceProposal: null,
-    });
-    fetchBooking();
-    const proposalScale = useSharedValue(0);
+      upsertBooking({
+        ...currentBooking,
+        pendingServiceProposal: null,
+      });
+      await fetchBooking();
+    } finally {
+      setServiceActionLoading(false);
+    }
+    // const proposalScale = useSharedValue(0);
 
-    useEffect(() => {
-      if (serviceProposal) {
-        proposalScale.value = withSpring(1);
-      }
-    }, [serviceProposal]);
+    // useEffect(() => {
+    //   if (serviceProposal) {
+    //     proposalScale.value = withSpring(1);
+    //   }
+    // }, [serviceProposal]);
   };
 
   // Fetch full booking from API to ensure technician name is available
@@ -134,10 +159,10 @@ export default function BookingOtp() {
       const res = await api.get(`/booking/${bookingId}`);
       if (res.data?.booking) {
         const mapped = mapBookingToBookingItem(res.data.booking);
-
+        const currentBooking = bookingRef.current;
         upsertBooking({
           ...mapped,
-          otp: mapped.otp ?? booking?.otp   // 🔑 PRESERVE OTP
+          otp: mapped.otp ?? currentBooking?.otp   // 🔑 PRESERVE OTP
         });
       }
     } catch (err) {
@@ -152,23 +177,71 @@ export default function BookingOtp() {
   }, [bookingId, booking?.name]);
 
 
+  // useEffect(() => {
+  //   const onExtraResponse = (data: any) => {
+  //     console.log("[SOCKET RECEIVE] 📥 extra-service-response:", data);
+  //     if (data.bookingId !== bookingId) return;
+
+  //     if (data.status === "APPROVED") {
+  //       upsertBooking({
+  //         ...booking!,
+  //         pendingServiceProposal: null,
+  //         totalPrice: data.totalPrice,  // backend already summed
+  //       });
+  //       fetchBooking();
+  //     }
+
+  //     if (data.status === "REJECTED") {
+  //       upsertBooking({
+  //         ...booking!,
+  //         pendingServiceProposal: null,
+  //       });
+  //     }
+  //   };
+
+  //   socket.on("extra-service-response", onExtraResponse);
+
+  //   return () => {
+  //     socket.off("extra-service-response", onExtraResponse);
+  //   };
+  // }, [bookingId]);
+  // useEffect(() => {
+  //   const onExtraServiceProposed = (data: any) => {
+  //     console.log("[SOCKET RECEIVE] 🔥 USER received extra-service-proposed:", data);
+
+  //     if (data.bookingId !== bookingId) return;
+
+  //     upsertBooking({
+  //       ...booking!,
+  //       pendingServiceProposal: data.extraService,
+  //     });
+  //   };
+
+  //   socket.on("extra-service-proposed", onExtraServiceProposed);
+
+  //   return () => {
+  //     socket.off("extra-service-proposed", onExtraServiceProposed);
+  //   };
+  // }, [bookingId, booking]);
   useEffect(() => {
     const onExtraResponse = (data: any) => {
-      console.log("[SOCKET RECEIVE] 📥 extra-service-response:", data);
       if (data.bookingId !== bookingId) return;
+
+      const currentBooking = bookingRef.current;
+      if (!currentBooking) return;
 
       if (data.status === "APPROVED") {
         upsertBooking({
-          ...booking!,
+          ...currentBooking,
           pendingServiceProposal: null,
-          totalPrice: data.totalPrice,  // backend already summed
+          totalPrice: data.totalPrice,
         });
         fetchBooking();
       }
 
       if (data.status === "REJECTED") {
         upsertBooking({
-          ...booking!,
+          ...currentBooking,
           pendingServiceProposal: null,
         });
       }
@@ -179,15 +252,16 @@ export default function BookingOtp() {
     return () => {
       socket.off("extra-service-response", onExtraResponse);
     };
-  }, [bookingId, booking]);
+  }, [bookingId]);
   useEffect(() => {
     const onExtraServiceProposed = (data: any) => {
-      console.log("[SOCKET RECEIVE] 🔥 USER received extra-service-proposed:", data);
-
       if (data.bookingId !== bookingId) return;
 
+      const currentBooking = bookingRef.current;
+      if (!currentBooking) return;
+
       upsertBooking({
-        ...booking!,
+        ...currentBooking,
         pendingServiceProposal: data.extraService,
       });
     };
@@ -197,13 +271,13 @@ export default function BookingOtp() {
     return () => {
       socket.off("extra-service-proposed", onExtraServiceProposed);
     };
-  }, [bookingId, booking]);
-
+  }, [bookingId]);
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
 
   //part socket 
-  const [PendingRequest, setPendingRequest] = useState<any | null>(null);
+  const [requestQueue, setRequestQueue] = useState<any[]>([]);
+  const PendingRequest = requestQueue.length > 0 ? requestQueue[0] : null;
   const [partActionLoading, setPartActionLoading] = useState(false);
   const navigation = useNavigation<any>();
 
@@ -212,44 +286,52 @@ export default function BookingOtp() {
     opacity.value = withDelay(300, withSpring(1));
   }, []);
 
-  //   if (PendingRequest && !PendingRequest.parts) {
-  //   return null; // or loader
-  // }
-  if (PendingRequest && !Array.isArray(PendingRequest.parts)) {
-    return <Text>Loading parts...</Text>;
-  }
-
-
-
-
-
-  useEffect(() => {
-    const onToolRequestCreated = (payload: any) => {
-      setPendingRequest(payload);
-      console.log("[SOCKET RECEIVE] 🧰 tool-request-created:", payload);
-    };
-
-    socket.on("tool-request-created", onToolRequestCreated);
-
-    return () => {
-      socket.off("tool-request-created", onToolRequestCreated);
-    };
-  }, []);
-
   // part socket
   useEffect(() => {
     const onToolRequested = (payload: any) => {
-      console.log("[SOCKET RECEIVE] 🧰 tool-requested received:", payload);
-      setPendingRequest(payload);
+      console.log("[SOCKET RECEIVE] 🧰 tool-request received:", payload);
+      setRequestQueue((prev) => {
+        if (prev.some(req => req.requestId === payload.requestId)) return prev;
+        return [...prev, payload];
+      });
     };
 
     // Technician requested parts
     socket.on("tool-requested", onToolRequested);
+    socket.on("tool-request-created", onToolRequested);
 
     return () => {
       socket.off("tool-requested", onToolRequested);
+      socket.off("tool-request-created", onToolRequested);
     };
   }, []);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      navigation.navigate("BookingsMain", { activeTab: "ongoing" });
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress
+    );
+
+    return () => subscription.remove();
+  }, [navigation]);
+
+
+
+  //   if (PendingRequest && !PendingRequest.parts) {
+  //   return null; // or loader
+  // }
+  // if (PendingRequest && !Array.isArray(PendingRequest.parts)) {
+  //   return <Text>Loading parts...</Text>;
+  // }
+
+
+
+
 
 
 
@@ -293,31 +375,55 @@ export default function BookingOtp() {
   //   }, 500);
   // };
   const handleApprove = async () => {
-    if (!PendingRequest) return;
+    if (!PendingRequest || partActionLoading) return;
 
-    console.log("Approving request:", PendingRequest.requestId);
+    try {
+      setPartActionLoading(true);
 
-    await api.post(
-      `/booking/approve/${PendingRequest.requestId}`
-    );
+      console.log("Approving request:", PendingRequest.requestId);
 
-    // ❌ DO NOT emit socket from frontend
-    setPendingRequest(null);
-    fetchBooking();
+      await api.post(`/booking/approve/${PendingRequest.requestId}`);
+
+      setRequestQueue((prev) => prev.slice(1));
+      fetchBooking();
+
+    } catch (err) {
+      console.log("❌ Approve failed", err);
+      Alert.alert("Error", "Failed to approve request");
+    } finally {
+      setPartActionLoading(false);
+    }
   };
 
   const handleReject = async () => {
-    if (!PendingRequest) return;
+    if (!PendingRequest || partActionLoading) return;
 
-    console.log("Rejecting request:", PendingRequest.requestId);
+    try {
+      setPartActionLoading(true);
 
-    await api.post(
-      `/reject/${PendingRequest.requestId}`
-    );
+      const reqId = PendingRequest.requestId;
+      console.log("Rejecting request:", reqId);
 
-    // ❌ DO NOT emit socket from frontend
-    setPendingRequest(null);
-    fetchBooking();
+      // Optimistic UI update: Hide it instantly for a smooth experience
+      setRequestQueue((prev) => prev.slice(1));
+
+      // Dual-send: Emit the socket event (original mechanism)
+      socket.emit("tool-permission-rejected", {
+        requestId: reqId,
+      });
+
+      // API call (newer mechanism)
+      await api.post(`/booking/reject/${reqId}`)
+        .catch(err => console.log("API reject endpoint fell back:", err.message));
+
+      fetchBooking();
+
+    } catch (err) {
+      console.log("❌ Reject failed", err);
+      Alert.alert("Error", "Failed to reject request properly");
+    } finally {
+      setPartActionLoading(false);
+    }
   };
 
   const [calling, setCalling] = useState(false);
@@ -405,9 +511,9 @@ export default function BookingOtp() {
 
   if (!booking) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <AppText>No booking found.</AppText>
-      </SafeAreaView>
+      </View>
     );
   }
   // if (!PendingRequest) {
@@ -415,26 +521,14 @@ export default function BookingOtp() {
   // }
 
 
-  useEffect(() => {
-    const onBackPress = () => {
-      navigation.navigate("BookingsMain", { activeTab: "ongoing" });
-      return true;
-    };
 
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      onBackPress
-    );
-
-    return () => subscription.remove();
-  }, [navigation]);
 
   const handleBack = () => {
     navigation.navigate("BookingsMain", { activeTab: "ongoing" });
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: "#F8FAFC" }]}>
+    <View style={[styles.container, { backgroundColor: "#F8FAFC" }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -445,6 +539,10 @@ export default function BookingOtp() {
           rightIcon="information-circle-outline"
           onRightPress={handleShowInfo}
         />
+
+        {PendingRequest && !Array.isArray(PendingRequest.parts) && (
+          <Text>Loading parts...</Text>
+        )}
         {/* Header Section */}
         <View style={styles.header}>
           <Animated.View
@@ -529,7 +627,7 @@ export default function BookingOtp() {
                 <TouchableOpacity
                   style={[styles.partBtn, styles.rejectBtn]}
                   onPress={handleReject}
-                //disabled={partActionLoading}
+                  disabled={partActionLoading}
                 >
                   <AppText weight="bold" style={{ color: "#DC2626" }}>
                     Reject
@@ -539,7 +637,7 @@ export default function BookingOtp() {
                 <TouchableOpacity
                   style={[styles.partBtn, styles.approveBtn]}
                   onPress={handleApprove}
-                //disabled={partActionLoading}
+                  disabled={partActionLoading}
                 >
                   <AppText weight="bold" style={{ color: "#065F46" }}>
                     {partActionLoading ? "Approving..." : "Approve"}
@@ -762,7 +860,7 @@ export default function BookingOtp() {
           </AppText>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -11,7 +11,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (!accessToken) {
       console.log("🔴 No token → cleaning socket");
 
-      socket.removeAllListeners(); // 🔥 critical
+      //socket.removeAllListeners(); // 🔥 critical
       socket.disconnect();
 
       return;

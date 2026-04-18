@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
 
-  
+
 
   // 🔐 Login
   const login: AuthContextType['login'] = async ({
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     DeviceEventEmitter.emit("RESET_BOOKINGS");
 
-    socket.removeAllListeners();
+    //socket.removeAllListeners();
     socket.disconnect();
 
     try {

@@ -10,6 +10,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,13 +25,10 @@ import { AppTabsParamList } from "../navigation/AppStack";
 
 import { BannerAPI } from "../api/banner.api";
 import { getBanners, getPopularServices } from "../api/dashboard.api";
-
-const { width } = Dimensions.get("window");
+import { useAuthContext } from "@/src/context/AuthContext";
 
 const SPACING = 20;
 const CARD_RADIUS = 20;
-const OFFER_WIDTH = width * 0.82;
-const POPULAR_WIDTH = width * 0.68;
 
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
 
@@ -68,6 +66,8 @@ export default function HomeScreen() {
   const [banners, setBanners] = useState<any[]>([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
 
+  const { user } = useAuthContext();
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -103,7 +103,7 @@ export default function HomeScreen() {
       ]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Header />
+        <Header user={user} navigation={navigation} />
 
         <Hero navigation={navigation} />
 
@@ -146,22 +146,29 @@ export default function HomeScreen() {
 
 
 
-const Header = () => {
+const Header = ({ user, navigation }: any) => {
   const { theme } = useTheme();
 
   return (
     <View style={headerStyles.container}>
-      <AppText weight="bold" size="h1">
-        GigiMan
-      </AppText>
+      <View style={{ flex: 1 }}>
+        <AppText weight="bold" size="h2" style={{ color: theme.colors.text }}>
+          Good morning, {user?.fullName?.split(" ")[0] || "Guest"}! 👋
+        </AppText>
+        <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+          How can we help you today?
+        </AppText>
+      </View>
 
-      {/* <TouchableOpacity>
-        <Ionicons
-          name="notifications-outline"
-          size={26}
-          color={theme.colors.primary}
-        />
-      </TouchableOpacity> */}
+      <TouchableOpacity onPress={() => navigation.navigate("ProfileTab")} activeOpacity={0.8}>
+        {user?.avatar ? (
+          <Image source={{ uri: user.avatar }} style={headerStyles.avatar} />
+        ) : (
+          <View style={[headerStyles.avatar, { backgroundColor: theme.colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
+            <Ionicons name="person" size={20} color={theme.colors.primary} />
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
   );
 };
@@ -170,10 +177,16 @@ const headerStyles = StyleSheet.create({
   container: {
     paddingHorizontal: SPACING,
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
+    marginTop: 10,
   },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  }
 });
 
 
@@ -212,25 +225,13 @@ const Hero = ({ navigation }: any) => {
 
 const OffersCarousel = ({ banners, loading }: { banners: any[], loading: boolean }) => {
   const styles = createStyles(useTheme().theme);
-  const [offers, setOffers] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchBanners = async () => {
-      try {
-        const banners = await BannerAPI.getBanners();
-        setOffers(banners);
-      } catch (err) {
-        console.log("Failed to load banners", err);
-      }
-    };
-
-    fetchBanners();
-  }, []);
+  const { width } = useWindowDimensions();
+  const OFFER_WIDTH = width * 0.88;
 
   if (loading) {
     return (
-      <View style={{ height: 120, justifyContent: 'center', alignItems: 'center', marginBottom: 30 }}>
-        <AppText color="textMuted">Loading banners...</AppText>
+      <View style={{ height: 180, justifyContent: 'center', alignItems: 'center', marginBottom: 30 }}>
+        <AppText color="textMuted">Loading interesting offers...</AppText>
       </View>
     );
   }
@@ -244,30 +245,32 @@ const OffersCarousel = ({ banners, loading }: { banners: any[], loading: boolean
       horizontal
       showsHorizontalScrollIndicator={false}
       style={{ marginBottom: 30 }}
+      contentContainerStyle={{ paddingRight: SPACING }} // Add padding to end
+      snapToInterval={OFFER_WIDTH + SPACING}
+      decelerationRate="fast"
     >
       {banners.map((o, i) => (
         <View key={o._id || i} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
-          <Image source={{ uri: o.img }} style={styles.offerImg} />
+          <Image source={{ uri: o.img }} style={styles.offerImg} resizeMode="cover" />
+
+          {/* Optional gradient to ensure text readability */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            style={StyleSheet.absoluteFillObject}
+          />
 
           <View style={styles.offerOverlay}>
-            <AppText weight="bold" style={{ color: "#fff" }}>
-              {o.title}
-            </AppText>
-
-            <AppText style={{ color: "#fff" }}>
-              {o.description}
-            </AppText>
-          </View>
-          {o.title ? (
-            <View style={styles.offerOverlay}>
-              <AppText weight="bold" style={{ color: "#fff" }}>
+            {o.title ? (
+              <AppText weight="bold" size="h3" style={{ color: "#fff", marginBottom: 4 }}>
                 {o.title}
               </AppText>
-              {o.description ? (
-                <AppText style={{ color: "#fff" }}>{o.description}</AppText>
-              ) : null}
-            </View>
-          ) : null}
+            ) : null}
+            {o.description ? (
+              <AppText size="small" style={{ color: "#ddd" }}>
+                {o.description}
+              </AppText>
+            ) : null}
+          </View>
         </View>
       ))}
     </ScrollView>
@@ -296,7 +299,8 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
   index,
 }) => {
   const { theme } = useTheme();
-  const styles = popularServiceStyles(theme);
+  const { width } = useWindowDimensions();
+  const styles = popularServiceStyles(theme, width);
   const navigation = useNavigation<Nav>();
 
   const image =
@@ -401,36 +405,37 @@ const PopularSection = ({ services, loading }: any) => {
 
 const UserReviewCard = ({ review, index }: any) => {
   const { theme } = useTheme();
-  const styles = reviewStyles(theme);
+  const { width } = useWindowDimensions();
+  const styles = reviewStyles(theme, width);
 
   return (
     <Animated.View entering={FadeInRight.delay(index * 120).springify()}>
       <View style={styles.card}>
-
-        {/* USER HEADER */}
-        <View style={styles.header}>
-          <Image source={{ uri: review.avatar }} style={styles.avatar} />
-
-          <View style={{ flex: 1 }}>
-            <AppText weight="bold">{review.name}</AppText>
-
-            <View style={styles.ratingRow}>
-              {[...Array(5)].map((_, i) => (
-                <Ionicons
-                  key={i}
-                  name={i < review.rating ? "star" : "star-outline"}
-                  size={14}
-                  color={i < review.rating ? "#FFD700" : "#ccc"}
-                />
-              ))}
-            </View>
-          </View>
+        <View style={styles.quoteIcon}>
+          <Ionicons size={24} color={theme.colors.primary} style={{ opacity: 0.15 }} />
         </View>
 
-        {/* REVIEW TEXT */}
-        <AppText size="small" style={styles.reviewText}>
-          "{review.review}"
+        <View style={styles.ratingRow}>
+          {[...Array(5)].map((_, i) => (
+            <Ionicons
+              key={i}
+              name={i < review.rating ? "star" : "star-outline"}
+              size={14}
+              color={i < review.rating ? "#FFD700" : "#ccc"}
+            />
+          ))}
+        </View>
+
+        <AppText size="body" style={styles.reviewText}>
+          {review.review}
         </AppText>
+
+        <View style={styles.footer}>
+          <View style={styles.divider} />
+          <AppText weight="bold" style={styles.userName}>
+            {review.name}
+          </AppText>
+        </View>
       </View>
     </Animated.View>
   );
@@ -486,7 +491,7 @@ const createStyles = (theme: any) =>
 
     offerImg: {
       width: "100%",
-      height: 120,
+      height: 180, // Increased height drastically to make it bigger and feel premium
     },
 
     offerOverlay: {
@@ -544,10 +549,10 @@ const createStyles = (theme: any) =>
     },
   });
 
-const popularServiceStyles = (theme: any) =>
+const popularServiceStyles = (theme: any, screenWidth: number) =>
   StyleSheet.create({
     card: {
-      width: width * 0.68,
+      width: screenWidth * 0.68,
       borderRadius: 20,
       marginRight: 16,
       backgroundColor: theme.colors.surface,
@@ -593,42 +598,56 @@ const popularServiceStyles = (theme: any) =>
     },
   });
 
-const reviewStyles = (theme: any) =>
+const reviewStyles = (theme: any, screenWidth: number) =>
   StyleSheet.create({
     card: {
-      width: width * 0.75,
+      width: screenWidth * 0.75,
       backgroundColor: theme.colors.surface,
-      borderRadius: 18,
-      padding: 18,
+      borderRadius: 24,
+      padding: 24,
       marginRight: 16,
+      position: 'relative',
+      overflow: 'hidden',
 
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 10,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.05,
+      shadowRadius: 15,
+      elevation: 4,
     },
 
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 12,
-    },
-
-    avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      marginRight: 10,
+    quoteIcon: {
+      position: 'absolute',
+      top: 15,
+      right: 15,
     },
 
     ratingRow: {
       flexDirection: "row",
-      marginTop: 2,
+      marginBottom: 16,
     },
 
     reviewText: {
-      color: theme.colors.textMuted,
-      lineHeight: 18,
+      color: theme.colors.text,
+      lineHeight: 22,
+      fontStyle: 'italic',
+      marginBottom: 20,
+    },
+
+    footer: {
+      marginTop: 'auto',
+    },
+
+    divider: {
+      height: 2,
+      width: 30,
+      backgroundColor: theme.colors.primary,
+      marginBottom: 8,
+      borderRadius: 1,
+    },
+
+    userName: {
+      fontSize: 15,
+      color: theme.colors.text,
     },
   });

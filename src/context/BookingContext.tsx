@@ -92,29 +92,47 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const { accessToken } = useAuthContext();
 
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener("RESET_BOOKINGS", () => {
-      console.log("🧹 BookingContext cleared from logout event");
-      setBookings([]);
+
+  const upsertBooking = React.useCallback((booking: BookingItem) => {
+    setBookings(prev => {
+      if (!prev.length) return [booking];
+
+      const exists = prev.find(b => b._id === booking._id);
+
+      if (exists) {
+        return prev.map(b =>
+          b._id === booking._id
+            ? {
+              ...b,
+              ...booking,
+              otp: booking.otp ?? b.otp,
+              pendingServiceProposal:
+                booking.pendingServiceProposal !== undefined
+                  ? booking.pendingServiceProposal
+                  : b.pendingServiceProposal
+            }
+            : b
+        );
+      }
+
+      return [booking, ...prev];
     });
-
-    return () => sub.remove();
   }, []);
 
-  useEffect(() => {
-    const onServicerAccepted = ({ booking, otp }: any) => {
-      console.log("[SOCKET RECEIVE] 🔥 servicer-accepted (GLOBAL):", booking._id);
+  // useEffect(() => {
+  //   const onServicerAccepted = ({ booking, otp }: any) => {
+  //     console.log("[SOCKET RECEIVE] 🔥 servicer-accepted (GLOBAL):", booking._id);
 
-      const mapped = mapBookingToBookingItem(booking, otp);
-      upsertBooking(mapped);
-    };
+  //     const mapped = mapBookingToBookingItem(booking, otp);
+  //     upsertBookingRef.current(mapped);
+  //   };
 
-    socket.on("servicer-accepted", onServicerAccepted);
+  //   socket.on("servicer-accepted", onServicerAccepted);
 
-    return () => {
-      socket.off("servicer-accepted", onServicerAccepted);
-    };
-  }, []);
+  //   return () => {
+  //     socket.off("servicer-accepted", onServicerAccepted);
+  //   };
+  // }, []);
 
   useEffect(() => {
     const onServiceProposed = ({ bookingId, proposal }: any) => {
@@ -191,31 +209,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   /* SINGLE SOURCE OF TRUTH        */
   /* ----------------------------- */
 
-  const upsertBooking = (booking: BookingItem) => {
-    setBookings(prev => {
-      if (!prev.length) return [booking]; // new session safe
-
-      const exists = prev.find(b => b._id === booking._id);
-
-      if (exists) {
-        return prev.map(b =>
-          b._id === booking._id
-            ? {
-                ...b,
-                ...booking,
-                otp: booking.otp ?? b.otp,
-                pendingServiceProposal:
-                  booking.pendingServiceProposal !== undefined
-                    ? booking.pendingServiceProposal
-                    : b.pendingServiceProposal
-              }
-            : b
-        );
-      }
-
-      return [booking, ...prev];
-    });
-  };
 
   const updateBookingItem = (id: string, updates: Partial<BookingItem>) => {
     setBookings(prev =>
