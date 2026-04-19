@@ -11,7 +11,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from "../../firebase_integration";
 import { signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
-//import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { sendOtpApi, verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
@@ -40,7 +40,7 @@ const OtpScreen: React.FC = () => {
   const phone = route?.params?.phone ?? '';
   const initialConfirmation = route?.params?.confirmation || null;
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(initialConfirmation);
-  // const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
+  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
 
   const styles = createStyles(theme);
 
@@ -107,7 +107,8 @@ const OtpScreen: React.FC = () => {
       await sendOtpApi(phone); // Optional backend call
       const newConfirmation = await signInWithPhoneNumber(
         auth,
-        `+91${phone}`
+        `+91${phone}`,
+        recaptchaVerifier.current as any
       );
       setConfirmation(newConfirmation);
       otpRef.current?.reset();
@@ -126,10 +127,10 @@ const OtpScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
-        {/* <FirebaseRecaptchaVerifierModal
+        <FirebaseRecaptchaVerifierModal
           ref={recaptchaVerifier}
           firebaseConfig={auth.app.options}
-        /> */}
+        />
 
         {/* TOP SECTION */}
         <View style={styles.content}>
