@@ -2,7 +2,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
-import auth from '@react-native-firebase/auth';
+import { auth } from "../../firebase_integration";
+import { signInWithPhoneNumber } from "firebase/auth";
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import { useRef } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +32,7 @@ const PhoneNumScreen: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const recaptchaVerifier = useRef(null);
 
 
 
@@ -46,7 +50,11 @@ const PhoneNumScreen: React.FC = () => {
       setError(null);
       await sendOtpApi(phone); // optional init/logging
       
-      const confirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+      const confirmation = await signInWithPhoneNumber(
+        auth,
+        `+91${phone}`,
+        recaptchaVerifier.current
+      );
       
       navigation.navigate("OtpScreen", { phone, confirmation });
     } catch (err: any) {
@@ -63,6 +71,10 @@ const PhoneNumScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={auth.app.options}
+        />
         {/* HEADER */}
         <View style={styles.header}>
           <View

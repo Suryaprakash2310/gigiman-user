@@ -9,7 +9,9 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { auth } from "../../firebase_integration";
+import { signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { sendOtpApi, verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
@@ -20,7 +22,7 @@ import { useTheme } from '../theme/useTheme';
 
 type OtpRouteParams = {
   phone?: string;
-  confirmation?: FirebaseAuthTypes.ConfirmationResult;
+  confirmation?: ConfirmationResult;
 };
 
 const OtpScreen: React.FC = () => {
@@ -37,7 +39,8 @@ const OtpScreen: React.FC = () => {
 
   const phone = route?.params?.phone ?? '';
   const initialConfirmation = route?.params?.confirmation || null;
-  const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(initialConfirmation);
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(initialConfirmation);
+  const recaptchaVerifier = useRef(null);
 
   const styles = createStyles(theme);
 
@@ -102,7 +105,11 @@ const OtpScreen: React.FC = () => {
     setError(null);
     try {
        await sendOtpApi(phone); // Optional backend call
-       const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+       const newConfirmation = await signInWithPhoneNumber(
+         auth,
+         `+91${phone}`,
+         recaptchaVerifier.current
+       );
        setConfirmation(newConfirmation);
        otpRef.current?.reset();
     } catch (err: any) {
@@ -120,6 +127,10 @@ const OtpScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={auth.app.options}
+        />
 
         {/* TOP SECTION */}
         <View style={styles.content}>

@@ -1,5 +1,6 @@
 import { socket } from "@/src/socket/socket";
-import auth from '@react-native-firebase/auth';
+import { auth } from "../../firebase_integration";
+import { signOut } from "firebase/auth";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from "react-native";
 import React, {
@@ -101,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     socket.disconnect();
 
     try {
-      await auth().signOut();
+      await signOut(auth);
     } catch (e) {
       console.error("Firebase signout error:", e);
     }
