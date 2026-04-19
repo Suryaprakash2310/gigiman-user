@@ -40,7 +40,7 @@ const OtpScreen: React.FC = () => {
   const phone = route?.params?.phone ?? '';
   const initialConfirmation = route?.params?.confirmation || null;
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(initialConfirmation);
-  const recaptchaVerifier = useRef(null);
+  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
 
   const styles = createStyles(theme);
 
@@ -53,16 +53,16 @@ const OtpScreen: React.FC = () => {
       setError(null);
 
       if (!confirmation) {
-          throw new Error("Missing confirmation object. Please go back and resend.");
+        throw new Error("Missing confirmation object. Please go back and resend.");
       }
 
       // 1. Verify code using Firebase
       const userCredential = await confirmation.confirm(otp);
-      
+
       // 2. Get firebase ID token
       const firebaseToken = await userCredential?.user.getIdToken();
       if (!firebaseToken) {
-          throw new Error("Failed to get Firebase token.");
+        throw new Error("Failed to get Firebase token.");
       }
 
       // 3. Call backend /verify-otp with firebaseToken
@@ -104,18 +104,18 @@ const OtpScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-       await sendOtpApi(phone); // Optional backend call
-       const newConfirmation = await signInWithPhoneNumber(
-         auth,
-         `+91${phone}`,
-         recaptchaVerifier.current
-       );
-       setConfirmation(newConfirmation);
-       otpRef.current?.reset();
+      await sendOtpApi(phone); // Optional backend call
+      const newConfirmation = await signInWithPhoneNumber(
+        auth,
+        `+91${phone}`,
+        recaptchaVerifier.current as any
+      );
+      setConfirmation(newConfirmation);
+      otpRef.current?.reset();
     } catch (err: any) {
-       setError(err?.message || err?.response?.data?.message || "Failed to resend OTP");
+      setError(err?.message || err?.response?.data?.message || "Failed to resend OTP");
     } finally {
-       setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -148,7 +148,7 @@ const OtpScreen: React.FC = () => {
           <View style={{ marginTop: theme.spacing.lg }}>
             <OtpInput
               ref={otpRef}
-              otpLength={4}
+              otpLength={6}
               resendTime={30}
               onOtpComplete={handleOtpComplete}
               onResend={handleResend}

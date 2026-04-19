@@ -32,7 +32,7 @@ const PhoneNumScreen: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recaptchaVerifier = useRef(null);
+  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
 
 
 
@@ -53,7 +53,7 @@ const PhoneNumScreen: React.FC = () => {
       const confirmation = await signInWithPhoneNumber(
         auth,
         `+91${phone}`,
-        recaptchaVerifier.current
+        recaptchaVerifier.current as any
       );
       
       navigation.navigate("OtpScreen", { phone, confirmation });

@@ -149,7 +149,7 @@ export default function MapPinLocationScreen() {
 
       <AppHeader title="Select Location" showBack />
 
-       {/* <MapView
+      <MapView
         ref={mapRef}
         style={styles.map}
         provider="google"
@@ -173,7 +173,7 @@ export default function MapPinLocationScreen() {
           reverseGeocode(latitude, longitude);
 
         }}
-      />  */}
+      />
 
       <View pointerEvents="none" style={styles.pinContainer}>
         <AppText style={styles.pin}>📍</AppText>
