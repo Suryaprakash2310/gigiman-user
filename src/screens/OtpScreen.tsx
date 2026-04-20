@@ -9,9 +9,10 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { auth } from "../../firebase_integration";
-import { signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+// import { auth } from "../../firebase_integration";
+// import { signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+// import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import auth from '@react-native-firebase/auth';
 import { sendOtpApi, verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
@@ -22,7 +23,7 @@ import { useTheme } from '../theme/useTheme';
 
 type OtpRouteParams = {
   phone?: string;
-  confirmation?: ConfirmationResult;
+  confirmation?: any;
 };
 
 const OtpScreen: React.FC = () => {
@@ -39,8 +40,7 @@ const OtpScreen: React.FC = () => {
 
   const phone = route?.params?.phone ?? '';
   const initialConfirmation = route?.params?.confirmation || null;
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(initialConfirmation);
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
+  const [confirmation, setConfirmation] = useState(route?.params?.confirmation);  //const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
 
   const styles = createStyles(theme);
 
@@ -53,14 +53,12 @@ const OtpScreen: React.FC = () => {
       setError(null);
 
       if (!confirmation) {
-        throw new Error("Missing confirmation object. Please go back and resend.");
+        throw new Error("Missing confirmation object");
       }
 
-      // 1. Verify code using Firebase
       const userCredential = await confirmation.confirm(otp);
 
-      // 2. Get firebase ID token
-      const firebaseToken = await userCredential?.user.getIdToken();
+      const firebaseToken = await userCredential.user.getIdToken();
       if (!firebaseToken) {
         throw new Error("Failed to get Firebase token.");
       }
@@ -105,11 +103,7 @@ const OtpScreen: React.FC = () => {
     setError(null);
     try {
       await sendOtpApi(phone); // Optional backend call
-      const newConfirmation = await signInWithPhoneNumber(
-        auth,
-        `+91${phone}`,
-        recaptchaVerifier.current as any
-      );
+      const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
       setConfirmation(newConfirmation);
       otpRef.current?.reset();
     } catch (err: any) {
@@ -127,10 +121,10 @@ const OtpScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
-        <FirebaseRecaptchaVerifierModal
+        {/* <FirebaseRecaptchaVerifierModal
           ref={recaptchaVerifier}
           firebaseConfig={auth.app.options}
-        />
+        /> */}
 
         {/* TOP SECTION */}
         <View style={styles.content}>

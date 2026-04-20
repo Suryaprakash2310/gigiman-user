@@ -2,9 +2,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
-import { auth } from "../../firebase_integration";
-import { signInWithPhoneNumber } from "firebase/auth";
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+// import { auth } from "../../firebase_integration";
+// import { signInWithPhoneNumber } from "firebase/auth";
+// import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import auth from '@react-native-firebase/auth';
 import { useRef } from "react";
 import {
   KeyboardAvoidingView,
@@ -32,7 +33,7 @@ const PhoneNumScreen: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
+  //const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
 
 
 
@@ -50,15 +51,20 @@ const PhoneNumScreen: React.FC = () => {
       setError(null);
       await sendOtpApi(phone); // optional init/logging
 
-      const confirmation = await signInWithPhoneNumber(
-        auth,
-        `+91${phone}`,
-        recaptchaVerifier.current as any
-      );
+      const confirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+
 
       navigation.navigate("OtpScreen", { phone, confirmation });
     } catch (err: any) {
-      setError(err?.message || err?.response?.data?.message || "Failed to send OTP");
+      console.log("OTP ERROR:", err);
+
+      if (err.code === 'auth/invalid-phone-number') {
+        setError("Invalid phone number");
+      } else if (err.code === 'auth/too-many-requests') {
+        setError("Too many attempts. Try later.");
+      } else {
+        setError("Failed to send OTP");
+      }
     } finally {
       setLoading(false);
     }
@@ -71,10 +77,10 @@ const PhoneNumScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
-        <FirebaseRecaptchaVerifierModal
+        {/* <FirebaseRecaptchaVerifierModal
           ref={recaptchaVerifier}
           firebaseConfig={auth.app.options}
-        />
+        /> */}
         {/* HEADER */}
         <View style={styles.header}>
           <View
