@@ -1,11 +1,11 @@
-import React, { useRef, useState, useEffect } from "react";
-import { View, StyleSheet } from "react-native";
-import MapView, { Region } from "react-native-maps";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import axios from "axios";
+import React, { useEffect, useRef, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import MapView, { Region } from "react-native-maps";
 
-import AppHeader from "@/src/components/ui/AppHeader";
 import AppButton from "@/src/components/ui/AppButton";
+import AppHeader from "@/src/components/ui/AppHeader";
 import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
 import { getCurrentLocation } from "@/src/utils/location";
@@ -149,7 +149,7 @@ export default function MapPinLocationScreen() {
 
       <AppHeader title="Select Location" showBack />
 
-      <MapView
+      {/* <MapView
         ref={mapRef}
         style={styles.map}
         provider="google"
@@ -173,7 +173,7 @@ export default function MapPinLocationScreen() {
           reverseGeocode(latitude, longitude);
 
         }}
-      />
+      /> */}
 
       <View pointerEvents="none" style={styles.pinContainer}>
         <AppText style={styles.pin}>📍</AppText>

@@ -25,13 +25,16 @@ export default function PersonalDetailsPage() {
         // Call updateProfile API to save changes
         (async () => {
             try {
-                const payload: any = { fullName: values.fullName,avatar: avatar }; // Add other fields as needed
+                const payload: any = { fullName: values.fullName }; 
                 if (avatar !== undefined) payload.avatar = avatar; // string | null
 
                 const res = await updateProfile(payload);
                 console.log('Profile updated', res.data);
-                // update local state
-                setProfile((prev: any) => ({ ...(prev || {}), fullName: values.fullName, avatar }));
+                
+                if (res.data?.success && res.data.user) {
+                    setProfile(res.data.user);
+                    setAvatar(res.data.user.avatar || null);
+                }
             } catch (err) {
                 console.warn('Failed to update profile', err);
             }
@@ -44,7 +47,10 @@ export default function PersonalDetailsPage() {
         const load = async () => {
             try {
                 const res = await ProfileAPI.getProfileAPI();
-                setProfile(res.user || null);
+                if (res.user) {
+                    setProfile(res.user);
+                    setAvatar(res.user.avatar || null);
+                }
             } catch (err) {
                 console.warn('Failed to load profile', err);
             }

@@ -15,17 +15,29 @@ export default function AvatarUpload({ size = 110, onChange, initialUri = null }
   const styles = createStyles(theme, size);
 
   const [image, setImage] = useState<string | null>(initialUri);
+  
+  React.useEffect(() => {
+    setImage(initialUri);
+  }, [initialUri]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       quality: 0.6,
       allowsEditing: true,
       aspect: [1, 1],
+      base64: true,
     });
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setImage(result.assets[0].uri);
-      onChange?.(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]) {
+      const asset = result.assets[0];
+      setImage(asset.uri);
+      
+      if (asset.base64) {
+        const base64Image = `data:image/jpeg;base64,${asset.base64}`;
+        onChange?.(base64Image);
+      } else {
+        onChange?.(asset.uri);
+      }
     }
   };
 
