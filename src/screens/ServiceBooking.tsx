@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -135,9 +136,33 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const handleUseCurrentLocation = async () => {
     try {
       const location = await getCurrentLocation();
+      let addressText = "Current Location";
+
+      try {
+        const geocode = await Location.reverseGeocodeAsync({
+          latitude: location.latitude,
+          longitude: location.longitude,
+        });
+
+        if (geocode && geocode.length > 0) {
+          const item = geocode[0];
+          const addressParts = [
+            item.name,
+            item.street,
+            item.city,
+            item.region,
+            item.postalCode,
+          ].filter(Boolean);
+          if (addressParts.length > 0) {
+            addressText = addressParts.join(', ');
+          }
+        }
+      } catch (geocodeErr) {
+        console.log("Geocoding failed", geocodeErr);
+      }
 
       setSelectedAddress({
-        line1: "Current Location",
+        line1: addressText,
         latitude: location.latitude,
         longitude: location.longitude
       });
@@ -211,10 +236,10 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       setCouponLoading(true);
       setCouponError('');
       setCouponSuccess('');
-      
+
       const cartTotal = category.price * quantity;
       const res = await CouponAPI.validateCoupon(couponCode, cartTotal);
-      
+
       if (res.success) {
         setAppliedCoupon(res.coupon);
         setDiscountAmount(res.discountAmount || 0);
@@ -508,7 +533,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           </Animated.View>
         )}
 
-        <View style={styles.referralCard}>
+        {/* <View style={styles.referralCard}>
 
           <AppText weight="bold">Referral Code</AppText>
 
@@ -535,7 +560,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             </AppText>
           )}
 
-        </View>
+        </View> */}
 
         {/* Spacer */}
         <View style={styles.spacer} />

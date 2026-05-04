@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
-  View,
+  Keyboard,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
   TouchableOpacity,
-  Keyboard,
+  View,
 } from 'react-native';
 
 interface OtpInputProps {
@@ -164,19 +164,20 @@ const styles = StyleSheet.create({
   },
   otpContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
-    marginVertical: 16,
+    justifyContent: 'center',   // center align
+    alignItems: 'center',
+    marginVertical: 20,
   },
   input: {
-    width: 55,
+    width: 50,
     height: 60,
     borderWidth: 1.5,
     borderColor: '#000',
-    borderRadius: 10,
+    borderRadius: 12,
     textAlign: 'center',
     fontSize: 22,
     color: '#000',
+    marginHorizontal: 6, 
   },
   bottomContainer: {
     flexDirection: 'row',
