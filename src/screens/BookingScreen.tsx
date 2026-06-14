@@ -115,7 +115,7 @@ export default function BookingScreen() {
     }
 
     if (booking.status === "completed") {
-      navigation.navigate("Review", { bookingId: booking._id });
+      //navigation.navigate("Review", { bookingId: booking._id });
       return;
     }
 

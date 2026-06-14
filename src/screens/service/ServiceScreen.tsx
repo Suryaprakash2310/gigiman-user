@@ -1,15 +1,14 @@
+import AppLoader from "@/src/components/ui/AppLoader";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Dimensions,
   FlatList,
   Platform,
-  SafeAreaView,
   StyleSheet,
   View,
-  Dimensions,
-  ActivityIndicator,
 } from "react-native";
-import AppLoader from "@/src/components/ui/AppLoader";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppBottomSheet, {
@@ -164,12 +163,12 @@ export default function ServicesScreen({ navigation }: any) {
 
   if (serviceState.loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <AppHeader title="Services" showBack />
         <View style={styles.loadingContainer}>
           <AppLoader visible={true} text="Loading services..." />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 

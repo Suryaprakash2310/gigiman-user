@@ -1,17 +1,17 @@
+import AppText from '@/src/components/ui/AppText';
+import { useTheme } from '@/src/theme/useTheme';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-  View,
-  StyleSheet,
-  Pressable,
-  Image,
-  Dimensions,
   ActivityIndicator,
+  Dimensions,
+  Image,
+  Pressable,
+  StyleSheet,
+  View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useTheme } from '@/src/theme/useTheme';
-import AppText from '@/src/components/ui/AppText';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -98,7 +98,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
             <AppText
               weight="bold"
               size="body"
-              numberOfLines={1}
+              numberOfLines={3}
               style={styles.title}
             >
               {title}
@@ -138,7 +138,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                   color={theme.colors.primary}
                 />
                 <AppText size="caption" weight="medium">
-                  {employeeCount} pro
+                  {employeeCount} employee
                 </AppText>
               </View>
             ) : null}
@@ -224,6 +224,7 @@ const createStyles = (theme: any) =>
 
     title: {
       marginBottom: 3,
+      
     },
 
     description: {

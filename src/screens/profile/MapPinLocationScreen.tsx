@@ -147,7 +147,7 @@ export default function MapPinLocationScreen() {
   return (
     <View style={styles.container}>
 
-      <AppHeader title="Select Location" showBack />
+      <AppHeader title="Select Location" showBack={true} onBackPress={() => navigation.goBack()} />
 
       {/* <MapView
         ref={mapRef}
