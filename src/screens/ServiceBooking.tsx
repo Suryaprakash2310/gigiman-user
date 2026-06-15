@@ -29,10 +29,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { ServiceAPI } from '@/src/api/service.api';
 import { CouponAPI } from '@/src/api/coupon.api';
 import { useAuthContext } from '@/src/context/AuthContext';
+import { useCartContext } from '@/src/context/CartContext';
 import { useBooking } from '@/src/context/BookingContext';
 import { useTheme } from '@/src/theme/useTheme';
 import { BOOKING_TYPE } from '@/src/utils/enums/BookingType';
-import { getCurrentLocation } from '@/src/utils/location';
+import { getCurrentLocation, getAddressFromCoords } from '@/src/utils/location';
 
 import BookingModeSelector from '@/src/components/booking/BookingModeSelector';
 import QuantitySelector from '@/src/components/booking/QuantitySelector';
@@ -76,6 +77,9 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const insets = useSafeAreaInsets();
   const { upsertBooking } = useBooking();
 
+  const { cartItems, totalPrice: cartTotalPrice, clearCart } = useCartContext();
+  const isCartCheckout = serviceCategoryId === 'cart';
+
   // State management
   const [category, setCategory] = useState<ServiceCategory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,8 +107,20 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
   // Load service on mount
   useEffect(() => {
-    loadService();
-  }, [serviceCategoryId]);
+    if (isCartCheckout) {
+      setCategory({
+        _id: 'cart',
+        serviceCategoryName: cartItems.map(item => item.serviceCategoryName).join(', '),
+        price: cartTotalPrice,
+        durationInMinutes: cartItems.reduce((sum, item) => sum + item.durationInMinutes, 0),
+        description: 'Multi-service booking',
+        domainService: cartItems[0]?.domainService?._id || cartItems[0]?.domainService || '',
+      });
+      setLoading(false);
+    } else {
+      loadService();
+    }
+  }, [serviceCategoryId, isCartCheckout, cartItems, cartTotalPrice]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -136,33 +152,9 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const handleUseCurrentLocation = async () => {
     try {
       const location = await getCurrentLocation();
-      let addressText = "Current Location";
-
-      try {
-        const geocode = await Location.reverseGeocodeAsync({
-          latitude: location.latitude,
-          longitude: location.longitude,
-        });
-
-        if (geocode && geocode.length > 0) {
-          const item = geocode[0];
-          const addressParts = [
-            item.name,
-            item.street,
-            item.city,
-            item.region,
-            item.postalCode,
-          ].filter(Boolean);
-          if (addressParts.length > 0) {
-            addressText = addressParts.join(', ');
-          }
-        }
-      } catch (geocodeErr) {
-        console.log("Geocoding failed", geocodeErr);
-      }
 
       setSelectedAddress({
-        line1: addressText,
+        line1: "Current Location",
         latitude: location.latitude,
         longitude: location.longitude
       });
@@ -236,7 +228,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       setCouponLoading(true);
       setCouponError('');
       setCouponSuccess('');
-
+      
       const cartTotal = category.price * quantity;
       const res = await CouponAPI.validateCoupon(couponCode, cartTotal);
 
@@ -296,7 +288,11 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       } else {
         const location = await getCurrentLocation();
         coordinates = [location.longitude, location.latitude];
-        addressText = "Current Location";
+        try {
+          addressText = await getAddressFromCoords(location.latitude, location.longitude);
+        } catch {
+          addressText = "Current Location";
+        }
       } const scheduleDateTime =
         bookingMode === 'schedule'
           ? new Date(
@@ -310,18 +306,19 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
       const payload: any = {
         userId: user._id,
-        serviceCategoryName: category.serviceCategoryName,
-        domainService: category.domainService,
         address: addressText,
         coordinates: coordinates,
-        serviceCount: quantity,
       };
+
+      if (!isCartCheckout) {
+        payload.serviceCategoryName = category.serviceCategoryName;
+        payload.domainService = category.domainService;
+        payload.serviceCount = quantity;
+      }
 
       if (scheduleDateTime) {
         payload.isScheduled = true;
         payload.scheduleDateTime = scheduleDateTime;
-        // payload.status = "SCHEDULED";
-        // payload.assignmentStatus = "SCHEDULED";
         payload.bookingType = BOOKING_TYPE.SCHEDULED;
       }
 
@@ -342,16 +339,20 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         throw new Error("Booking ID not returned from server");
       }
 
+      const bookingPrice = isCartCheckout ? cartTotalPrice : (category.price * quantity);
+
       if (scheduleDateTime) {
         upsertBooking({
           _id: bookingId,
           serviceCategoryName: category.serviceCategoryName,
           address: payload.address,
-          totalPrice: category.price * quantity,
+          totalPrice: bookingPrice,
           status: "scheduled",
           isScheduled: true,
           scheduleDateTime: scheduleDateTime.toISOString(),
         });
+
+        if (isCartCheckout) clearCart();
 
         navigation.navigate("BookingTab", {
           screen: "BookingsMain",
@@ -363,9 +364,11 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           serviceCategoryName: category.serviceCategoryName,
           address: payload.address,
           status: 'searching',
-          totalPrice: category.price * quantity,
+          totalPrice: bookingPrice,
           isScheduled: false,
         });
+
+        if (isCartCheckout) clearCart();
 
         navigation.navigate('BookingTab', {
           screen: 'Searching',
@@ -434,7 +437,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     ? { uri: category.servicecategoryImage }
     : require('../../assets/images/SampleService.png');
 
-  const totalPrice = category.price * quantity;
+  const totalPrice = isCartCheckout ? cartTotalPrice : (category.price * quantity);
 
   return (
     <SafeAreaView
@@ -443,43 +446,65 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
       ]}
     >
-      <AppHeader showBack onBackPress={handleBack} title="Service Details" />
+      <AppHeader showBack onBackPress={handleBack} title={isCartCheckout ? "Checkout" : "Service Details"} />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Image */}
-        <Animated.View entering={FadeInDown.duration(400)}>
-          <Image source={imageSource} style={styles.heroImage} />
-        </Animated.View>
-
-        {/* Service Header Card */}
-        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <ServiceHeader
-            name={category.serviceCategoryName}
-            price={category.price}
-            duration={category.durationInMinutes}
-          />
-        </Animated.View>
-
-        {/* Service Description */}
-        {category.description && (
-          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <ServiceDescription description={category.description} />
+        {isCartCheckout ? (
+          /* Cart Order Summary Card (Screen 6) */
+          <Animated.View entering={FadeInDown.duration(400)} style={styles.summaryCard}>
+            <AppText weight="bold" size="body" style={styles.summaryTitle}>
+              Order Summary
+            </AppText>
+            {cartItems.map((item) => (
+              <View key={item._id || item.serviceCategoryId} style={styles.summaryRow}>
+                <AppText weight="medium" style={{ flex: 1, color: theme.colors.text }}>
+                  {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                </AppText>
+                <AppText weight="bold" style={{ color: theme.colors.text }}>
+                  ₹{item.price * item.quantity}
+                </AppText>
+              </View>
+            ))}
           </Animated.View>
-        )}
+        ) : (
+          /* Legacy Single Category Layout */
+          <>
+            {/* Hero Image */}
+            <Animated.View entering={FadeInDown.duration(400)}>
+              <Image source={imageSource} style={styles.heroImage} />
+            </Animated.View>
 
-        {/* Quantity Selector */}
-        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <QuantitySelector
-            quantity={quantity}
-            onIncrease={handleQuantityIncrease}
-            onDecrease={handleQuantityDecrease}
-            label="How many services needed?"
-          />
-        </Animated.View>
+            {/* Service Header Card */}
+            <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+              <ServiceHeader
+                name={category.serviceCategoryName}
+                price={category.price}
+                duration={category.durationInMinutes}
+              />
+            </Animated.View>
+
+            {/* Service Description */}
+            {category.description && (
+              <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+                <ServiceDescription description={category.description} />
+              </Animated.View>
+            )}
+
+            {/* Quantity Selector */}
+            <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+              <QuantitySelector
+                quantity={quantity}
+                onIncrease={handleQuantityIncrease}
+                onDecrease={handleQuantityDecrease}
+                label="How many services needed?"
+              />
+            </Animated.View>
+          </>
+        )}
 
         <View style={styles.locationCard}>
           <Ionicons name="location-outline" size={20} color={theme.colors.primary} />
@@ -807,6 +832,25 @@ const createStyles = (theme: any) =>
       borderRadius: theme.radius.sm,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    summaryCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      marginHorizontal: 16,
+      marginTop: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    summaryTitle: {
+      marginBottom: 12,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
     },
   });
 

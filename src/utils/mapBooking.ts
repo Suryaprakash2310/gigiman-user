@@ -93,5 +93,6 @@ export function mapBookingToBookingItem(
 
     isScheduled: booking.isScheduled,
     scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,
+    durationInMinutes: booking.durationInMinutes,
   };
 }

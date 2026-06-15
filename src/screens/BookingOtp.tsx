@@ -801,7 +801,7 @@ export default function BookingOtp() {
                   color={primaryTeal}
                   style={styles.detailIcon}
                 />
-                <View>
+                <View style={{ flex: 1 }}>
                   <AppText color="textMuted" size="small">
                     Address
                   </AppText>

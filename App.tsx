@@ -7,6 +7,7 @@ import { ThemeProvider } from './src/theme/ThemeProvider';
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigation from './src/navigation/RootNavigation';
 import { BookingProvider } from './src/context/BookingContext';
+import { CartProvider } from './src/context/CartContext';
 import { SocketProvider } from './src/socket/SocketProvider';
 
 export default function App() {
@@ -14,14 +15,16 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <BookingProvider>
-            <SocketProvider>
-              <ThemeProvider>
-                <RootNavigation />
-                <StatusBar style="auto" />
-              </ThemeProvider>
-            </SocketProvider>
-          </BookingProvider>
+          <CartProvider>
+            <BookingProvider>
+              <SocketProvider>
+                <ThemeProvider>
+                  <RootNavigation />
+                  <StatusBar style="auto" />
+                </ThemeProvider>
+              </SocketProvider>
+            </BookingProvider>
+          </CartProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

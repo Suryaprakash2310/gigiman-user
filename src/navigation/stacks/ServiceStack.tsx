@@ -1,4 +1,4 @@
-// src/navigation/stacks/WalletStack.tsx
+import CartScreen from '@/src/screens/CartScreen';
 import ScheduleBooking from '@/src/screens/ScheduleBooking';
 import ServiceCategory from '@/src/screens/service/ServiceCategory';
 import ServicesScreen from '@/src/screens/service/ServiceScreen';
@@ -15,7 +15,7 @@ const Stack = createNativeStackNavigator<ServiceParamList>();
 
 export type ServiceParamList = {
   MainServiceScreen: undefined;
-  ServiceCategory: {serviceName: string;}
+  ServiceCategory: {serviceName: string; domainId?: string;}
   Booking: {
     serviceCategoryId: string;
     selectedAddress?: any;
@@ -23,6 +23,7 @@ export type ServiceParamList = {
   ScheduleBooking: {
     serviceName: string;
   };
+  CartScreen: undefined;
 };
 
 
@@ -33,6 +34,7 @@ export default function ServiceStack() {
       <Stack.Screen name="ServiceCategory" component={ServiceCategory} />
       <Stack.Screen name="Booking" component={ServiceBookingScreen} />
       <Stack.Screen name="ScheduleBooking" component={ScheduleBooking} />
+      <Stack.Screen name="CartScreen" component={CartScreen} />
     </Stack.Navigator>
   );
 }

@@ -25,9 +25,12 @@ interface CategoryCardProps {
   employeeCount?: number;
   onPress?: () => void;
   index?: number;
+  onAddToCart?: () => void;
+  isAdded?: boolean;
 }
 
 const CategoryCard: React.FC<CategoryCardProps> = ({
+  id,
   title,
   description,
   price,
@@ -36,6 +39,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   image,
   onPress,
   index = 0,
+  onAddToCart,
+  isAdded = false,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -142,25 +147,48 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                 </AppText>
               </View>
             ) : null}
+          </View>
 
-            {/* Price */}
+          {/* Action / Price Row */}
+          <View style={styles.actionRow}>
             {price ? (
-              <View style={styles.priceContainer}>
-                <AppText size="caption" weight="bold" color="primary">
-                  ₹{price}
+              <AppText size="body" weight="bold" color="primary">
+                ₹{price}
+              </AppText>
+            ) : <View />}
+
+            {onAddToCart ? (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onAddToCart();
+                }}
+                style={[
+                  styles.addToCartBtn,
+                  isAdded && styles.addedBtn
+                ]}
+              >
+                <AppText
+                  weight="bold"
+                  size="caption"
+                  style={{ color: isAdded ? theme.colors.success : '#fff' }}
+                >
+                  {isAdded ? '✓ Added' : 'Add to Cart'}
                 </AppText>
-              </View>
+              </Pressable>
             ) : null}
           </View>
         </View>
 
-        {/* Arrow */}
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color={theme.colors.primary}
-          style={styles.arrow}
-        />
+        {/* Arrow (Legacy) */}
+        {!onAddToCart && (
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={theme.colors.primary}
+            style={styles.arrow}
+          />
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -236,7 +264,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      marginTop: 6,
+      marginTop: 4,
     },
 
     detailItem: {
@@ -245,8 +273,24 @@ const createStyles = (theme: any) =>
       gap: 4,
     },
 
-    priceContainer: {
-      marginLeft: 'auto',
+    actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 6,
+    },
+
+    addToCartBtn: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+
+    addedBtn: {
+      backgroundColor: `${theme.colors.success}15`,
+      borderWidth: 1,
+      borderColor: theme.colors.success,
     },
 
     arrow: {
