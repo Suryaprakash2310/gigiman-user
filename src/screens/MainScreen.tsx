@@ -1,4 +1,3 @@
-
 // src/screens/HomeScreen.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,9 +25,10 @@ import { AppTabsParamList } from "../navigation/AppStack";
 import { BannerAPI } from "../api/banner.api";
 import { getBanners, getPopularServices } from "../api/dashboard.api";
 import { useAuthContext } from "@/src/context/AuthContext";
+import { useNotifications } from "@/src/context/NotificationContext";
 
 const SPACING = 20;
-const CARD_RADIUS = 20;
+const CARD_RADIUS = 24;
 
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
 
@@ -107,9 +107,9 @@ export default function HomeScreen() {
 
         <Hero navigation={navigation} />
 
-        <OffersCarousel banners={banners} loading={loadingBanners} />
-
         <QuickActions navigation={navigation} />
+
+        <OffersCarousel banners={banners} loading={loadingBanners} />
 
         <PopularSection
           navigation={navigation}
@@ -122,7 +122,7 @@ export default function HomeScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: SPACING }}
+          contentContainerStyle={{ paddingLeft: SPACING, paddingBottom: 16 }}
         >
           {testimonials.map((review, index) => (
             <UserReviewCard
@@ -139,36 +139,55 @@ export default function HomeScreen() {
   );
 }
 
-
-
-
-
-
-
-
 const Header = ({ user, navigation }: any) => {
   const { theme } = useTheme();
+  const { unreadCount } = useNotifications();
 
   return (
     <View style={headerStyles.container}>
       <View style={{ flex: 1 }}>
         <AppText weight="bold" size="h2" style={{ color: theme.colors.text }}>
-          Good morning, {user?.fullName?.split(" ")[0] || "Guest"}! 👋
+          Hi, {user?.fullName?.split(" ")[0] || "Guest"}! 👋
         </AppText>
         <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
-          How can we help you today?
+          Find the best services for your home
         </AppText>
       </View>
 
-      <TouchableOpacity onPress={() => navigation.navigate("ProfileTab")} activeOpacity={0.8}>
-        {user?.avatar ? (
-          <Image source={{ uri: user.avatar }} style={headerStyles.avatar} />
-        ) : (
-          <View style={[headerStyles.avatar, { backgroundColor: theme.colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
-            <Ionicons name="person" size={20} color={theme.colors.primary} />
-          </View>
-        )}
-      </TouchableOpacity>
+      <View style={headerStyles.rightSection}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Notifications" as any)}
+          style={[headerStyles.actionBtn, { backgroundColor: theme.colors.surface }]}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="notifications-outline" size={22} color={theme.colors.button} />
+          {unreadCount > 0 && (
+            <View style={[headerStyles.badge, { backgroundColor: theme.colors.danger }]}>
+              <AppText
+                weight="bold"
+                style={{
+                  color: "#fff",
+                  fontSize: unreadCount > 9 ? 8 : 10,
+                  textAlign: "center",
+                  lineHeight: 14,
+                }}
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </AppText>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate("ProfileTab")} activeOpacity={0.8}>
+          {user?.avatar ? (
+            <Image source={{ uri: user.avatar }} style={headerStyles.avatar} />
+          ) : (
+            <View style={[headerStyles.avatar, { backgroundColor: theme.colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: theme.colors.border }]}>
+              <Ionicons name="person" size={20} color={theme.colors.primary} />
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -179,27 +198,63 @@ const headerStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
     marginTop: 10,
+  },
+  rightSection: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  actionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  badge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   }
 });
-
 
 const Hero = ({ navigation }: any) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
+  // Deep indigo/navy gradient complement
   return (
     <LinearGradient
-      colors={[theme.colors.primary, theme.colors.primaryDark]}
+      colors={[theme.colors.primary, "#3b2582"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.hero}
     >
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, zIndex: 1 }}>
         <AppText size="h2" weight="bold" style={{ color: "#fff" }}>
           Need a hand?
         </AppText>
@@ -211,17 +266,15 @@ const Hero = ({ navigation }: any) => {
         <AppButton
           title="Explore Services"
           style={styles.heroBtn}
-          textStyle={{ color: theme.colors.primary }}
+          textStyle={{ color: theme.colors.primary, fontWeight: '700' }}
           onPress={() => navigation.navigate("ServiceTab")}
         />
       </View>
 
-      <Ionicons name="construct" size={60} color="rgba(255,255,255,0.2)" />
+      <Ionicons name="construct" size={70} color="rgba(255,255,255,0.15)" style={styles.heroIcon} />
     </LinearGradient>
   );
 };
-
-
 
 const OffersCarousel = ({ banners, loading }: { banners: any[], loading: boolean }) => {
   const styles = createStyles(useTheme().theme);
@@ -230,69 +283,110 @@ const OffersCarousel = ({ banners, loading }: { banners: any[], loading: boolean
 
   if (loading) {
     return (
-      <View style={{ height: 180, justifyContent: 'center', alignItems: 'center', marginBottom: 30 }}>
+      <View style={{ height: 180, justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
         <AppText color="textMuted">Loading interesting offers...</AppText>
       </View>
     );
   }
 
   if (!banners || banners.length === 0) {
-    return null; // Don't render the carousel if there are no banners
+    return null;
   }
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ marginBottom: 30 }}
-      contentContainerStyle={{ paddingRight: SPACING }} // Add padding to end
-      snapToInterval={OFFER_WIDTH + SPACING}
-      decelerationRate="fast"
-    >
-      {banners.map((o, i) => (
-        <View key={o._id || i} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
-          <Image source={{ uri: o.img }} style={styles.offerImg} resizeMode="cover" />
-
-          {/* Optional gradient to ensure text readability */}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={StyleSheet.absoluteFillObject}
-          />
-
-          <View style={styles.offerOverlay}>
-            {o.title ? (
-              <AppText weight="bold" size="h3" style={{ color: "#fff", marginBottom: 4 }}>
-                {o.title}
-              </AppText>
-            ) : null}
-            {o.description ? (
-              <AppText size="small" style={{ color: "#ddd" }}>
-                {o.description}
-              </AppText>
-            ) : null}
-          </View>
-        </View>
-      ))}
-    </ScrollView>
-  );
-};
-
-const QuickActions = ({ navigation }: any) => {
-  const styles = createStyles(useTheme().theme);
-
-  return (
-    <View style={styles.quickRow}>
-      <TouchableOpacity
-        style={styles.quickBtn}
-        onPress={() => navigation.navigate("ServiceTab")}
+    <View style={{ marginBottom: 28 }}>
+      <SectionHeader title="Offers For You" />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingRight: SPACING }}
+        snapToInterval={OFFER_WIDTH + SPACING}
+        decelerationRate="fast"
       >
-        <Ionicons name="flash" size={22} color="#fff" />
-        <AppText style={styles.quickTxt}>Book Now</AppText>
-      </TouchableOpacity>
+        {banners.map((o, i) => (
+          <View key={o._id || i} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
+            <Image source={{ uri: o.img }} style={styles.offerImg} resizeMode="stretch" />
+          </View>
+        ))}
+      </ScrollView>
     </View>
   );
 };
 
+const QuickActions = ({ navigation }: any) => {
+  const { theme } = useTheme();
+
+  const categories = [
+    { name: "Cleaning", icon: "sparkles-outline", color: "#F5F3FF", iconColor: theme.colors.button },
+    { name: "AC Repair", icon: "snow-outline", color: "#F5F3FF", iconColor: theme.colors.button },
+    { name: "Electrical", icon: "flash-outline", color: "#F5F3FF", iconColor: theme.colors.button },
+    { name: "Plumbing", icon: "water-outline", color: "#F5F3FF", iconColor: theme.colors.button },
+  ];
+
+  return (
+    <View style={quickStyles.container}>
+      <View style={quickStyles.headerRow}>
+        <AppText weight="bold" size="h3">Services Category</AppText>
+        <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.6}>
+          <AppText size="small" weight="semibold" style={{ color: theme.colors.primary }}>
+            See All
+          </AppText>
+        </TouchableOpacity>
+      </View>
+      <View style={quickStyles.grid}>
+        {categories.map((cat, idx) => (
+          <TouchableOpacity
+            key={idx}
+            style={quickStyles.item}
+            onPress={() => navigation.navigate("ServiceTab")}
+            activeOpacity={0.7}
+          >
+            <View style={[quickStyles.iconCircle, { backgroundColor: cat.color }]}>
+              <Ionicons name={cat.icon as any} size={24} color={cat.iconColor} />
+            </View>
+            <AppText weight="semibold" size="small" style={{ marginTop: 8, color: theme.colors.text }}>
+              {cat.name}
+            </AppText>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const quickStyles = StyleSheet.create({
+  container: {
+    paddingHorizontal: SPACING,
+    marginBottom: 28,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  grid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  item: {
+    alignItems: "center",
+    flex: 1,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+});
 
 const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
   service,
@@ -320,7 +414,6 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
     <Animated.View entering={FadeInRight.delay(index * 120).springify()}>
       <TouchableOpacity activeOpacity={0.92} onPress={handlePress}>
         <View style={styles.card}>
-          {/* IMAGE */}
           <View style={styles.imageContainer}>
             {image ? (
               <Image
@@ -333,12 +426,6 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
                 colors={[theme.colors.surface, theme.colors.border]}
                 style={styles.placeholder}
               >
-                {/* <FanInstall
-                  width="60%"
-                  height="60%"
-                  fill={theme.colors.textMuted}
-                  style={{ opacity: 0.4 }}
-                /> */}
               </LinearGradient>
             )}
 
@@ -349,9 +436,8 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
             </View>
           </View>
 
-          {/* CONTENT */}
           <View style={styles.content}>
-            <AppText weight="bold" numberOfLines={1}>
+            <AppText weight="bold" numberOfLines={1} style={{ marginBottom: 4 }}>
               {service.serviceCategoryName || service.name || service._id}
             </AppText>
 
@@ -369,19 +455,18 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
 
 const PopularSection = ({ services, loading }: any) => {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
 
   if (loading) {
     return (
-      <>
+      <View style={{ marginBottom: 28 }}>
         <SectionHeader title="Popular Now" />
         <AppText style={{ paddingLeft: SPACING }}>Loading services...</AppText>
-      </>
+      </View>
     );
   }
 
   return (
-    <>
+    <View style={{ marginBottom: 28 }}>
       <SectionHeader title="Popular Now" />
 
       <ScrollView
@@ -397,11 +482,9 @@ const PopularSection = ({ services, loading }: any) => {
           />
         ))}
       </ScrollView>
-    </>
+    </View>
   );
 };
-
-
 
 const UserReviewCard = ({ review, index }: any) => {
   const { theme } = useTheme();
@@ -411,51 +494,50 @@ const UserReviewCard = ({ review, index }: any) => {
   return (
     <Animated.View entering={FadeInRight.delay(index * 120).springify()}>
       <View style={styles.card}>
-        <View style={styles.quoteIcon}>
-          <Ionicons size={24} color={theme.colors.primary} style={{ opacity: 0.15 }} />
+        {/* Name and Stars Row (Name is first) */}
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <AppText weight="bold" size="body" style={styles.userName}>
+              {review.name}
+            </AppText>
+          </View>
+          <View style={styles.ratingRow}>
+            {[...Array(5)].map((_, i) => (
+              <Ionicons
+                key={i}
+                name={i < review.rating ? "star" : "star-outline"}
+                size={12}
+                color={i < review.rating ? "#FFD700" : "#ccc"}
+                style={{ marginLeft: 2 }}
+              />
+            ))}
+          </View>
         </View>
 
-        <View style={styles.ratingRow}>
-          {[...Array(5)].map((_, i) => (
-            <Ionicons
-              key={i}
-              name={i < review.rating ? "star" : "star-outline"}
-              size={14}
-              color={i < review.rating ? "#FFD700" : "#ccc"}
-            />
-          ))}
-        </View>
+        <View style={styles.divider} />
 
-        <AppText size="body" style={styles.reviewText}>
-          {review.review}
+        {/* Review Text */}
+        <AppText size="small" color="textMuted" style={styles.reviewText}>
+          "{review.review}"
         </AppText>
 
-        <View style={styles.footer}>
-          <View style={styles.divider} />
-          <AppText weight="bold" style={styles.userName}>
-            {review.name}
-          </AppText>
+        <View style={styles.quoteIcon}>
+          <Ionicons name="chatbubble" size={24} color={theme.colors.primary} style={{ opacity: 0.05 }} />
         </View>
       </View>
     </Animated.View>
   );
 };
 
-
-
-
 const SectionHeader = ({ title }: any) => {
   const styles = createStyles(useTheme().theme);
 
   return (
     <View style={styles.sectionHeader}>
-      <AppText weight="bold">{title}</AppText>
+      <AppText weight="bold" size="h3">{title}</AppText>
     </View>
   );
 };
-
-
-
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
@@ -466,81 +548,54 @@ const createStyles = (theme: any) =>
     hero: {
       marginHorizontal: SPACING,
       borderRadius: CARD_RADIUS,
-      padding: 20,
+      padding: 24,
       flexDirection: "row",
       alignItems: "center",
       marginBottom: 28,
+      position: 'relative',
+      overflow: 'hidden',
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 16,
+      elevation: 6,
     },
 
     heroSub: {
       color: "#fff",
       opacity: 0.9,
-      marginVertical: 8,
+      marginVertical: 10,
+      fontSize: 14,
     },
 
     heroBtn: {
       backgroundColor: "#fff",
       alignSelf: "flex-start",
+      paddingVertical: 10,
+      paddingHorizontal: 18,
+      borderRadius: 12,
+    },
+
+    heroIcon: {
+      position: 'absolute',
+      right: 15,
+      bottom: 5,
     },
 
     offerCard: {
       marginLeft: SPACING,
       borderRadius: CARD_RADIUS,
       overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
     },
 
     offerImg: {
       width: "100%",
-      height: 180, // Increased height drastically to make it bigger and feel premium
-    },
-
-    offerOverlay: {
-      position: "absolute",
-      bottom: 10,
-      left: 10,
-    },
-
-    quickRow: {
-      paddingHorizontal: SPACING,
-      marginBottom: 30,
-    },
-
-    quickBtn: {
-      backgroundColor: theme.colors.primary,
-      padding: 14,
-      borderRadius: 12,
-      flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-
-    quickTxt: {
-      color: "#fff",
-      marginLeft: 8,
-    },
-
-    popularCard: {
-      marginLeft: SPACING,
-      borderRadius: CARD_RADIUS,
-      overflow: "hidden",
-      backgroundColor: theme.colors.surface,
-    },
-
-    popularImg: {
-      height: 120,
-      width: "100%",
-    },
-
-    popularContent: {
-      padding: 12,
-    },
-
-    testimonial: {
-      marginLeft: SPACING,
-      padding: 16,
-      borderRadius: CARD_RADIUS,
-      backgroundColor: theme.colors.surface,
-      width: 220,
+      height: 180,
     },
 
     sectionHeader: {
@@ -552,21 +607,22 @@ const createStyles = (theme: any) =>
 const popularServiceStyles = (theme: any, screenWidth: number) =>
   StyleSheet.create({
     card: {
-      width: screenWidth * 0.68,
-      borderRadius: 20,
+      width: screenWidth * 0.64,
+      borderRadius: CARD_RADIUS,
       marginRight: 16,
       backgroundColor: theme.colors.surface,
       overflow: "hidden",
-
       shadowColor: theme.colors.cardShadow,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 1,
       shadowRadius: 12,
-      elevation: 5,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
 
     imageContainer: {
-      height: 140,
+      height: 130,
       width: "100%",
       position: "relative",
       backgroundColor: theme.colors.border,
@@ -587,10 +643,10 @@ const popularServiceStyles = (theme: any, screenWidth: number) =>
       position: "absolute",
       top: 10,
       left: 10,
-      backgroundColor: "rgba(0,0,0,0.6)",
+      backgroundColor: theme.colors.primary,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 6,
+      borderRadius: 8,
     },
 
     content: {
@@ -601,53 +657,55 @@ const popularServiceStyles = (theme: any, screenWidth: number) =>
 const reviewStyles = (theme: any, screenWidth: number) =>
   StyleSheet.create({
     card: {
-      width: screenWidth * 0.75,
+      width: screenWidth * 0.72,
       backgroundColor: theme.colors.surface,
-      borderRadius: 24,
-      padding: 24,
+      borderRadius: CARD_RADIUS,
+      padding: 16,
       marginRight: 16,
       position: 'relative',
       overflow: 'hidden',
-
+      borderWidth: 1,
+      borderColor: theme.colors.border,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.05,
-      shadowRadius: 15,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.02,
+      shadowRadius: 8,
+      elevation: 2,
     },
 
     quoteIcon: {
       position: 'absolute',
-      top: 15,
-      right: 15,
+      bottom: 12,
+      right: 12,
+    },
+
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 10,
     },
 
     ratingRow: {
       flexDirection: "row",
-      marginBottom: 16,
+      alignItems: "center",
     },
 
     reviewText: {
       color: theme.colors.text,
-      lineHeight: 22,
+      lineHeight: 20,
+      fontSize: 13,
       fontStyle: 'italic',
-      marginBottom: 20,
-    },
-
-    footer: {
-      marginTop: 'auto',
     },
 
     divider: {
-      height: 2,
-      width: 30,
-      backgroundColor: theme.colors.primary,
-      marginBottom: 8,
-      borderRadius: 1,
+      height: 1,
+      backgroundColor: theme.colors.border,
+      marginBottom: 10,
     },
 
     userName: {
-      fontSize: 15,
+      fontSize: 14,
       color: theme.colors.text,
     },
   });

@@ -1,0 +1,278 @@
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import {
+  Animated,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  TouchableOpacity,
+  PanResponder,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useAuthContext } from "@/src/context/AuthContext";
+import { useSocket } from "@/src/socket/SocketProvider";
+import { useTheme } from "@/src/theme/useTheme";
+import AppText from "@/src/components/ui/AppText";
+import { NotificationAPI, NotificationItem } from "@/src/api/notification.api";
+
+interface NotificationContextProps {
+  notifications: NotificationItem[];
+  unreadCount: number;
+  loading: boolean;
+  fetchNotifications: () => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+}
+
+const NotificationContext = createContext<NotificationContextProps | undefined>(undefined);
+
+export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  const socket = useSocket();
+  const { accessToken, user } = useAuthContext();
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // Animated Toast State
+  const [toastMessage, setToastMessage] = useState<NotificationItem | null>(null);
+  const translateY = useRef(new Animated.Value(-150)).current;
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchNotifications = async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    try {
+      const data = await NotificationAPI.getUserNotifications();
+      if (data && data.success) {
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.log("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!accessToken) return;
+    try {
+      const data = await NotificationAPI.markAllAsRead();
+      if (data && data.success) {
+        setNotifications((prev) =>
+          prev.map((notif) => ({ ...notif, isRead: true }))
+        );
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.log("Error marking notifications as read:", error);
+    }
+  };
+
+  // Fetch initial notifications when token is available
+  useEffect(() => {
+    if (accessToken) {
+      fetchNotifications();
+    } else {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [accessToken]);
+
+  // Toast animations
+  const showToast = (notification: NotificationItem) => {
+    // Clear any active timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    setToastMessage(notification);
+    
+    // Slide Down
+    Animated.spring(translateY, {
+      toValue: insets.top > 0 ? insets.top + 10 : 20,
+      useNativeDriver: true,
+      tension: 40,
+      friction: 8,
+    }).start();
+
+    // Auto dismiss after 4 seconds
+    timeoutRef.current = setTimeout(() => {
+      dismissToast();
+    }, 4000);
+  };
+
+  const dismissToast = () => {
+    Animated.timing(translateY, {
+      toValue: -150,
+      duration: 350,
+      useNativeDriver: true,
+    }).start(() => {
+      setToastMessage(null);
+    });
+  };
+
+  // Socket listener for new notifications
+  useEffect(() => {
+    if (!socket || !accessToken) return;
+
+    const handleNewNotification = (notification: NotificationItem) => {
+      console.log("📥 Real-time notification received:", notification);
+      
+      // Update local state
+      setNotifications((prev) => [notification, ...prev]);
+      if (!notification.isRead) {
+        setUnreadCount((prev) => prev + 1);
+      }
+
+      // Show native/in-app alert banner
+      showToast(notification);
+    };
+
+    socket.on("notification", handleNewNotification);
+
+    return () => {
+      socket.off("notification", handleNewNotification);
+    };
+  }, [socket, accessToken]);
+
+  const getIconName = (type: string) => {
+    switch (type) {
+      case "BOOKING":
+        return "calendar-outline";
+      case "PROMO":
+        return "gift-outline";
+      case "ALERT":
+      case "FAILED_BOOKING":
+        return "alert-circle-outline";
+      case "BLOCK":
+        return "ban-outline";
+      default:
+        return "information-circle-outline";
+    }
+  };
+
+  const getIconColor = (type: string) => {
+    switch (type) {
+      case "BOOKING":
+        return theme.colors.success;
+      case "PROMO":
+        return "#c02bff";
+      case "ALERT":
+      case "FAILED_BOOKING":
+      case "BLOCK":
+        return theme.colors.danger;
+      default:
+        return theme.colors.primary;
+    }
+  };
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        loading,
+        fetchNotifications,
+        markAllAsRead,
+      }}
+    >
+      {children}
+
+      {/* Floating In-App Toast Notification */}
+      {toastMessage && (
+        <Animated.View
+          style={[
+            styles.toastContainer,
+            {
+              width: width * 0.92,
+              transform: [{ translateY }],
+              backgroundColor: theme.colors.surface,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.15,
+              shadowRadius: 10,
+              elevation: 8,
+              borderLeftColor: getIconColor(toastMessage.type),
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.toastContent}
+            onPress={dismissToast}
+            activeOpacity={0.9}
+          >
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: theme.colors.background },
+              ]}
+            >
+              <Ionicons
+                name={getIconName(toastMessage.type)}
+                size={22}
+                color={getIconColor(toastMessage.type)}
+              />
+            </View>
+
+            <View style={styles.textContainer}>
+              <AppText weight="bold" size="body" numberOfLines={1}>
+                {toastMessage.title}
+              </AppText>
+              <AppText size="small" color="textMuted" numberOfLines={2}>
+                {toastMessage.message}
+              </AppText>
+            </View>
+
+            <TouchableOpacity style={styles.closeBtn} onPress={dismissToast}>
+              <Ionicons name="close" size={18} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </NotificationContext.Provider>
+  );
+}
+
+export const useNotifications = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error("useNotifications must be used within a NotificationProvider");
+  }
+  return context;
+};
+
+const styles = StyleSheet.create({
+  toastContainer: {
+    position: "absolute",
+    left: "4%",
+    right: "4%",
+    zIndex: 9999,
+    borderRadius: 16,
+    borderLeftWidth: 5,
+    padding: 14,
+  },
+  toastContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  textContainer: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+});

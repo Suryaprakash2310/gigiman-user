@@ -9,6 +9,7 @@ import RootNavigation from './src/navigation/RootNavigation';
 import { BookingProvider } from './src/context/BookingContext';
 import { CartProvider } from './src/context/CartContext';
 import { SocketProvider } from './src/socket/SocketProvider';
+import { NotificationProvider } from './src/context/NotificationContext';
 
 export default function App() {
   return (
@@ -19,8 +20,10 @@ export default function App() {
             <BookingProvider>
               <SocketProvider>
                 <ThemeProvider>
-                  <RootNavigation />
-                  <StatusBar style="auto" />
+                  <NotificationProvider>
+                    <RootNavigation />
+                    <StatusBar style="auto" />
+                  </NotificationProvider>
                 </ThemeProvider>
               </SocketProvider>
             </BookingProvider>

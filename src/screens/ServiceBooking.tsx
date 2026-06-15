@@ -152,6 +152,12 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const handleUseCurrentLocation = async () => {
     try {
       const location = await getCurrentLocation();
+      let resolvedAddress = "Current Location";
+      try {
+        resolvedAddress = await getAddressFromCoords(location.latitude, location.longitude);
+      } catch (e) {
+        console.warn("Geocoding failed:", e);
+      }
 
       setSelectedAddress({
         line1: "Current Location",
