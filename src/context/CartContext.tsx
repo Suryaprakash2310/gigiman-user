@@ -64,6 +64,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err: any) {
       console.error('Failed to add to cart:', err);
+      if (err.response?.data?.errorType === 'DIFFERENT_DOMAIN') {
+        Alert.alert(
+          'Different Service Category',
+          err.response.data.message || 'Your cart contains items from a different service category. Would you like to clear the cart and add this instead?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Clear & Add',
+              style: 'destructive',
+              onPress: () => addToCart(serviceCategoryId, type, true),
+            },
+          ]
+        );
+        return;
+      }
       const msg = err.response?.data?.message || err.message || 'Failed to add item to cart';
       Alert.alert('Error', msg);
     } finally {

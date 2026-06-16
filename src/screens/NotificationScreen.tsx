@@ -25,20 +25,29 @@ export default function NotificationScreen() {
     notifications,
     unreadCount,
     loading,
+    loadingMore,
+    hasMore,
     fetchNotifications,
     markAllAsRead,
+    markAsRead,
   } = useNotifications();
 
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchNotifications();
+    await fetchNotifications(true);
     setRefreshing(false);
   };
 
   const handleMarkAllRead = async () => {
     await markAllAsRead();
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !loadingMore && !loading) {
+      fetchNotifications(false);
+    }
   };
 
   // Helper function to format relative time
@@ -126,9 +135,16 @@ export default function NotificationScreen() {
   const renderNotificationItem = ({ item }: { item: NotificationItem }) => {
     const iconName = getIconName(item.type);
     const iconColor = getIconColor(item.type);
+    const bookingRef = item.metadata?.bookingReference || item.data?.bookingReference || item.bookingId;
 
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => {
+          if (!item.isRead) {
+            markAsRead(item._id);
+          }
+        }}
         style={[
           styles.card,
           {
@@ -157,14 +173,49 @@ export default function NotificationScreen() {
             </AppText>
           </View>
 
-          <AppText size="small" color="textMuted" style={styles.cardMsg}>
+          <AppText size="small" color="text" style={styles.cardMsg}>
             {item.message}
           </AppText>
+
+          {item.description && item.description !== item.message && (
+            <AppText size="small" color="textMuted" style={styles.cardDesc}>
+              {item.description}
+            </AppText>
+          )}
+
+          {(item.serviceName || item.serviceDetails || bookingRef) && (
+            <View style={[styles.bookingDetailsContainer, { backgroundColor: theme.colors.background }]}>
+              {bookingRef && (
+                <AppText size="small" weight="semibold" style={{ color: theme.colors.primary, marginBottom: 2 }}>
+                  Booking Ref: #{String(bookingRef).slice(-8).toUpperCase()}
+                </AppText>
+              )}
+              {item.serviceName && (
+                <AppText size="small" weight="bold" style={{ marginBottom: 2 }}>
+                  Service: {item.serviceName}
+                </AppText>
+              )}
+              {item.serviceDetails && (
+                <AppText size="small" color="textMuted">
+                  Details: {item.serviceDetails}
+                </AppText>
+              )}
+            </View>
+          )}
         </View>
 
         {!item.isRead && (
           <View style={[styles.unreadDot, { backgroundColor: iconColor }]} />
         )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={theme.colors.primary} />
       </View>
     );
   };
@@ -242,6 +293,9 @@ export default function NotificationScreen() {
             />
           }
           contentContainerStyle={styles.listContainer}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={renderFooter}
           renderItem={({ item }) => (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
@@ -329,7 +383,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginHorizontal: 16,
     marginVertical: 6,
     padding: 14,
@@ -351,6 +405,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    marginTop: 2,
   },
   cardContent: {
     flex: 1,
@@ -371,10 +426,24 @@ const styles = StyleSheet.create({
   cardMsg: {
     lineHeight: 18,
   },
+  cardDesc: {
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  bookingDetailsContainer: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 8,
+  },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     marginLeft: 8,
+    marginTop: 18,
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: "center",
   },
 });

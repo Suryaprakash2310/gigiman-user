@@ -20,8 +20,11 @@ interface NotificationContextProps {
   notifications: NotificationItem[];
   unreadCount: number;
   loading: boolean;
-  fetchNotifications: () => Promise<void>;
+  loadingMore: boolean;
+  hasMore: boolean;
+  fetchNotifications: (reset?: boolean) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextProps | undefined>(undefined);
@@ -36,25 +39,64 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   // Animated Toast State
   const [toastMessage, setToastMessage] = useState<NotificationItem | null>(null);
+  const toastMessageRef = useRef<NotificationItem | null>(null);
   const translateY = useRef(new Animated.Value(-150)).current;
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<any>(null);
 
-  const fetchNotifications = async () => {
+  const updateToastMessage = (msg: NotificationItem | null) => {
+    setToastMessage(msg);
+    toastMessageRef.current = msg;
+  };
+
+  const fetchNotifications = async (reset = false) => {
     if (!accessToken) return;
-    setLoading(true);
+    const pageToFetch = reset ? 1 : page;
+
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+      setHasMore(true);
+    } else {
+      if (!hasMore || loadingMore || loading) return;
+      setLoadingMore(true);
+    }
+
     try {
-      const data = await NotificationAPI.getUserNotifications();
+      const data = await NotificationAPI.getUserNotifications(pageToFetch, 20);
       if (data && data.success) {
-        setNotifications(data.notifications || []);
+        const newNotifs = data.notifications || [];
+        setNotifications((prev) => {
+          if (reset) {
+            return newNotifs;
+          } else {
+            const existingIds = new Set(prev.map(n => n._id));
+            const filteredNew = newNotifs.filter(n => !existingIds.has(n._id));
+            return [...prev, ...filteredNew];
+          }
+        });
         setUnreadCount(data.unreadCount || 0);
+
+        const totalPages = data.totalPages || 1;
+        const reachedEnd = pageToFetch >= totalPages || newNotifs.length < 20;
+        setHasMore(!reachedEnd);
+        if (!reachedEnd) {
+          setPage(pageToFetch + 1);
+        }
       }
     } catch (error) {
       console.log("Error fetching notifications:", error);
     } finally {
-      setLoading(false);
+      if (reset) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -73,13 +115,38 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const markAsRead = async (id: string) => {
+    if (!accessToken) return;
+
+    let wasUnread = false;
+    setNotifications((prev) => {
+      const target = prev.find((n) => n._id === id);
+      if (target && !target.isRead) {
+        wasUnread = true;
+      }
+      return prev.map((notif) => (notif._id === id ? { ...notif, isRead: true } : notif));
+    });
+
+    if (wasUnread) {
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    }
+
+    try {
+      await NotificationAPI.markSingleAsRead(id);
+    } catch (error) {
+      console.log("Error marking notification as read:", error);
+    }
+  };
+
   // Fetch initial notifications when token is available
   useEffect(() => {
     if (accessToken) {
-      fetchNotifications();
+      fetchNotifications(true);
     } else {
       setNotifications([]);
       setUnreadCount(0);
+      setPage(1);
+      setHasMore(true);
     }
   }, [accessToken]);
 
@@ -90,7 +157,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       clearTimeout(timeoutRef.current);
     }
 
-    setToastMessage(notification);
+    updateToastMessage(notification);
     
     // Slide Down
     Animated.spring(translateY, {
@@ -107,12 +174,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   };
 
   const dismissToast = () => {
+    const currentToast = toastMessageRef.current;
+    if (currentToast && !currentToast.isRead) {
+      markAsRead(currentToast._id);
+    }
     Animated.timing(translateY, {
       toValue: -150,
       duration: 350,
       useNativeDriver: true,
     }).start(() => {
-      setToastMessage(null);
+      updateToastMessage(null);
     });
   };
 
@@ -177,8 +248,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         notifications,
         unreadCount,
         loading,
+        loadingMore,
+        hasMore,
         fetchNotifications,
         markAllAsRead,
+        markAsRead,
       }}
     >
       {children}

@@ -157,7 +157,11 @@ export default function BookingSearchScreen() {
     const booking = bookings.find(b => String(b._id) === String(bookingId));
     if (!booking) return;
 
-    if (booking.status === "otp" || (booking.status as string) === "assigned") {
+    if (
+      booking.status === "otp" ||
+      (booking.status as string) === "assigned" ||
+      booking.assignmentStatus === "FAILED"
+    ) {
       navigation.replace("BookingDetails", { bookingId });
     }
 

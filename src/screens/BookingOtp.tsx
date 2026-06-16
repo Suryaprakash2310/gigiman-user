@@ -10,7 +10,10 @@ import {
   Text,
   TouchableOpacity,
   Vibration,
-  View
+  View,
+  Modal,
+  TextInput,
+  Platform,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -18,11 +21,15 @@ import Animated, {
   withDelay,
   withSpring,
 } from "react-native-reanimated";
+import CryptoJS from "crypto-js";
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 import { initiateMaskedCall } from "@/src/api/call.api";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
 import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
+import AppButton from "@/src/components/ui/AppButton";
 import { useBooking } from "@/src/context/BookingContext";
 import { BookingParamList } from "@/src/navigation/stacks/BookingStack";
 import { useTheme } from "@/src/theme/useTheme";
@@ -46,10 +53,103 @@ export default function BookingOtp() {
   const serviceProposal = booking?.pendingServiceProposal;
   const proposalScale = useSharedValue(0);
   const bookingRef = React.useRef(booking);
+
+  // Payment states for Remaining Balance
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [paymentMethodType, setPaymentMethodType] = useState<'CARD' | 'UPI'>('CARD');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [paying, setPaying] = useState(false);
+
   //const currentBooking = bookingRef.current;
   useEffect(() => {
     bookingRef.current = booking;
   }, [booking]);
+
+  const generateSignature = (orderId: string, paymentId: string) => {
+    const secret = '0L67Y5DD4Ai3Ksr9xgT6bfas';
+    const body = orderId + '|' + paymentId;
+    return CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex);
+  };
+
+  const resetPaymentSheetFields = () => {
+    setCardNumber('');
+    setCardExpiry('');
+    setCardCvv('');
+    setCardName('');
+    setUpiId('');
+  };
+
+  const handleBalancePaymentCash = async () => {
+    Alert.alert(
+      "Confirm Cash Collection",
+      "Are you sure you want to record Cash payment for the remaining balance?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            try {
+              setPaying(true);
+              const res = await api.post('/booking/payment/success', {
+                bookingId: bookingId,
+                paymentMethod: 'CASH'
+              });
+              if (res.data && res.data.success) {
+                Alert.alert("Success", "Cash payment recorded. Booking finalized!");
+                await fetchBooking();
+              } else {
+                throw new Error(res.data?.message || "Verification failed");
+              }
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert("Error", err?.response?.data?.message || err.message || "Failed to record cash payment");
+            } finally {
+              setPaying(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBalancePaymentOnline = async () => {
+    try {
+      setPaying(true);
+
+      const paymentUrl = `${api.defaults.baseURL}/booking/pay/${bookingId}?paymentType=BALANCE`;
+
+      const result = await WebBrowser.openAuthSessionAsync(paymentUrl, 'gigiman://');
+
+      if (result.type === 'success' && result.url) {
+        const parsed = Linking.parse(result.url);
+        const { status } = parsed.queryParams || {};
+
+        if (status === 'success') {
+          Alert.alert("Success", "Online payment verified successfully! Booking finalized.");
+          setShowPaymentSheet(false);
+          resetPaymentSheetFields();
+          await fetchBooking();
+        } else {
+          const errMsg = parsed.queryParams?.message || 'Payment verification failed';
+          Alert.alert('Payment Failed', errMsg as string);
+        }
+      } else {
+        Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
+      }
+    } catch (err: any) {
+      console.error('Payment error:', err);
+      Alert.alert(
+        'Payment Failed',
+        err?.response?.data?.message || err.message || 'Payment process failed. Please try again.'
+      );
+    } finally {
+      setPaying(false);
+    }
+  };
 
   useEffect(() => {
     if (serviceProposal) {
@@ -548,45 +648,303 @@ export default function BookingOtp() {
           <Animated.View
             style={[
               styles.checkCircle,
-              { backgroundColor: brightCyan },
+              {
+                backgroundColor: booking.assignmentStatus === 'FAILED'
+                  ? theme.colors.danger + '30'
+                  : ['pending', 'confirmed', 'searching'].includes(booking.status)
+                  ? theme.colors.primary + '30'
+                  : brightCyan
+              },
               animatedCircleStyle,
             ]}
           >
-            <Ionicons name="checkmark" size={32} color="#0F172A" />
+            <Ionicons
+              name={
+                booking.status === 'completed'
+                  ? 'checkmark-done-outline'
+                  : booking.assignmentStatus === 'FAILED'
+                  ? 'alert-circle-outline'
+                  : ['pending', 'confirmed', 'searching'].includes(booking.status)
+                  ? 'search-outline'
+                  : 'person-outline'
+              }
+              size={32}
+              color={
+                booking.assignmentStatus === 'FAILED'
+                  ? theme.colors.danger
+                  : ['pending', 'confirmed', 'searching'].includes(booking.status)
+                  ? theme.colors.primary
+                  : "#0F172A"
+              }
+            />
           </Animated.View>
           <AppText size="h3" weight="bold" style={styles.headerTitle}>
-            Technician Assigned!
+            {booking.status === 'completed'
+              ? 'Service Completed!'
+              : booking.status === 'in_progress'
+              ? 'Service in Progress'
+              : booking.status === 'assigned'
+              ? 'Technician Assigned!'
+              : booking.assignmentStatus === 'FAILED'
+              ? 'Assignment Failed'
+              : 'Searching Technician...'}
           </AppText>
         </View>
 
         <Animated.View style={animatedContentStyle}>
+          {/* Service Timeline Section */}
+          <AppCard style={styles.timelineCard}>
+            <AppText weight="bold" size="h3" style={{ marginBottom: 16 }}>
+              Service Timeline
+            </AppText>
+            {(() => {
+              const getTimelineSteps = (): { title: string; subtitle?: string; status: 'completed' | 'active' | 'upcoming' | 'failed' }[] => {
+                const status = booking.rawStatus || booking.status;
+                const paymentStatus = booking.paymentStatus;
+                const assignmentStatus = booking.assignmentStatus;
+                const isAdvance = booking.paymentType === 'ADVANCE';
+
+                const steps: { title: string; subtitle?: string; status: 'completed' | 'active' | 'upcoming' | 'failed' }[] = [];
+
+                steps.push({
+                  title: "Booking Initiated",
+                  subtitle: "Your booking request has been registered",
+                  status: "completed",
+                });
+
+                let payStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
+                let paySub = "Upfront payment required";
+                if (paymentStatus === 'paid' || paymentStatus === 'partially_paid') {
+                  payStatus = 'completed';
+                  paySub = isAdvance ? "Advance payment verified (18%)" : "Full payment verified (100%)";
+                } else if (status === 'pending') {
+                  payStatus = 'active';
+                  paySub = "Awaiting checkout payment";
+                }
+                steps.push({
+                  title: "Upfront Payment",
+                  subtitle: paySub,
+                  status: payStatus,
+                });
+
+                let searchStatus: 'completed' | 'active' | 'upcoming' | 'failed' = 'upcoming';
+                let searchSub = "Waiting to find a provider";
+                if (['assigned', 'in_progress', 'completed'].includes(status)) {
+                  searchStatus = 'completed';
+                  searchSub = "Provider found and matched";
+                } else if (assignmentStatus === 'FAILED') {
+                  searchStatus = 'failed';
+                  searchSub = "Auto-assign timed out. Admin manual assignment initiated.";
+                } else if (status === 'confirmed' || assignmentStatus === 'SEARCHING') {
+                  searchStatus = 'active';
+                  searchSub = "Searching for nearby providers...";
+                }
+                steps.push({
+                  title: "Provider Match",
+                  subtitle: searchSub,
+                  status: searchStatus,
+                });
+
+                let assignedStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
+                let assignedSub = "Awaiting provider details";
+                if (['in_progress', 'completed'].includes(status)) {
+                  assignedStatus = 'completed';
+                  assignedSub = `Assigned to ${booking.name || 'Technician'}`;
+                } else if (status === 'assigned') {
+                  assignedStatus = 'active';
+                  assignedSub = `Technician ${booking.name || 'assigned'}. OTP: ${booking.otp || '----'}`;
+                }
+                steps.push({
+                  title: "Provider Assigned",
+                  subtitle: assignedSub,
+                  status: assignedStatus,
+                });
+
+                let executionStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
+                let executionSub = "Service will start after provider verification";
+                if (status === 'completed') {
+                  executionStatus = 'completed';
+                  executionSub = "Service successfully completed";
+                } else if (status === 'in_progress') {
+                  executionStatus = 'active';
+                  executionSub = "Service is currently in progress...";
+                }
+                steps.push({
+                  title: "Service Execution",
+                  subtitle: executionSub,
+                  status: executionStatus,
+                });
+
+                if (isAdvance) {
+                  let balStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
+                  let balSub = "To be paid after completion";
+                  if (paymentStatus === 'paid') {
+                    balStatus = 'completed';
+                    balSub = "Remaining balance (82%) paid and verified";
+                  } else if (status === 'completed' && paymentStatus === 'partially_paid') {
+                    balStatus = 'active';
+                    balSub = "Awaiting remaining balance collection";
+                  }
+                  steps.push({
+                    title: "Remaining Balance Payment",
+                    subtitle: balSub,
+                    status: balStatus,
+                  });
+                }
+
+                return steps;
+              };
+
+              const steps = getTimelineSteps();
+
+              return steps.map((step, idx) => {
+                const isLast = idx === steps.length - 1;
+                let iconName: any = "ellipse-outline";
+                let color = theme.colors.textMuted;
+                
+                if (step.status === 'completed') {
+                  iconName = "checkmark-circle";
+                  color = theme.colors.success;
+                } else if (step.status === 'active') {
+                  iconName = "play-circle";
+                  color = theme.colors.primary;
+                } else if (step.status === 'failed') {
+                  iconName = "alert-circle";
+                  color = theme.colors.danger;
+                }
+
+                return (
+                  <View key={idx} style={styles.timelineRow}>
+                    <View style={styles.timelineIndicator}>
+                      <Ionicons name={iconName} size={20} color={color} />
+                      {!isLast && (
+                        <View
+                          style={[
+                            styles.timelineLine,
+                            {
+                              backgroundColor:
+                                step.status === 'completed'
+                                  ? theme.colors.success
+                                  : theme.colors.border,
+                            },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <AppText
+                        weight={step.status === 'active' ? 'bold' : 'semibold'}
+                        size="body"
+                        style={{
+                          color:
+                            step.status === 'active'
+                              ? theme.colors.text
+                              : step.status === 'completed'
+                              ? theme.colors.text
+                              : theme.colors.textMuted,
+                        }}
+                      >
+                        {step.title}
+                      </AppText>
+                      {step.subtitle && (
+                        <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                          {step.subtitle}
+                        </AppText>
+                      )}
+                    </View>
+                  </View>
+                );
+              });
+            })()}
+          </AppCard>
+
+          {/* Remaining Balance Payment Section */}
+          {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && ['in_progress', 'completed'].includes(booking.status) && (
+            <AppCard style={styles.balancePaymentCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Ionicons name="card-outline" size={24} color={theme.colors.primary} />
+                <AppText weight="bold" size="h3" style={{ marginLeft: 10 }}>
+                  Pay Remaining Balance
+                </AppText>
+              </View>
+              
+              <AppText size="small" color="textMuted" style={{ marginBottom: 16 }}>
+                You paid 18% advance. The remaining 82% balance amount is due now.
+              </AppText>
+
+              <View style={[styles.priceBox, { backgroundColor: theme.colors.background }]}>
+                <View style={styles.priceRow}>
+                  <AppText>Total Price</AppText>
+                  <AppText weight="medium">₹{booking.totalPrice}</AppText>
+                </View>
+                <View style={styles.priceRow}>
+                  <AppText>Advance Paid (18%)</AppText>
+                  <AppText weight="medium" style={{ color: theme.colors.success }}>-₹{booking.advanceAmount}</AppText>
+                </View>
+                <View style={styles.priceDivider} />
+                <View style={styles.priceRow}>
+                  <AppText weight="bold">Remaining Balance (82%)</AppText>
+                  <AppText weight="bold" size="h3" style={{ color: theme.colors.primary }}>
+                    ₹{booking.remainingAmount}
+                  </AppText>
+                </View>
+              </View>
+
+              <View style={styles.balanceActionRow}>
+                <TouchableOpacity
+                  style={[styles.balanceBtn, { backgroundColor: theme.colors.border }]}
+                  onPress={handleBalancePaymentCash}
+                  disabled={paying}
+                >
+                  <AppText weight="bold" style={{ color: theme.colors.text }}>
+                    Pay Cash
+                  </AppText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.balanceBtn, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => setShowPaymentSheet(true)}
+                  disabled={paying}
+                >
+                  <AppText weight="bold" style={{ color: '#fff' }}>
+                    Pay Online
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </AppCard>
+          )}
+
           {/* Technician Card */}
-          <BookingDetailsCard
-            name={booking.name ?? "Assigned Technician"}
-            role={booking.serviceCategoryName}
-            experience="5 years exp"
-            rating={booking.rating ?? 4.9}
-            reviews={booking.reviews ?? 0}
-            image="https://randomuser.me/api/portraits/men/32.jpg"
-          />
+          {booking.name && ['assigned', 'in_progress', 'completed'].includes(booking.status) && (
+            <BookingDetailsCard
+              name={booking.name ?? "Assigned Technician"}
+              role={booking.serviceCategoryName}
+              experience="5 years exp"
+              rating={booking.rating ?? 4.9}
+              reviews={booking.reviews ?? 0}
+              image="https://randomuser.me/api/portraits/men/32.jpg"
+            />
+          )}
 
           {/* OTP Section */}
-          <View
-            style={[
-              styles.otpContainer,
-              { backgroundColor: otpBg, borderColor: brightCyan },
-            ]}
-          >
-            <AppText weight="bold" style={styles.otpLabel}>
-              Your Booking OTP
-            </AppText>
-            <AppText size="h1" weight="bold" style={styles.otpValue}>
-              {booking.otp ?? "----"}
-            </AppText>
-            <AppText size="small" style={styles.otpInstruction}>
-              Share this code with the technician
-            </AppText>
-          </View>
+          {booking.status === 'assigned' && booking.otp && (
+            <View
+              style={[
+                styles.otpContainer,
+                { backgroundColor: otpBg, borderColor: brightCyan },
+              ]}
+            >
+              <AppText weight="bold" style={styles.otpLabel}>
+                Your Booking OTP
+              </AppText>
+              <AppText size="h1" weight="bold" style={styles.otpValue}>
+                {booking.otp ?? "----"}
+              </AppText>
+              <AppText size="small" style={styles.otpInstruction}>
+                Share this code with the technician
+              </AppText>
+            </View>
+          )}
 
           {/* ===============================
     PART APPROVAL SECTION (NEW)
@@ -734,36 +1092,40 @@ export default function BookingOtp() {
 
 
           {/* Arrival & Summary */}
-          <AppCard style={styles.arrivalCard}>
-            <View style={styles.arrivalHeader}>
-              <View
-                style={[styles.iconCircle, { backgroundColor: primaryTeal }]}
-              >
-                <Ionicons name="chevron-down" size={20} color="white" />
-              </View>
-              <AppText size="h3" weight="bold" style={styles.arrivalText}>
-                Arriving soon
-              </AppText>
-            </View>
-
-            <View style={{ paddingHorizontal: 20 }}>
-              <TouchableOpacity
-                style={[styles.callButton, calling && { opacity: 0.6 }]}
-                onPress={handleCallPress}
-                disabled={calling}
-              >
-                <AppText style={styles.callText}>
-                  {calling ? "Connecting..." : "📞 Call Technician"}
+          {['assigned', 'in_progress'].includes(booking.status) && (
+            <AppCard style={styles.arrivalCard}>
+              <View style={styles.arrivalHeader}>
+                <View
+                  style={[styles.iconCircle, { backgroundColor: primaryTeal }]}
+                >
+                  <Ionicons name="chevron-down" size={20} color="white" />
+                </View>
+                <AppText size="h3" weight="bold" style={styles.arrivalText}>
+                  Arriving soon
                 </AppText>
-              </TouchableOpacity>
-            </View>
+              </View>
 
-            {/* Summary */}
+              <View style={{ paddingHorizontal: 20 }}>
+                <TouchableOpacity
+                  style={[styles.callButton, calling && { opacity: 0.6 }]}
+                  onPress={handleCallPress}
+                  disabled={calling}
+                >
+                  <AppText style={styles.callText}>
+                    {calling ? "Connecting..." : "📞 Call Technician"}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </AppCard>
+          )}
+
+          {/* Summary */}
+          <AppCard style={styles.arrivalCard}>
             <View style={styles.summaryContainer}>
               <AppText
                 weight="bold"
                 size="h3"
-                style={styles.summaryTitle}
+                style={[styles.summaryTitle, { marginTop: 20 }]}
               >
                 Booking Summary
               </AppText>
@@ -827,39 +1189,90 @@ export default function BookingOtp() {
                   </AppText>
                 </View>
               </View>
-
-              {/* <View style={styles.detailRow}>
-                <Ionicons
-                  name="card-outline"
-                  size={20}
-                  color={primaryTeal}
-                  style={styles.detailIcon}
-                />
-                <View>
-                  <AppText color="textMuted" size="small">
-                    Payment
-                  </AppText>
-                  <AppText weight="medium" style={styles.detailText}>
-                    Cash on Delivery
-                  </AppText>
-                </View>
-              </View> */}
             </View>
           </AppCard>
         </Animated.View>
       </ScrollView>
 
       {/* Footer */}
-      <View style={[styles.footer, { backgroundColor: "#F8FAFC" }]}>
-        <TouchableOpacity
-          style={[styles.trackButton, { backgroundColor: brightCyan }]}
-        // onPress={() => navigation.navigate("LiveTracking", { bookingId })}
-        >
-          <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
-            Track Technician
-          </AppText>
-        </TouchableOpacity>
-      </View>
+      {['assigned', 'in_progress'].includes(booking.status) && (
+        <View style={[styles.footer, { backgroundColor: "#F8FAFC" }]}>
+          <TouchableOpacity
+            style={[styles.trackButton, { backgroundColor: brightCyan }]}
+            onPress={() => navigation.navigate("LiveTracking", { bookingId })}
+          >
+            <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
+              Track Technician
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Simulated Payment Sheet Modal for Balance Payment */}
+      <Modal
+        visible={showPaymentSheet}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!paying) {
+            setShowPaymentSheet(false);
+            resetPaymentSheetFields();
+          }
+        }}
+      >
+        <View style={styles.paymentSheetOverlay}>
+          <View style={[styles.paymentSheetContent, { backgroundColor: theme.colors.surface }]}>
+            {/* Header */}
+            <View style={styles.paymentSheetHeader}>
+              <AppText weight="bold" size="h3">Remaining Balance Checkout</AppText>
+              {!paying && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowPaymentSheet(false);
+                    resetPaymentSheetFields();
+                  }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Price Details */}
+            <View style={[styles.paymentSheetPriceBox, { backgroundColor: theme.colors.background }]}>
+              <AppText size="small" color="textMuted">Amount to Pay Now</AppText>
+              <AppText weight="bold" size="h1" style={{ color: theme.colors.primary }}>
+                ₹{booking.remainingAmount}
+              </AppText>
+              <AppText size="caption" color="textMuted" style={{ marginTop: 2 }}>
+                Remaining 82% balance amount
+              </AppText>
+            </View>
+
+            {/* Payment Info */}
+            <View style={{ marginTop: 20, marginBottom: 10, alignItems: 'center', paddingHorizontal: 16 }}>
+              <Ionicons name="shield-checkmark-outline" size={48} color={theme.colors.primary} />
+              <AppText weight="semibold" size="body" style={{ marginTop: 12, textAlign: 'center', color: theme.colors.text }}>
+                Secure Payment with Razorpay
+              </AppText>
+              <AppText size="small" color="textMuted" style={{ marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
+                You will be redirected to Razorpay's secure checkout. Supports Cards, UPI, Netbanking, and popular wallets.
+              </AppText>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={{ marginTop: 24, paddingBottom: Platform.OS === 'ios' ? 24 : 12 }}>
+              <AppButton
+                title={paying ? "Processing Secure Payment..." : `Pay Balance ₹${booking.remainingAmount}`}
+                onPress={handleBalancePaymentOnline}
+                loading={paying}
+                disabled={paying}
+                variant="primary"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1088,5 +1501,114 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  timelineCard: {
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 18,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  timelineIndicator: {
+    alignItems: "center",
+    marginRight: 14,
+    width: 24,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    marginVertical: 4,
+  },
+  timelineContent: {
+    flex: 1,
+    paddingBottom: 16,
+  },
+  balancePaymentCard: {
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  priceBox: {
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 4,
+  },
+  priceDivider: {
+    height: 1,
+    backgroundColor: "#CBD5E1",
+    marginVertical: 8,
+  },
+  balanceActionRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  balanceBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  paymentSheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "flex-end",
+  },
+  paymentSheetContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+  },
+  paymentSheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  paymentSheetPriceBox: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  paymentMethodTabs: {
+    flexDirection: "row",
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#CBD5E1",
+  },
+  paymentMethodTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  paymentMethodTabActive: {
+    // dynamically set via active border bottom
+  },
+  paymentInput: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    backgroundColor: "#F8FAFC",
   },
 });

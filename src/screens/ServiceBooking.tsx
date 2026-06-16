@@ -15,9 +15,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import CryptoJS from 'crypto-js';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 import apiClient from '@/src/api/client';
 import AppButton from '@/src/components/ui/AppButton';
@@ -52,6 +56,7 @@ interface Props {
       serviceData?: any;
       selectedAddress?: any;
       fromMain?: boolean;
+      domainServiceId?: string;
     };
   };
 }
@@ -69,7 +74,7 @@ interface ServiceCategory {
 const { width } = Dimensions.get('window');
 
 const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
-  const { serviceCategoryId, serviceData, fromMain } = route.params;
+  const { serviceCategoryId, serviceData, fromMain, domainServiceId } = route.params || {};
   const { user } = useAuthContext();
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -77,8 +82,21 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const insets = useSafeAreaInsets();
   const { upsertBooking } = useBooking();
 
-  const { cartItems, totalPrice: cartTotalPrice, clearCart } = useCartContext();
+  const { cartItems, totalPrice: cartTotalPrice, clearCart, removeFromCart } = useCartContext();
   const isCartCheckout = serviceCategoryId === 'cart';
+
+  const filteredCartItems = React.useMemo(() => {
+    if (!isCartCheckout) return [];
+    if (!domainServiceId) return cartItems;
+    return cartItems.filter(
+      (item) =>
+        (item.domainService?._id || item.domainService) === domainServiceId
+    );
+  }, [cartItems, isCartCheckout, domainServiceId]);
+
+  const filteredCartTotalPrice = React.useMemo(() => {
+    return filteredCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }, [filteredCartItems]);
 
   // State management
   const [category, setCategory] = useState<ServiceCategory | null>(null);
@@ -105,22 +123,34 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
 
+  // Payment Option & Simulation States
+  const [paymentType, setPaymentType] = useState<'FULL' | 'ADVANCE'>('FULL');
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [currentBookingId, setCurrentBookingId] = useState<string | null>(null);
+  const [paymentMethodType, setPaymentMethodType] = useState<'CARD' | 'UPI'>('CARD');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [paying, setPaying] = useState(false);
+
   // Load service on mount
   useEffect(() => {
     if (isCartCheckout) {
       setCategory({
         _id: 'cart',
-        serviceCategoryName: cartItems.map(item => item.serviceCategoryName).join(', '),
-        price: cartTotalPrice,
-        durationInMinutes: cartItems.reduce((sum, item) => sum + item.durationInMinutes, 0),
+        serviceCategoryName: filteredCartItems.map(item => item.serviceCategoryName).join(', '),
+        price: filteredCartTotalPrice,
+        durationInMinutes: filteredCartItems.reduce((sum, item) => sum + item.durationInMinutes, 0),
         description: 'Multi-service booking',
-        domainService: cartItems[0]?.domainService?._id || cartItems[0]?.domainService || '',
+        domainService: domainServiceId || filteredCartItems[0]?.domainService?._id || filteredCartItems[0]?.domainService || '',
       });
       setLoading(false);
     } else {
       loadService();
     }
-  }, [serviceCategoryId, isCartCheckout, cartItems, cartTotalPrice]);
+  }, [serviceCategoryId, isCartCheckout, filteredCartItems, filteredCartTotalPrice, domainServiceId]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -260,6 +290,86 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     setCouponError('');
   };
 
+  const generateSignature = (orderId: string, paymentId: string) => {
+    const secret = '0L67Y5DD4Ai3Ksr9xgT6bfas';
+    const body = orderId + '|' + paymentId;
+    return CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex);
+  };
+
+  const resetPaymentSheetFields = () => {
+    setCardNumber('');
+    setCardExpiry('');
+    setCardCvv('');
+    setCardName('');
+    setUpiId('');
+    setCurrentBookingId(null);
+  };
+
+  const handleSimulatedPayment = async () => {
+    if (!currentBookingId || !category) return;
+
+    try {
+      setPaying(true);
+
+      const paymentUrl = `${apiClient.defaults.baseURL}/booking/pay/${currentBookingId}?paymentType=${paymentType}`;
+      
+      const result = await WebBrowser.openAuthSessionAsync(paymentUrl, 'gigiman://');
+
+      if (result.type === 'success' && result.url) {
+        const parsed = Linking.parse(result.url);
+        const { status } = parsed.queryParams || {};
+
+        if (status === 'success') {
+          const bookingPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
+          const finalPrice = bookingPrice - discountAmount;
+          
+          upsertBooking({
+            _id: currentBookingId,
+            serviceCategoryName: category.serviceCategoryName,
+            address: selectedAddress?.line1 || "Current Location",
+            status: 'searching',
+            totalPrice: finalPrice,
+            isScheduled: false,
+            paymentType,
+            advanceAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.18) : finalPrice,
+            remainingAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.82) : 0,
+          });
+
+          if (isCartCheckout) {
+            if (domainServiceId) {
+              await Promise.all(
+                filteredCartItems.map(item => removeFromCart(item.serviceCategoryId, true))
+              ).catch(err => console.log('Error removing items from cart:', err));
+            } else {
+              clearCart();
+            }
+          }
+
+          setShowPaymentSheet(false);
+          resetPaymentSheetFields();
+
+          navigation.navigate('BookingTab', {
+            screen: 'Searching',
+            params: { bookingId: currentBookingId },
+          } as any);
+        } else {
+          const errMsg = parsed.queryParams?.message || 'Payment verification failed';
+          Alert.alert('Payment Failed', errMsg as string);
+        }
+      } else {
+        Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
+      }
+    } catch (err: any) {
+      console.error('Payment error:', err);
+      Alert.alert(
+        'Payment Failed',
+        err?.response?.data?.message || err.message || 'Payment process failed. Please try again.'
+      );
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const handleBookNow = useCallback(async () => {
     if (!user?._id) {
       Alert.alert('Login Required', 'Please login to book a service');
@@ -299,7 +409,9 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         } catch {
           addressText = "Current Location";
         }
-      } const scheduleDateTime =
+      }
+
+      const scheduleDateTime =
         bookingMode === 'schedule'
           ? new Date(
             selectedDate!.getFullYear(),
@@ -314,12 +426,15 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         userId: user._id,
         address: addressText,
         coordinates: coordinates,
+        paymentType: paymentType,
       };
 
       if (!isCartCheckout) {
         payload.serviceCategoryName = category.serviceCategoryName;
         payload.domainService = category.domainService;
         payload.serviceCount = quantity;
+      } else if (domainServiceId) {
+        payload.domainServiceId = domainServiceId;
       }
 
       if (scheduleDateTime) {
@@ -345,7 +460,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         throw new Error("Booking ID not returned from server");
       }
 
-      const bookingPrice = isCartCheckout ? cartTotalPrice : (category.price * quantity);
+      const bookingPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
 
       if (scheduleDateTime) {
         upsertBooking({
@@ -358,28 +473,24 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           scheduleDateTime: scheduleDateTime.toISOString(),
         });
 
-        if (isCartCheckout) clearCart();
+        if (isCartCheckout) {
+          if (domainServiceId) {
+            await Promise.all(
+              filteredCartItems.map(item => removeFromCart(item.serviceCategoryId, true))
+            ).catch(err => console.log('Error removing items from cart:', err));
+          } else {
+            clearCart();
+          }
+        }
 
         navigation.navigate("BookingTab", {
           screen: "BookingsMain",
           params: { activeTab: "upcoming" }
         } as any);
       } else {
-        upsertBooking({
-          _id: bookingId,
-          serviceCategoryName: category.serviceCategoryName,
-          address: payload.address,
-          status: 'searching',
-          totalPrice: bookingPrice,
-          isScheduled: false,
-        });
-
-        if (isCartCheckout) clearCart();
-
-        navigation.navigate('BookingTab', {
-          screen: 'Searching',
-          params: { bookingId },
-        } as any);
+        // Open simulated payment sheet
+        setCurrentBookingId(bookingId);
+        setShowPaymentSheet(true);
       }
     } catch (err: any) {
       console.error('Booking error:', err);
@@ -390,7 +501,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     } finally {
       setBooking(false);
     }
-  }, [user, category, bookingMode, selectedDate, selectedTime, quantity, appliedCoupon, navigation, upsertBooking]);
+  }, [user, category, bookingMode, selectedDate, selectedTime, quantity, appliedCoupon, navigation, upsertBooking, paymentType]);
 
   const handleBack = useCallback(() => {
     if (fromMain) {
@@ -443,7 +554,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     ? { uri: category.servicecategoryImage }
     : require('../../assets/images/SampleService.png');
 
-  const totalPrice = isCartCheckout ? cartTotalPrice : (category.price * quantity);
+  const totalPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
 
   return (
     <SafeAreaView
@@ -465,7 +576,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             <AppText weight="bold" size="body" style={styles.summaryTitle}>
               Order Summary
             </AppText>
-            {cartItems.map((item) => (
+            {filteredCartItems.map((item) => (
               <View key={item._id || item.serviceCategoryId} style={styles.summaryRow}>
                 <AppText weight="medium" style={{ flex: 1, color: theme.colors.text }}>
                   {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ''}
@@ -564,34 +675,52 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           </Animated.View>
         )}
 
-        {/* <View style={styles.referralCard}>
+        {/* Payment Options Section */}
+        {bookingMode === 'now' && (
+          <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.paymentOptionsCard}>
+            <AppText weight="bold" style={{ marginBottom: 12 }}>Payment Options</AppText>
+            
+            <TouchableOpacity
+              style={[
+                styles.paymentOptionRow,
+                paymentType === 'FULL' && styles.paymentOptionActive,
+              ]}
+              onPress={() => setPaymentType('FULL')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={paymentType === 'FULL' ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={paymentType === 'FULL' ? theme.colors.primary : theme.colors.textMuted}
+              />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <AppText weight="bold">Pay Full Amount</AppText>
+                <AppText size="small" color="textMuted">Pay ₹{totalPrice - discountAmount} online now</AppText>
+              </View>
+            </TouchableOpacity>
 
-          <AppText weight="bold">Referral Code</AppText>
-
-          <View style={styles.referralRow}>
-
-            <TextInput
-              placeholder="Enter referral code"
-              value={referralCode}
-              onChangeText={setReferralCode}
-              style={styles.referralInput}
-            />
-
-            <AppButton
-              title={checkingReferral ? "Checking..." : "Apply"}
-              onPress={handleApplyReferral}
-              style={{ marginLeft: 10 }}
-            />
-
-          </View>
-
-          {referralDiscount > 0 && (
-            <AppText style={{ color: "green", marginTop: 6 }}>
-              Discount Applied: ₹{referralDiscount}
-            </AppText>
-          )}
-
-        </View> */}
+            <TouchableOpacity
+              style={[
+                styles.paymentOptionRow,
+                paymentType === 'ADVANCE' && styles.paymentOptionActive,
+              ]}
+              onPress={() => setPaymentType('ADVANCE')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={paymentType === 'ADVANCE' ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={paymentType === 'ADVANCE' ? theme.colors.primary : theme.colors.textMuted}
+              />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <AppText weight="bold">Pay 18% Advance Amount</AppText>
+                <AppText size="small" color="textMuted">
+                  Pay ₹{Math.round((totalPrice - discountAmount) * 0.18)} now, remaining ₹{Math.round((totalPrice - discountAmount) * 0.82)} collected after completion
+                </AppText>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {/* Spacer */}
         <View style={styles.spacer} />
@@ -645,7 +774,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
         <View style={styles.priceDisplay}>
           <AppText size="body" color="textMuted">
-            Total:
+            {paymentType === 'ADVANCE' && bookingMode === 'now' ? 'Advance to Pay:' : 'Total:'}
           </AppText>
           <View style={{ alignItems: 'flex-end' }}>
             {discountAmount > 0 ? (
@@ -661,7 +790,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               size="h2"
               style={{ color: theme.colors.primary }}
             >
-              ₹{totalPrice - discountAmount}
+              ₹{paymentType === 'ADVANCE' && bookingMode === 'now' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}
             </AppText>
           </View>
         </View>
@@ -672,7 +801,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               ? 'Booking...'
               : bookingMode === 'schedule'
                 ? 'Schedule Service'
-                : 'Book Now'
+                : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
           }
           disabled={booking || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
           onPress={handleBookNow}
@@ -700,6 +829,74 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           }}
         />
       )}
+
+      {/* Simulated Payment Sheet Modal */}
+      <Modal
+        visible={showPaymentSheet}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!paying) {
+            setShowPaymentSheet(false);
+            resetPaymentSheetFields();
+          }
+        }}
+      >
+        <View style={styles.paymentSheetOverlay}>
+          <View style={[styles.paymentSheetContent, { backgroundColor: theme.colors.surface }]}>
+            {/* Header */}
+            <View style={styles.paymentSheetHeader}>
+              <AppText weight="bold" size="h3">Checkout Payment</AppText>
+              {!paying && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowPaymentSheet(false);
+                    resetPaymentSheetFields();
+                  }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Price Details */}
+            <View style={[styles.paymentSheetPriceBox, { backgroundColor: theme.colors.background }]}>
+              <AppText size="small" color="textMuted">Amount to Pay Now</AppText>
+              <AppText weight="bold" size="h1" style={{ color: theme.colors.primary }}>
+                ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}
+              </AppText>
+              {paymentType === 'ADVANCE' && (
+                <AppText size="caption" color="textMuted" style={{ marginTop: 2 }}>
+                  Remaining ₹{Math.round((totalPrice - discountAmount) * 0.82)} collected after service
+                </AppText>
+              )}
+            </View>
+
+            {/* Payment Info */}
+            <View style={{ marginTop: 20, marginBottom: 10, alignItems: 'center', paddingHorizontal: 16 }}>
+              <Ionicons name="shield-checkmark-outline" size={48} color={theme.colors.primary} />
+              <AppText weight="semibold" size="body" style={{ marginTop: 12, textAlign: 'center', color: theme.colors.text }}>
+                Secure Payment with Razorpay
+              </AppText>
+              <AppText size="small" color="textMuted" style={{ marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
+                You will be redirected to Razorpay's secure checkout. Supports Cards, UPI, Netbanking, and popular wallets.
+              </AppText>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={{ marginTop: 24, paddingBottom: Platform.OS === 'ios' ? 24 : 12 }}>
+              <AppButton
+                title={paying ? "Processing Secure Payment..." : `Pay ₹${paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}`}
+                onPress={handleSimulatedPayment}
+                loading={paying}
+                disabled={paying}
+                variant="primary"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -838,6 +1035,76 @@ const createStyles = (theme: any) =>
       borderRadius: theme.radius.sm,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    paymentOptionsCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      marginHorizontal: 16,
+      marginTop: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    paymentOptionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 8,
+      marginVertical: 6,
+    },
+    paymentOptionActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary + '10',
+    },
+    paymentSheetOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'flex-end',
+    },
+    paymentSheetContent: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+    },
+    paymentSheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    paymentSheetPriceBox: {
+      padding: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    paymentMethodTabs: {
+      flexDirection: 'row',
+      marginBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    paymentMethodTab: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    paymentMethodTabActive: {
+      borderBottomWidth: 2,
+    },
+    paymentInput: {
+      height: 48,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      fontSize: 15,
+      backgroundColor: theme.colors.background,
     },
     summaryCard: {
       backgroundColor: theme.colors.surface,

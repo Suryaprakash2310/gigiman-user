@@ -96,14 +96,12 @@ export default function PaymentHistoryPage() {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <BookingCard
-                        category={item.serviceName}
-                        items={[item.serviceName]} // Treat serviceName as the item for now
+                        type="completed"
+                        serviceName={item.serviceName}
                         amount={item.amount}
                         date={item.date}
-                        status={item.status}
-                        paymentInfo={item.paymentInfo}
-                        // Optional: pass time if I want to support it later, but currently unused
                         time={item.time}
+                        paymentMode={item.paymentInfo}
                     />
                 )}
                 contentContainerStyle={styles.listContent}

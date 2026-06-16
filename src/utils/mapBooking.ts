@@ -50,6 +50,7 @@ export function mapBookingToBookingItem(
     booking.name ||
     booking.technician?.name ||
     booking.primaryEmployee?.fullname ||
+    booking.externalTechnicianName ||
     undefined;
 
   const techRating =
@@ -94,5 +95,11 @@ export function mapBookingToBookingItem(
     isScheduled: booking.isScheduled,
     scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,
     durationInMinutes: booking.durationInMinutes,
+    paymentStatus: booking.paymentStatus,
+    assignmentStatus: booking.assignmentStatus,
+    paymentType: booking.paymentType,
+    advanceAmount: booking.advanceAmount,
+    remainingAmount: booking.remainingAmount,
+    rawStatus: booking.status,
   };
 }

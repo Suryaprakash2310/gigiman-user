@@ -7,7 +7,7 @@ import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 
 export default function GlobalBookingListener() {
   const navigation = useNavigation<any>();
-  const { upsertBooking, updateStatus } = useBooking();
+  const { upsertBooking, updateStatus, updateBookingItem } = useBooking();
 
   useEffect(() => {
     if (!socket) return;
@@ -38,8 +38,29 @@ export default function GlobalBookingListener() {
     };
 
     /* no provider available */
-    const onNoProvider = () => {
-      console.log("[SOCKET RECEIVE] ❌ no-servicer-available");
+    const onNoProvider = (payload: any) => {
+      console.log("[SOCKET RECEIVE] ❌ no-servicer-available payload:", payload);
+      const bookingId = payload?.bookingId || payload;
+      if (bookingId && typeof bookingId === "string") {
+        updateBookingItem(bookingId, { assignmentStatus: "FAILED" });
+        navigation.navigate("BookingTab", {
+          screen: "BookingDetails",
+          params: { bookingId },
+        });
+      }
+    };
+
+    /* no team available */
+    const onNoTeam = (payload: any) => {
+      console.log("[SOCKET RECEIVE] ❌ no-team-available payload:", payload);
+      const bookingId = payload?.bookingId || payload;
+      if (bookingId && typeof bookingId === "string") {
+        updateBookingItem(bookingId, { assignmentStatus: "FAILED" });
+        navigation.navigate("BookingTab", {
+          screen: "BookingDetails",
+          params: { bookingId },
+        });
+      }
     };
 
     const onBookingCompleted = ({ bookingId }: any) => {
@@ -68,6 +89,7 @@ export default function GlobalBookingListener() {
    socket.on("servicer-accepted", onServicerAccepted);
     socket.on("otp-generated", onOtpGenerated);
     socket.on("no-servicer-available", onNoProvider);
+    socket.on("no-team-available", onNoTeam);
     socket.on("booking-completed", onBookingCompleted);
     socket.on("user-cancel-booking", onUserCancelBooking);
 
@@ -76,6 +98,7 @@ export default function GlobalBookingListener() {
       socket.off("servicer-accepted", onServicerAccepted);
       socket.off("otp-generated", onOtpGenerated);
       socket.off("no-servicer-available", onNoProvider);
+      socket.off("no-team-available", onNoTeam);
       socket.off("booking-completed", onBookingCompleted);
       socket.off("user-cancel-booking", onUserCancelBooking);
     };

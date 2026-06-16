@@ -49,6 +49,12 @@ export type BookingItem = {
     price: number;
     status: string;
   }[];
+  paymentStatus?: string;
+  assignmentStatus?: string;
+  paymentType?: string;
+  advanceAmount?: number;
+  remainingAmount?: number;
+  rawStatus?: string;
 };
 
 export type ServiceProposal = {
