@@ -30,7 +30,7 @@ export default function PersonalDetailsCard({
     const [editingField, setEditingField] = useState<keyof PersonalDetails | null>(null);
     const [errors, setErrors] = useState<Partial<Record<keyof PersonalDetails, string>>>({});
 
-    const editableFields: Array<keyof PersonalDetails> = ['fullName'];
+    const editableFields: Array<keyof PersonalDetails> = ['fullName', 'email'];
 
     const validate = (field: keyof PersonalDetails, value: string): string | undefined => {
         switch (field) {
@@ -38,9 +38,13 @@ export default function PersonalDetailsCard({
                 if (value.trim().length === 0) return 'Name is required';
                 if (value.length > 30) return 'Name must be 30 characters or less';
                 return undefined;
-            case 'email':
-                if (!value.endsWith('@gmail.com')) return 'Email must be a valid @gmail.com address';
+            case 'email': {
+                const trimmed = value.trim();
+                if (trimmed.length === 0) return undefined; // email is optional
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(trimmed)) return 'Please enter a valid email address';
                 return undefined;
+            }
             case 'phoneNo':
                 if (!/^\d{10}$/.test(value)) return 'Phone number must be exactly 10 digits';
                 return undefined;
@@ -125,7 +129,11 @@ export default function PersonalDetailsCard({
                                 onChangeText={(text) => handleChange(field, text)}
                                 placeholder={placeholder}
                                 autoFocus
-                                keyboardType={field === 'phoneNo' ? 'numeric' : 'default'}
+                                keyboardType={
+                                    field === 'phoneNo' ? 'numeric' :
+                                    field === 'email' ? 'email-address' : 'default'
+                                }
+                                autoCapitalize={field === 'email' ? 'none' : 'sentences'}
                                 style={{
                                     paddingLeft: field === 'phoneNo' ? 45 : 16,
                                     height: 45,

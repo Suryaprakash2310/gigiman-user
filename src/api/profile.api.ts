@@ -4,6 +4,7 @@ import { api } from './client';
 export interface UserProfile {
   _id?: string;
   name?: string;
+  fullName?: string;
   email?: string;
   phoneNo?: string;
   avatar?: string | null;
@@ -29,6 +30,7 @@ export const ProfileAPI = {
 
 export const updateProfile = (data: {
   fullName?: string;
+  email?: string;
   latitude?: number;
   longitude?: number;
   avatar?: string | null;

@@ -4,15 +4,18 @@ import PersonalDetailsCard from '@/src/components/ui/PersonalDetailsCard';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileAPI, updateProfile } from '../api/profile.api';
 import { useTheme } from '@/src/theme/useTheme';
+import { useAuth } from '@/src/hook/useAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function PersonalDetailsPage() {
     
       const { theme, setMode } = useTheme();
+      const { user, setUser } = useAuth();
 
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
@@ -25,18 +28,34 @@ export default function PersonalDetailsPage() {
         // Call updateProfile API to save changes
         (async () => {
             try {
-                const payload: any = { fullName: values.fullName }; 
+                const payload: any = { 
+                    fullName: values.fullName,
+                    email: values.email
+                }; 
                 if (avatar !== undefined) payload.avatar = avatar; // string | null
 
                 const res = await updateProfile(payload);
                 console.log('Profile updated', res.data);
                 
                 if (res.data?.success && res.data.user) {
-                    setProfile(res.data.user);
-                    setAvatar(res.data.user.avatar || null);
+                    const updatedUserObj = res.data.user;
+                    setProfile(updatedUserObj);
+                    setAvatar(updatedUserObj.avatar || null);
+
+                    // Sync with AuthContext and AsyncStorage
+                    const updatedUser = {
+                        ...user,
+                        fullName: updatedUserObj.fullName || updatedUserObj.name,
+                        email: updatedUserObj.email,
+                        avatar: updatedUserObj.avatar || undefined,
+                    } as any;
+                    setUser(updatedUser);
+                    await AsyncStorage.setItem('gg_user', JSON.stringify(updatedUser));
+                    Alert.alert('Success', 'Profile updated successfully');
                 }
             } catch (err) {
                 console.warn('Failed to update profile', err);
+                Alert.alert('Error', 'Failed to update profile details');
             }
         })();
     };

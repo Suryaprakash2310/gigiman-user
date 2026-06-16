@@ -5,6 +5,7 @@ import { useAuth } from '@/src/hook/useAuth';
 import { useTheme } from '@/src/theme/useTheme';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProfileMenuItem from '../../components/ProfileMenuItem';
@@ -20,7 +21,7 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { logout } = useAuth();
+  const { logout, user, setUser } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
@@ -32,6 +33,15 @@ export default function ProfileScreen() {
         const res = await ProfileAPI.getProfileAPI();
         if (res.success && res.user) {
           setProfile(res.user);
+          // Sync with AuthContext and AsyncStorage
+          const updatedUser = {
+            ...user,
+            fullName: res.user.fullName || res.user.name,
+            email: res.user.email,
+            avatar: res.user.avatar || undefined,
+          } as any;
+          setUser(updatedUser);
+          await AsyncStorage.setItem('gg_user', JSON.stringify(updatedUser));
         }
       } catch (error) {
         console.log('Error fetching profile:', error);
@@ -56,18 +66,16 @@ export default function ProfileScreen() {
       >
         {/* USER INFO */}
         <View style={styles.profileSection}>
-          <AvatarUpload size={90} initialUri={profile?.avatar} />
+          <AvatarUpload size={90} initialUri={user?.avatar || profile?.avatar} />
 
           <AppText weight="bold" size="h2" style={{ marginTop: 12 }}>
-            {profile?.fullName || ''}
+            {user?.fullName || profile?.fullName || ''}
           </AppText>
-          {/*
-          <AppText color="textMuted" size="body" style={{ marginTop: 4 }}>
-            {profile?.email || ''}
-          </AppText>
-        
-        */}
-
+          {(user?.email || profile?.email) ? (
+            <AppText color="textMuted" size="body" style={{ marginTop: 4 }}>
+              {user?.email || profile?.email}
+            </AppText>
+          ) : null}
         </View>
 
         {/* MAIN MENU */}

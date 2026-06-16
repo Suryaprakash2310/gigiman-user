@@ -13,6 +13,7 @@ import React, {
 export type AuthUser = {
   _id: string;
   fullName?: string;
+  email?: string;
   phone: string;
   avatar?: string;
   address?: string;

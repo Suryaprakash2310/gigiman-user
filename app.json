@@ -31,7 +31,6 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ],
-
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyBinxX6SohboBjea3jH__3dNXWHK4jQ8xQ"
@@ -55,7 +54,9 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -14,6 +14,7 @@ import {
   Modal,
   TextInput,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -24,6 +25,9 @@ import Animated, {
 import CryptoJS from "crypto-js";
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { WebView } from 'react-native-webview';
+import { razorpayHTML } from "@/src/utils/razorpayTemplate";
+import { injectRazorpayData } from "@/src/utils/razorpayInjector";
 
 import { initiateMaskedCall } from "@/src/api/call.api";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
@@ -63,6 +67,8 @@ export default function BookingOtp() {
   const [cardName, setCardName] = useState('');
   const [upiId, setUpiId] = useState('');
   const [paying, setPaying] = useState(false);
+  const [paymentHtml, setPaymentHtml] = useState<string | null>(null);
+  const [showWebViewModal, setShowWebViewModal] = useState(false);
 
   //const currentBooking = bookingRef.current;
   useEffect(() => {
@@ -116,37 +122,74 @@ export default function BookingOtp() {
     );
   };
 
+  const handleWebViewMessage = async (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      console.log('WebView payment message received:', data);
+
+      if (!data.success) {
+        Alert.alert("Payment Cancelled", data.reason === "dismissed" ? "Payment was cancelled by user" : "Payment failed");
+        setShowWebViewModal(false);
+        setPaymentHtml(null);
+        setPaying(false);
+        return;
+      }
+
+      // 1. Send payment success details to backend
+      const successRes = await api.post('/booking/payment/success', {
+        bookingId: bookingId,
+        paymentMethod: "RAZORPAY",
+        razorpayOrderId: data.razorpay_order_id,
+        razorpayPaymentId: data.razorpay_payment_id,
+        razorpaySignature: data.razorpay_signature,
+      });
+
+      if (successRes.data?.success) {
+        Alert.alert("Success", "Online payment verified successfully! Booking finalized.");
+        setShowWebViewModal(false);
+        setPaymentHtml(null);
+        setShowPaymentSheet(false);
+        resetPaymentSheetFields();
+        await fetchBooking();
+      } else {
+        throw new Error(successRes.data?.message || "Failed to confirm payment on backend");
+      }
+    } catch (err: any) {
+      console.error('Error in handleWebViewMessage:', err);
+      Alert.alert('Payment Error', err?.message || 'Failed to verify transaction');
+      setShowWebViewModal(false);
+      setPaymentHtml(null);
+      setPaying(false);
+    }
+  };
+
   const handleBalancePaymentOnline = async () => {
     try {
       setPaying(true);
 
-      const paymentUrl = `${api.defaults.baseURL}/booking/pay/${bookingId}?paymentType=BALANCE`;
+      // Create order via backend
+      const response = await api.post(`/booking/createorder/${bookingId}`, { paymentType: "BALANCE" });
+      const { keyId, orderId, amount } = response.data;
 
-      const result = await WebBrowser.openAuthSessionAsync(paymentUrl, 'gigiman://');
+      // Inject details into local HTML
+      const html = injectRazorpayData({
+        htmlTemplate: razorpayHTML,
+        keyId,
+        amountPaise: amount,
+        orderId,
+        prefillName: user?.fullName,
+        prefillEmail: user?.email,
+        prefillContact: user?.phone,
+      });
 
-      if (result.type === 'success' && result.url) {
-        const parsed = Linking.parse(result.url);
-        const { status } = parsed.queryParams || {};
-
-        if (status === 'success') {
-          Alert.alert("Success", "Online payment verified successfully! Booking finalized.");
-          setShowPaymentSheet(false);
-          resetPaymentSheetFields();
-          await fetchBooking();
-        } else {
-          const errMsg = parsed.queryParams?.message || 'Payment verification failed';
-          Alert.alert('Payment Failed', errMsg as string);
-        }
-      } else {
-        Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
-      }
+      setPaymentHtml(html);
+      setShowWebViewModal(true);
     } catch (err: any) {
       console.error('Payment error:', err);
       Alert.alert(
         'Payment Failed',
         err?.response?.data?.message || err.message || 'Payment process failed. Please try again.'
       );
-    } finally {
       setPaying(false);
     }
   };
@@ -1272,6 +1315,58 @@ export default function BookingOtp() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Client-Side WebView Modal for Razorpay Checkout */}
+      <Modal
+        visible={showWebViewModal}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => {
+          setShowWebViewModal(false);
+          setPaymentHtml(null);
+          setPaying(false);
+        }}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            backgroundColor: '#1e293b',
+            borderBottomWidth: 1,
+            borderBottomColor: '#334155'
+          }}>
+            <AppText weight="bold" size="body" style={{ color: '#f8fafc' }}>Payment Checkout</AppText>
+            <TouchableOpacity
+              onPress={() => {
+                setShowWebViewModal(false);
+                setPaymentHtml(null);
+                setPaying(false);
+              }}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="close" size={24} color="#f1f5f9" />
+            </TouchableOpacity>
+          </View>
+          {paymentHtml && (
+            <WebView
+              originWhitelist={["*"]}
+              source={{ html: paymentHtml }}
+              javaScriptEnabled
+              domStorageEnabled
+              onMessage={handleWebViewMessage}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#0f172a' }}>
+                  <ActivityIndicator size="large" color="#f97316" />
+                </View>
+              )}
+            />
+          )}
+        </SafeAreaView>
       </Modal>
     </View>
   );

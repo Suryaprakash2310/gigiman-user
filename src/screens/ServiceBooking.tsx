@@ -22,6 +22,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CryptoJS from 'crypto-js';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { WebView } from 'react-native-webview';
+import { razorpayHTML } from '@/src/utils/razorpayTemplate';
+import { injectRazorpayData } from '@/src/utils/razorpayInjector';
 
 import apiClient from '@/src/api/client';
 import AppButton from '@/src/components/ui/AppButton';
@@ -134,6 +137,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const [cardName, setCardName] = useState('');
   const [upiId, setUpiId] = useState('');
   const [paying, setPaying] = useState(false);
+  const [paymentHtml, setPaymentHtml] = useState<string | null>(null);
+  const [showWebViewModal, setShowWebViewModal] = useState(false);
 
   // Load service on mount
   useEffect(() => {
@@ -305,67 +310,105 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     setCurrentBookingId(null);
   };
 
+  const handleWebViewMessage = async (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      console.log('WebView payment message received:', data);
+
+      if (!data.success) {
+        Alert.alert("Payment Cancelled", data.reason === "dismissed" ? "Payment was cancelled by user" : "Payment failed");
+        setShowWebViewModal(false);
+        setPaymentHtml(null);
+        setPaying(false);
+        return;
+      }
+
+      // 1. Send payment success details to backend
+      const successRes = await apiClient.post('/booking/payment/success', {
+        bookingId: currentBookingId,
+        paymentMethod: "RAZORPAY",
+        razorpayOrderId: data.razorpay_order_id,
+        razorpayPaymentId: data.razorpay_payment_id,
+        razorpaySignature: data.razorpay_signature,
+      });
+
+      if (successRes.data?.success) {
+        // 2. Perform booking success local state updates
+        const bookingPrice = isCartCheckout ? filteredCartTotalPrice : ((category?.price || 0) * quantity);
+        const finalPrice = bookingPrice - discountAmount;
+        
+        upsertBooking({
+          _id: currentBookingId!,
+          serviceCategoryName: category?.serviceCategoryName || "Cart Checkout",
+          address: selectedAddress?.line1 || "Current Location",
+          status: 'searching',
+          totalPrice: finalPrice,
+          isScheduled: false,
+          paymentType,
+          advanceAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.18) : finalPrice,
+          remainingAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.82) : 0,
+        });
+
+        if (isCartCheckout) {
+          if (domainServiceId) {
+            await Promise.all(
+              filteredCartItems.map(item => removeFromCart(item.serviceCategoryId, true))
+            ).catch(err => console.log('Error removing items from cart:', err));
+          } else {
+            clearCart();
+          }
+        }
+
+        setShowWebViewModal(false);
+        setPaymentHtml(null);
+        setShowPaymentSheet(false);
+        resetPaymentSheetFields();
+
+        navigation.navigate('BookingTab', {
+          screen: 'Searching',
+          params: { bookingId: currentBookingId },
+        } as any);
+      } else {
+        throw new Error(successRes.data?.message || "Failed to confirm payment on backend");
+      }
+    } catch (err: any) {
+      console.error('Error in handleWebViewMessage:', err);
+      Alert.alert('Payment Error', err?.message || 'Failed to verify transaction');
+      setShowWebViewModal(false);
+      setPaymentHtml(null);
+      setPaying(false);
+    }
+  };
+
   const handleSimulatedPayment = async () => {
     if (!currentBookingId || !category) return;
 
     try {
       setPaying(true);
 
-      const paymentUrl = `${apiClient.defaults.baseURL}/booking/pay/${currentBookingId}?paymentType=${paymentType}`;
-      
-      const result = await WebBrowser.openAuthSessionAsync(paymentUrl, 'gigiman://');
+      // Create order via backend
+      const response = await apiClient.post(`/booking/createorder/${currentBookingId}`, { paymentType });
+      const { keyId, orderId, amount } = response.data;
 
-      if (result.type === 'success' && result.url) {
-        const parsed = Linking.parse(result.url);
-        const { status } = parsed.queryParams || {};
+      // Inject details into local HTML
+      const html = injectRazorpayData({
+        htmlTemplate: razorpayHTML,
+        keyId,
+        amountPaise: amount,
+        orderId,
+        prefillName: user?.fullName,
+        prefillEmail: user?.email,
+        prefillContact: user?.phone,
+      });
 
-        if (status === 'success') {
-          const bookingPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
-          const finalPrice = bookingPrice - discountAmount;
-          
-          upsertBooking({
-            _id: currentBookingId,
-            serviceCategoryName: category.serviceCategoryName,
-            address: selectedAddress?.line1 || "Current Location",
-            status: 'searching',
-            totalPrice: finalPrice,
-            isScheduled: false,
-            paymentType,
-            advanceAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.18) : finalPrice,
-            remainingAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.82) : 0,
-          });
-
-          if (isCartCheckout) {
-            if (domainServiceId) {
-              await Promise.all(
-                filteredCartItems.map(item => removeFromCart(item.serviceCategoryId, true))
-              ).catch(err => console.log('Error removing items from cart:', err));
-            } else {
-              clearCart();
-            }
-          }
-
-          setShowPaymentSheet(false);
-          resetPaymentSheetFields();
-
-          navigation.navigate('BookingTab', {
-            screen: 'Searching',
-            params: { bookingId: currentBookingId },
-          } as any);
-        } else {
-          const errMsg = parsed.queryParams?.message || 'Payment verification failed';
-          Alert.alert('Payment Failed', errMsg as string);
-        }
-      } else {
-        Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
-      }
+      setPaymentHtml(html);
+      setShowWebViewModal(true);
     } catch (err: any) {
       console.error('Payment error:', err);
       Alert.alert(
         'Payment Failed',
         err?.response?.data?.message || err.message || 'Payment process failed. Please try again.'
       );
-    } finally {
       setPaying(false);
     }
   };
@@ -896,6 +939,58 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Local WebView Modal for Razorpay Checkout */}
+      <Modal
+        visible={showWebViewModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {
+          setShowWebViewModal(false);
+          setPaymentHtml(null);
+          setPaying(false);
+        }}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            backgroundColor: '#1e293b',
+            borderBottomWidth: 1,
+            borderBottomColor: '#334155'
+          }}>
+            <AppText weight="bold" size="body" style={{ color: '#f8fafc' }}>Secure Razorpay Checkout</AppText>
+            <TouchableOpacity
+              onPress={() => {
+                setShowWebViewModal(false);
+                setPaymentHtml(null);
+                setPaying(false);
+              }}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="close" size={24} color="#f1f5f9" />
+            </TouchableOpacity>
+          </View>
+          {paymentHtml && (
+            <WebView
+              originWhitelist={["*"]}
+              source={{ html: paymentHtml }}
+              javaScriptEnabled
+              domStorageEnabled
+              onMessage={handleWebViewMessage}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#0f172a' }}>
+                  <ActivityIndicator size="large" color="#f97316" />
+                </View>
+              )}
+            />
+          )}
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );

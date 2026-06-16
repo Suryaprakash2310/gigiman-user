@@ -1,7 +1,10 @@
 import { useTheme } from "@/src/theme/useTheme";
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuthContext } from "@/src/context/AuthContext";
+import apiClient from "@/src/api/client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
