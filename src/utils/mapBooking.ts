@@ -64,12 +64,26 @@ export function mapBookingToBookingItem(
     booking.reviews ||
     0;
 
+  const techImage =
+    booking.technician?.image ||
+    booking.primaryEmployee?.image ||
+    booking.image ||
+    undefined;
+
   const price = booking.totalPrice ?? booking.cost ?? booking.amount;
 
   return {
     _id: booking._id,
 
-    serviceCategoryName: booking.serviceCategoryName ? booking.serviceCategoryName : booking.serviceCategory ? [booking.serviceCategory] : [],
+    serviceCategoryName: booking.serviceCategoryName
+      ? (Array.isArray(booking.serviceCategoryName)
+        ? booking.serviceCategoryName.join(", ")
+        : String(booking.serviceCategoryName))
+      : booking.serviceCategory
+      ? (Array.isArray(booking.serviceCategory)
+        ? booking.serviceCategory.join(", ")
+        : String(booking.serviceCategory))
+      : "",
     totalPrice: price,
 
     dateLabel: booking.scheduleDateTime
@@ -89,6 +103,10 @@ export function mapBookingToBookingItem(
     name: techName,
     rating: techRating,
     reviews: techReviews,
+    image: techImage,
+    phone: booking.technician?.phoneNo || booking.primaryEmployee?.phoneNo || booking.primaryEmployee?.phoneno || booking.externalTechnicianPhone || undefined,
+    eta: booking.eta || booking.location?.eta || undefined,
+    cartItems: booking.cartItems || [],
 
     extraServices: booking.extraServices || [],
 
@@ -101,5 +119,6 @@ export function mapBookingToBookingItem(
     advanceAmount: booking.advanceAmount,
     remainingAmount: booking.remainingAmount,
     rawStatus: booking.status,
+    isManuallyAssigned: booking.isManuallyAssigned,
   };
 }

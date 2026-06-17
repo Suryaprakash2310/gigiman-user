@@ -55,6 +55,18 @@ export type BookingItem = {
   advanceAmount?: number;
   remainingAmount?: number;
   rawStatus?: string;
+  image?: string;
+  isManuallyAssigned?: boolean;
+  phone?: string;
+  eta?: string;
+  cartItems?: {
+    serviceCategoryId: string;
+    serviceCategoryName: string;
+    price: number;
+    durationInMinutes?: number;
+    employeeCount?: number;
+    quantity: number;
+  }[];
 };
 
 export type ServiceProposal = {
@@ -260,7 +272,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       bookings.filter(
         b =>
           ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
-          b.assignmentStatus !== "FAILED"
+          b.assignmentStatus !== "FAILED" &&
+          !b.isManuallyAssigned
       ),
     [bookings]
   );
@@ -270,7 +283,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       bookings.filter(
         b =>
           ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
-          b.assignmentStatus !== "FAILED"
+          b.assignmentStatus !== "FAILED" &&
+          !b.isManuallyAssigned
       ),
     [bookings]
   );
@@ -278,9 +292,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const manualBookings = useMemo(
     () =>
       bookings.filter(
-        b =>
-          b.assignmentStatus === "FAILED" &&
-          (b.paymentStatus === "paid" || b.paymentStatus === "partially_paid")
+        b => (b.assignmentStatus === "FAILED" || b.isManuallyAssigned) &&
+             b.status !== "completed" &&
+             b.status !== "cancelled"
       ),
     [bookings]
   );

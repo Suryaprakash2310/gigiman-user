@@ -163,7 +163,7 @@ export default function BookingSearchScreen() {
     ) {
       navigation.replace("BookingDetails", { bookingId });
     } else if (booking.assignmentStatus === "FAILED") {
-      navigation.navigate("HomeTab", { screen: "Notifications" });
+      navigation.navigate("BookingsMain", { activeTab: "manualAssignment" });
     }
 
   }, [bookings, bookingId, navigation]);

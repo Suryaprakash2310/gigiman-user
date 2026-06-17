@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -45,6 +46,13 @@ export default function BookingScreen() {
       setActiveTab("upcoming");
     }
   }, [route.params?.activeTab]);
+
+  // Auto-switch tabs if a manual booking gets assigned
+  useEffect(() => {
+    if (activeTab === "manualAssignment" && (manualBookings?.length || 0) === 0 && ongoing.length > 0) {
+      setActiveTab("ongoing");
+    }
+  }, [manualBookings?.length, ongoing.length, activeTab]);
 
   // History state
   const [historyBookings, setHistoryBookings] = useState<BookingItem[]>([]);
@@ -173,7 +181,12 @@ export default function BookingScreen() {
       </View>
 
       {/* TABS */}
-      <View style={styles.tabRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabScrollStyle}
+        contentContainerStyle={styles.tabRow}
+      >
         {tabs.map((tab) => {
           const active = tab.key === activeTab;
           return (
@@ -209,7 +222,7 @@ export default function BookingScreen() {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* LOADING (History tab) */}
       {activeTab === "history" && historyLoading && (
@@ -284,10 +297,14 @@ const createStyles = (theme: any) =>
     headerRow: {
       marginBottom: 12,
     },
+    tabScrollStyle: {
+      maxHeight: 48,
+      marginBottom: 12,
+    },
     tabRow: {
       flexDirection: "row",
       gap: 8,
-      marginBottom: 12,
+      paddingRight: 16,
     },
     tabButton: {
       flexDirection: "row",

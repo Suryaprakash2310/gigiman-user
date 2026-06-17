@@ -25,10 +25,17 @@ export default function GlobalBookingListener() {
 
       upsertBooking(mapped);
 
-      navigation.navigate("BookingTab", {
-        screen: "BookingDetails",
-        params: { bookingId: booking._id },
-      });
+      if (mapped.assignmentStatus === "FAILED") {
+        navigation.navigate("BookingTab", {
+          screen: "BookingsMain",
+          params: { activeTab: "manualAssignment" },
+        });
+      } else {
+        navigation.navigate("BookingTab", {
+          screen: "BookingDetails",
+          params: { bookingId: booking._id },
+        });
+      }
     };
 
     /* otp generated */
@@ -70,8 +77,9 @@ export default function GlobalBookingListener() {
       addLocalNotification(localNotification);
       fetchNotifications?.(true);
 
-      navigation.navigate("HomeTab", {
-        screen: "Notifications",
+      navigation.navigate("BookingTab", {
+        screen: "BookingsMain",
+        params: { activeTab: "manualAssignment" },
       });
     };
 

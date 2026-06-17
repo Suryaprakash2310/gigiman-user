@@ -1,7 +1,7 @@
 import { useTheme } from '@/src/theme/useTheme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import AppCard from './ui/AppCard';
 import AppText from './ui/AppText';
 
@@ -10,9 +10,12 @@ interface BookingDetailsCardProps {
     name: string;
     role: string;
     experience: string;
-    rating: number;
-    reviews: number;
+    rating?: number;
+    reviews?: number;
     image?: string;
+    eta?: string;
+    phone?: string;
+    onCallPress?: () => void;
 }
 
 export default function BookingDetailsCard({
@@ -22,6 +25,9 @@ export default function BookingDetailsCard({
     rating,
     reviews,
     image,
+    eta,
+    phone,
+    onCallPress,
 }: BookingDetailsCardProps) {
     const { theme } = useTheme();
 
@@ -29,11 +35,18 @@ export default function BookingDetailsCard({
         <AppCard style={styles.card}>
             <View style={styles.content}>
                 <View style={styles.imageContainer}>
-                    {/* Placeholder for image if not provided, or use a default avatar */}
-                    <Image
-                        source={{ uri: image || 'https://randomuser.me/api/portraits/men/32.jpg' }}
-                        style={styles.image}
-                    />
+                    {image && image.startsWith("http") ? (
+                        <Image
+                            source={{ uri: image }}
+                            style={styles.image}
+                        />
+                    ) : (
+                        <View style={[styles.avatarCircle, { backgroundColor: theme.colors.primary + '20' }]}>
+                            <AppText size="h1" weight="bold" style={{ color: theme.colors.primary, fontSize: 36 }}>
+                                {name ? name.charAt(0).toUpperCase() : "?"}
+                            </AppText>
+                        </View>
+                    )}
                 </View>
 
                 <AppText size="h3" weight="bold" style={styles.name}>
@@ -44,12 +57,32 @@ export default function BookingDetailsCard({
                     {role} • {experience}
                 </AppText>
 
-                <View style={styles.ratingContainer}>
-                    <Ionicons name="star" size={16} color="#F59E0B" />
-                    <AppText size="body" weight="bold" style={styles.ratingText}>
-                        {' '}{rating} <AppText color="textMuted" size="body">({reviews} reviews)</AppText>
-                    </AppText>
-                </View>
+                {eta ? (
+                    <View style={styles.infoRow}>
+                        <Ionicons name="time-outline" size={16} color={theme.colors.primary} />
+                        <AppText size="body" weight="medium" style={styles.infoText}>
+                            Estimated Arrival Time: {eta}
+                        </AppText>
+                    </View>
+                ) : null}
+
+                {phone ? (
+                    <View style={styles.infoRow}>
+                        <Ionicons name="call-outline" size={16} color={theme.colors.primary} />
+                        <AppText size="body" weight="medium" style={styles.infoText}>
+                            Phone: {phone}
+                        </AppText>
+                    </View>
+                ) : null}
+
+                {onCallPress ? (
+                    <TouchableOpacity style={[styles.callBtn, { backgroundColor: theme.colors.primary }]} onPress={onCallPress}>
+                        <Ionicons name="call" size={16} color="white" />
+                        <AppText weight="bold" style={styles.callBtnText}>
+                            Call Technician
+                        </AppText>
+                    </TouchableOpacity>
+                ) : null}
             </View>
         </AppCard>
     );
@@ -90,17 +123,37 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#64748B',
     },
-    ratingContainer: {
+    infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#FFFBEB',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 20,
+        marginTop: 6,
+        gap: 6,
     },
-    ratingText: {
-        marginLeft: 6,
-        color: '#0F172A',
+    infoText: {
+        color: '#475569',
+        fontSize: 14,
+    },
+    callBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        marginTop: 16,
+        gap: 8,
+    },
+    callBtnText: {
+        color: 'white',
+        fontSize: 14,
+    },
+    avatarCircle: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F1F5F9',
     },
 });

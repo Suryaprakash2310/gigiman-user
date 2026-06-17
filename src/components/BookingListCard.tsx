@@ -84,12 +84,21 @@ export default function BookingListCard({ booking, onPress }: Props) {
           </AppText>
 
           {booking.totalPrice && (
-            <AppText
-              weight="bold"
-              style={{ color: theme.colors.primary }}
-            >
-              ₹{booking.totalPrice}
-            </AppText>
+            <View style={{ alignItems: "flex-end" }}>
+              <AppText
+                weight="bold"
+                style={{ color: theme.colors.primary }}
+              >
+                ₹{booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && booking.remainingAmount != null
+                  ? booking.remainingAmount
+                  : booking.totalPrice}
+              </AppText>
+              {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (
+                <AppText size="caption" color="textMuted" style={{ fontSize: 10 }}>
+                  Remaining Bal.
+                </AppText>
+              )}
+            </View>
           )}
         </View>
 
@@ -121,7 +130,7 @@ export default function BookingListCard({ booking, onPress }: Props) {
             </AppText>
           </View>
 
-          {(booking.status === "in_progress" || booking.status === "completed") &&
+          {(booking.status === "in_progress" || booking.status === "completed" || booking.status === "assigned" || booking.status === "otp") &&
             booking.name && (
               <AppText size="small" color="textMuted">
                 {booking.status === "completed" ? "By" : "With"} {booking.name}

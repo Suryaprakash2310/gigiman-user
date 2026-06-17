@@ -16,6 +16,7 @@ import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
 import { useNotifications } from "@/src/context/NotificationContext";
 import { NotificationItem } from "@/src/api/notification.api";
+import { useBooking } from "@/src/context/BookingContext";
 
 export default function NotificationScreen() {
   const { theme } = useTheme();
@@ -31,8 +32,13 @@ export default function NotificationScreen() {
     markAllAsRead,
     markAsRead,
   } = useNotifications();
+  const { bookings } = useBooking();
 
   const [refreshing, setRefreshing] = useState(false);
+
+  React.useEffect(() => {
+    fetchNotifications(true);
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -143,6 +149,20 @@ export default function NotificationScreen() {
         onPress={() => {
           if (!item.isRead) {
             markAsRead(item._id);
+          }
+          if (bookingRef) {
+            const bookingObj = bookings.find(b => String(b._id) === String(bookingRef));
+            if (item.type === "FAILED_BOOKING" || bookingObj?.assignmentStatus === "FAILED" || item.title === "Technician Assigned") {
+              (navigation as any).navigate("BookingTab", {
+                screen: "BookingsMain",
+                params: { activeTab: "manualAssignment" },
+              });
+            } else {
+              (navigation as any).navigate("BookingTab", {
+                screen: "BookingDetails",
+                params: { bookingId: bookingRef },
+              });
+            }
           }
         }}
         style={[

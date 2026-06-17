@@ -51,12 +51,13 @@ export default function BookingOtp() {
   const { user } = useAuth();
   const route = useRoute<DetailsRoute>();
   const { bookingId } = route.params;
-  const { getBookingById, upsertBooking, cancelBooking } = useBooking();
+  const { getBookingById, upsertBooking, cancelBooking, updateBookingItem } = useBooking();
 
   const booking = getBookingById(bookingId);
   const serviceProposal = booking?.pendingServiceProposal;
   const proposalScale = useSharedValue(0);
   const bookingRef = React.useRef(booking);
+
 
   // Payment states for Remaining Balance
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
@@ -314,10 +315,8 @@ export default function BookingOtp() {
   };
 
   useEffect(() => {
-    if (!booking?.name) {
-      fetchBooking();
-    }
-  }, [bookingId, booking?.name]);
+    fetchBooking();
+  }, [bookingId]);
 
 
   // useEffect(() => {
@@ -726,180 +725,16 @@ export default function BookingOtp() {
               ? 'Service Completed!'
               : booking.status === 'in_progress'
               ? 'Service in Progress'
-              : booking.status === 'assigned'
+              : (booking.status === 'assigned' || booking.status === 'otp')
               ? 'Technician Assigned!'
-              : booking.assignmentStatus === 'FAILED'
+              : (booking.assignmentStatus === 'FAILED' && !booking.isManuallyAssigned)
               ? 'Awaiting Manual Assignment'
               : 'Searching Technician...'}
           </AppText>
         </View>
 
         <Animated.View style={animatedContentStyle}>
-          {/* Service Timeline Section */}
-          <AppCard style={styles.timelineCard}>
-            <AppText weight="bold" size="h3" style={{ marginBottom: 16 }}>
-              Service Timeline
-            </AppText>
-            {(() => {
-              const getTimelineSteps = (): { title: string; subtitle?: string; status: 'completed' | 'active' | 'upcoming' | 'failed' }[] => {
-                const status = booking.rawStatus || booking.status;
-                const paymentStatus = booking.paymentStatus;
-                const assignmentStatus = booking.assignmentStatus;
-                const isAdvance = booking.paymentType === 'ADVANCE';
 
-                const steps: { title: string; subtitle?: string; status: 'completed' | 'active' | 'upcoming' | 'failed' }[] = [];
-
-                steps.push({
-                  title: "Booking Initiated",
-                  subtitle: "Your booking request has been registered",
-                  status: "completed",
-                });
-
-                let payStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
-                let paySub = "Upfront payment required";
-                if (paymentStatus === 'paid' || paymentStatus === 'partially_paid') {
-                  payStatus = 'completed';
-                  paySub = isAdvance ? "Advance payment verified (18%)" : "Full payment verified (100%)";
-                } else if (status === 'pending') {
-                  payStatus = 'active';
-                  paySub = "Awaiting checkout payment";
-                }
-                steps.push({
-                  title: "Upfront Payment",
-                  subtitle: paySub,
-                  status: payStatus,
-                });
-
-                let searchStatus: 'completed' | 'active' | 'upcoming' | 'failed' = 'upcoming';
-                let searchSub = "Waiting to find a provider";
-                if (['assigned', 'in_progress', 'completed'].includes(status)) {
-                  searchStatus = 'completed';
-                  searchSub = "Provider found and matched";
-                } else if (assignmentStatus === 'FAILED') {
-                  searchStatus = 'failed';
-                  searchSub = "Auto-assign timed out. Admin manual assignment initiated.";
-                } else if (status === 'confirmed' || assignmentStatus === 'SEARCHING') {
-                  searchStatus = 'active';
-                  searchSub = "Searching for nearby providers...";
-                }
-                steps.push({
-                  title: "Provider Match",
-                  subtitle: searchSub,
-                  status: searchStatus,
-                });
-
-                let assignedStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
-                let assignedSub = "Awaiting provider details";
-                if (['in_progress', 'completed'].includes(status)) {
-                  assignedStatus = 'completed';
-                  assignedSub = `Assigned to ${booking.name || 'Technician'}`;
-                } else if (status === 'assigned') {
-                  assignedStatus = 'active';
-                  assignedSub = `Technician ${booking.name || 'assigned'}. OTP: ${booking.otp || '----'}`;
-                }
-                steps.push({
-                  title: "Provider Assigned",
-                  subtitle: assignedSub,
-                  status: assignedStatus,
-                });
-
-                let executionStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
-                let executionSub = "Service will start after provider verification";
-                if (status === 'completed') {
-                  executionStatus = 'completed';
-                  executionSub = "Service successfully completed";
-                } else if (status === 'in_progress') {
-                  executionStatus = 'active';
-                  executionSub = "Service is currently in progress...";
-                }
-                steps.push({
-                  title: "Service Execution",
-                  subtitle: executionSub,
-                  status: executionStatus,
-                });
-
-                if (isAdvance) {
-                  let balStatus: 'completed' | 'active' | 'upcoming' = 'upcoming';
-                  let balSub = "To be paid after completion";
-                  if (paymentStatus === 'paid') {
-                    balStatus = 'completed';
-                    balSub = "Remaining balance (82%) paid and verified";
-                  } else if (status === 'completed' && paymentStatus === 'partially_paid') {
-                    balStatus = 'active';
-                    balSub = "Awaiting remaining balance collection";
-                  }
-                  steps.push({
-                    title: "Remaining Balance Payment",
-                    subtitle: balSub,
-                    status: balStatus,
-                  });
-                }
-
-                return steps;
-              };
-
-              const steps = getTimelineSteps();
-
-              return steps.map((step, idx) => {
-                const isLast = idx === steps.length - 1;
-                let iconName: any = "ellipse-outline";
-                let color = theme.colors.textMuted;
-                
-                if (step.status === 'completed') {
-                  iconName = "checkmark-circle";
-                  color = theme.colors.success;
-                } else if (step.status === 'active') {
-                  iconName = "play-circle";
-                  color = theme.colors.primary;
-                } else if (step.status === 'failed') {
-                  iconName = "alert-circle";
-                  color = theme.colors.danger;
-                }
-
-                return (
-                  <View key={idx} style={styles.timelineRow}>
-                    <View style={styles.timelineIndicator}>
-                      <Ionicons name={iconName} size={20} color={color} />
-                      {!isLast && (
-                        <View
-                          style={[
-                            styles.timelineLine,
-                            {
-                              backgroundColor:
-                                step.status === 'completed'
-                                  ? theme.colors.success
-                                  : theme.colors.border,
-                            },
-                          ]}
-                        />
-                      )}
-                    </View>
-                    <View style={styles.timelineContent}>
-                      <AppText
-                        weight={step.status === 'active' ? 'bold' : 'semibold'}
-                        size="body"
-                        style={{
-                          color:
-                            step.status === 'active'
-                              ? theme.colors.text
-                              : step.status === 'completed'
-                              ? theme.colors.text
-                              : theme.colors.textMuted,
-                        }}
-                      >
-                        {step.title}
-                      </AppText>
-                      {step.subtitle && (
-                        <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
-                          {step.subtitle}
-                        </AppText>
-                      )}
-                    </View>
-                  </View>
-                );
-              });
-            })()}
-          </AppCard>
 
           {/* Remaining Balance Payment Section */}
           {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && ['in_progress', 'completed'].includes(booking.status) && (
@@ -958,19 +793,20 @@ export default function BookingOtp() {
           )}
 
           {/* Technician Card */}
-          {booking.name && ['assigned', 'in_progress', 'completed'].includes(booking.status) && (
+          {booking.name && (['assigned', 'otp', 'in_progress', 'completed'].includes(booking.status) || booking.assignmentStatus === 'FAILED') && (
             <BookingDetailsCard
               name={booking.name ?? "Assigned Technician"}
               role={booking.serviceCategoryName}
               experience="5 years exp"
-              rating={booking.rating ?? 4.9}
-              reviews={booking.reviews ?? 0}
-              image="https://randomuser.me/api/portraits/men/32.jpg"
+              image={booking.image}
+              eta={booking.eta}
+              phone={booking.phone}
+              onCallPress={handleCallPress}
             />
           )}
 
           {/* OTP Section */}
-          {booking.status === 'assigned' && booking.otp && (
+          {booking.rawStatus?.toLowerCase() === 'accepted' && booking.otp && (
             <View
               style={[
                 styles.otpContainer,
@@ -1135,7 +971,7 @@ export default function BookingOtp() {
 
 
           {/* Arrival & Summary */}
-          {['assigned', 'in_progress'].includes(booking.status) && (
+          {booking.rawStatus?.toLowerCase() === 'accepted' && (
             <AppCard style={styles.arrivalCard}>
               <View style={styles.arrivalHeader}>
                 <View
@@ -1173,29 +1009,66 @@ export default function BookingOtp() {
                 Booking Summary
               </AppText>
 
-              <View style={styles.summaryRow}>
-                <AppText style={{ color: "#475569" }}>Service</AppText>
-                <AppText style={{ color: "#475569" }}>
-                  {booking.serviceCategoryName}
-                </AppText>
-              </View>
+              {booking.cartItems && booking.cartItems.length > 0 ? (
+                booking.cartItems.map((item, index) => (
+                  <View key={item._id || item.serviceCategoryId || index} style={styles.summaryRow}>
+                    <AppText style={{ color: "#475569" }}>
+                      {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ""}
+                    </AppText>
+                    <AppText style={{ color: "#0F172A" }}>
+                      ₹{item.price * (item.quantity || 1)}
+                    </AppText>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.summaryRow}>
+                  <AppText style={{ color: "#475569" }}>Service</AppText>
+                  <AppText style={{ color: "#0F172A" }}>
+                    {booking.serviceCategoryName}
+                  </AppText>
+                </View>
+              )}
 
               {booking.extraServices?.filter(s => s.status === "APPROVED").map((extra, index) => (
                 <View key={extra._id || index} style={styles.summaryRow}>
                   <AppText style={{ color: "#475569" }}>+ {extra.serviceName}</AppText>
-                  <AppText style={{ color: "#475569" }}>
+                  <AppText style={{ color: "#0F172A" }}>
                     ₹{extra.price}
                   </AppText>
                 </View>
               ))}
 
               <View style={styles.divider} />
-              <View style={styles.summaryRow}>
-                <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
-                <AppText style={{ color: "#0F766E" }} weight="bold">
-                  ₹{booking.totalPrice}
-                </AppText>
-              </View>
+              {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' ? (
+                <>
+                  <View style={styles.summaryRow}>
+                    <AppText style={{ color: "#475569" }}>Total Price</AppText>
+                    <AppText style={{ color: "#0F172A" }}>
+                      ₹{booking.totalPrice}
+                    </AppText>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <AppText style={{ color: "#475569" }}>Advance Paid (18%)</AppText>
+                    <AppText style={{ color: "#0F172A" }} weight="medium">
+                      -₹{booking.advanceAmount}
+                    </AppText>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.summaryRow}>
+                    <AppText style={{ color: "#0F172A" }} weight="bold">Remaining Balance</AppText>
+                    <AppText style={{ color: "#0F172A" }} weight="bold" size="h3">
+                      ₹{booking.remainingAmount}
+                    </AppText>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.summaryRow}>
+                  <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
+                  <AppText style={{ color: "#0F172A" }} weight="bold">
+                    ₹{booking.totalPrice}
+                  </AppText>
+                </View>
+              )}
 
               <View style={styles.divider} />
 
@@ -1233,23 +1106,12 @@ export default function BookingOtp() {
                 </View>
               </View>
             </View>
-          </AppCard>
-        </Animated.View>
+            </AppCard>
+
+          </Animated.View>
       </ScrollView>
 
-      {/* Footer */}
-      {['assigned', 'in_progress'].includes(booking.status) && (
-        <View style={[styles.footer, { backgroundColor: "#F8FAFC" }]}>
-          <TouchableOpacity
-            style={[styles.trackButton, { backgroundColor: brightCyan }]}
-            onPress={() => navigation.navigate("LiveTracking", { bookingId })}
-          >
-            <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
-              Track Technician
-            </AppText>
-          </TouchableOpacity>
-        </View>
-      )}
+
 
       {/* Simulated Payment Sheet Modal for Balance Payment */}
       <Modal
@@ -1706,4 +1568,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     backgroundColor: "#F8FAFC",
   },
+
 });
