@@ -1,13 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Alert } from "react-native";
 import { socket } from "@/src/socket/socket";
 import { useBooking } from "@/src/context/BookingContext";
+import { useNotifications } from "@/src/context/NotificationContext";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 
 export default function GlobalBookingListener() {
   const navigation = useNavigation<any>();
-  const { upsertBooking, updateStatus, updateBookingItem } = useBooking();
+  const { bookings, upsertBooking, updateStatus, updateBookingItem } = useBooking();
+  const { addLocalNotification, fetchNotifications } = useNotifications();
+
+  const bookingsRef = useRef(bookings);
+  useEffect(() => {
+    bookingsRef.current = bookings;
+  }, [bookings]);
 
   useEffect(() => {
     if (!socket) return;
@@ -37,16 +44,43 @@ export default function GlobalBookingListener() {
       } as any);
     };
 
+    const handleAssignmentFailure = (bookingId: string) => {
+      updateBookingItem(bookingId, { assignmentStatus: "FAILED" });
+      
+      const booking = bookingsRef.current.find(b => String(b._id) === String(bookingId));
+      
+      const localNotification = {
+        _id: `failed_${bookingId}_${Date.now()}`,
+        userId: null,
+        title: "Service Assignment Delayed",
+        message: "Your booking has been confirmed. We are currently unable to assign a technician automatically. Our team will manually assign a technician shortly.",
+        description: "Booking advance payment is completed and admin will assign a service provider manually.",
+        isRead: false,
+        type: "FAILED_BOOKING" as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        bookingId: bookingId,
+        serviceName: booking?.serviceCategoryName || "Home Service",
+        serviceDetails: booking?.serviceCategoryName ? `${booking.serviceCategoryName} (x1)` : undefined,
+        metadata: {
+          bookingReference: bookingId,
+        }
+      };
+
+      addLocalNotification(localNotification);
+      fetchNotifications?.(true);
+
+      navigation.navigate("HomeTab", {
+        screen: "Notifications",
+      });
+    };
+
     /* no provider available */
     const onNoProvider = (payload: any) => {
       console.log("[SOCKET RECEIVE] ❌ no-servicer-available payload:", payload);
       const bookingId = payload?.bookingId || payload;
       if (bookingId && typeof bookingId === "string") {
-        updateBookingItem(bookingId, { assignmentStatus: "FAILED" });
-        navigation.navigate("BookingTab", {
-          screen: "BookingDetails",
-          params: { bookingId },
-        });
+        handleAssignmentFailure(bookingId);
       }
     };
 
@@ -55,11 +89,7 @@ export default function GlobalBookingListener() {
       console.log("[SOCKET RECEIVE] ❌ no-team-available payload:", payload);
       const bookingId = payload?.bookingId || payload;
       if (bookingId && typeof bookingId === "string") {
-        updateBookingItem(bookingId, { assignmentStatus: "FAILED" });
-        navigation.navigate("BookingTab", {
-          screen: "BookingDetails",
-          params: { bookingId },
-        });
+        handleAssignmentFailure(bookingId);
       }
     };
 
@@ -85,8 +115,8 @@ export default function GlobalBookingListener() {
       }
     };
 
-   // socket.on("servicer-accepted", onServicerAccepted);
-   socket.on("servicer-accepted", onServicerAccepted);
+    // socket.on("servicer-accepted", onServicerAccepted);
+    socket.on("servicer-accepted", onServicerAccepted);
     socket.on("otp-generated", onOtpGenerated);
     socket.on("no-servicer-available", onNoProvider);
     socket.on("no-team-available", onNoTeam);

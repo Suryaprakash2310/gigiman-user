@@ -40,7 +40,7 @@ export const lightTheme: AppTheme = {
     danger: '#EF4444',
     cardShadow: 'rgba(0,0,0,0.06)',
     splashColor: '#285B5B',
-    button:'#c02bffff'
+    button:'#1d1145'
   },
 };
 
@@ -65,7 +65,7 @@ export const darkTheme: AppTheme = {
     danger: '#F87171',
     cardShadow: 'rgba(0,0,0,0.55)',
     splashColor: '#285B5B',
-    button:'#c02bffff'
+    button:'#285B5B'
   },
 };
 

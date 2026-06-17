@@ -25,6 +25,7 @@ interface NotificationContextProps {
   fetchNotifications: (reset?: boolean) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
+  addLocalNotification: (notification: NotificationItem) => void;
 }
 
 const NotificationContext = createContext<NotificationContextProps | undefined>(undefined);
@@ -242,6 +243,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const addLocalNotification = React.useCallback((notification: NotificationItem) => {
+    setNotifications((prev) => {
+      if (prev.some((n) => n._id === notification._id)) {
+        return prev;
+      }
+      return [notification, ...prev];
+    });
+    if (!notification.isRead) {
+      setUnreadCount((prev) => prev + 1);
+    }
+  }, []);
+
   return (
     <NotificationContext.Provider
       value={{
@@ -253,6 +266,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         fetchNotifications,
         markAllAsRead,
         markAsRead,
+        addLocalNotification,
       }}
     >
       {children}

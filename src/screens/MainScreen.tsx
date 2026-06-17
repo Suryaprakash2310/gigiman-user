@@ -26,6 +26,7 @@ import { BannerAPI } from "../api/banner.api";
 import { getBanners, getPopularServices } from "../api/dashboard.api";
 import { useAuthContext } from "@/src/context/AuthContext";
 import { useNotifications } from "@/src/context/NotificationContext";
+import { useCartContext } from "@/src/context/CartContext";
 
 const SPACING = 20;
 const CARD_RADIUS = 24;
@@ -142,6 +143,7 @@ export default function HomeScreen() {
 const Header = ({ user, navigation }: any) => {
   const { theme } = useTheme();
   const { unreadCount } = useNotifications();
+  const { cartItems } = useCartContext();
 
   return (
     <View style={headerStyles.container}>
@@ -155,6 +157,30 @@ const Header = ({ user, navigation }: any) => {
       </View>
 
       <View style={headerStyles.rightSection}>
+        {/* Cart Icon Button */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate("ServiceTab", { screen: "CartScreen" } as any)}
+          style={[headerStyles.actionBtn, { backgroundColor: theme.colors.surface }]}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="cart-outline" size={22} color={theme.colors.button} />
+          {cartItems.length > 0 && (
+            <View style={[headerStyles.badge, { backgroundColor: theme.colors.primary }]}>
+              <AppText
+                weight="bold"
+                style={{
+                  color: "#fff",
+                  fontSize: cartItems.length > 9 ? 8 : 10,
+                  textAlign: "center",
+                  lineHeight: 14,
+                }}
+              >
+                {cartItems.length > 9 ? "9+" : cartItems.length}
+              </AppText>
+            </View>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => navigation.navigate("Notifications" as any)}
           style={[headerStyles.actionBtn, { backgroundColor: theme.colors.surface }]}
@@ -174,16 +200,6 @@ const Header = ({ user, navigation }: any) => {
               >
                 {unreadCount > 9 ? "9+" : unreadCount}
               </AppText>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate("ProfileTab")} activeOpacity={0.8}>
-          {user?.avatar ? (
-            <Image source={{ uri: user.avatar }} style={headerStyles.avatar} />
-          ) : (
-            <View style={[headerStyles.avatar, { backgroundColor: theme.colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: theme.colors.border }]}>
-              <Ionicons name="person" size={20} color={theme.colors.primary} />
             </View>
           )}
         </TouchableOpacity>

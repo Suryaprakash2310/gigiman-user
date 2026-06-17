@@ -17,7 +17,7 @@ import BookingListCard from "../components/BookingListCard";
 import AppHeader from "../components/ui/AppHeader";
 import { BookingParamList } from "../navigation/stacks/BookingStack";
 
-type TabType = "ongoing" | "upcoming" | "history";
+type TabType = "ongoing" | "manualAssignment" | "upcoming" | "history";
 type BookingRouteProp = RouteProp<BookingParamList, "BookingsMain">;
 
 export default function BookingScreen() {
@@ -25,7 +25,7 @@ export default function BookingScreen() {
   const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const route = useRoute<BookingRouteProp>();
-  const { ongoing, upcoming } = useBooking();
+  const { ongoing, upcoming, manualBookings } = useBooking();
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
@@ -39,6 +39,8 @@ export default function BookingScreen() {
     // 2. If no param, auto-select based on status
     else if (ongoing.length > 0) {
       setActiveTab("ongoing");
+    } else if (manualBookings?.length > 0) {
+      setActiveTab("manualAssignment");
     } else if (upcoming.length > 0) {
       setActiveTab("upcoming");
     }
@@ -89,6 +91,7 @@ export default function BookingScreen() {
   // Get data for current tab
   const getTabData = (): BookingItem[] => {
     if (activeTab === "history") return historyBookings;
+    if (activeTab === "manualAssignment") return manualBookings || [];
 
     const rawData = activeTab === "ongoing" ? ongoing : upcoming;
     return rawData.filter(
@@ -137,6 +140,11 @@ export default function BookingScreen() {
           title: "No Oncoming Services",
           subtitle: "Book a service and track its live status here.",
         };
+      case "manualAssignment":
+        return {
+          title: "No Bookings Pending Assignment",
+          subtitle: "Bookings awaiting admin manual assignment will show here.",
+        };
       case "upcoming":
         return {
           title: "No Upcoming Services",
@@ -153,6 +161,7 @@ export default function BookingScreen() {
   const tabs: { key: TabType; label: string; icon: string }[] = [
     { key: "ongoing", label: "Oncoming", icon: "pulse-outline" },
     { key: "upcoming", label: "Upcoming", icon: "calendar-outline" },
+    { key: "manualAssignment", label: "Awaiting Manual Assignment", icon: "person-add-outline" },
     { key: "history", label: "History", icon: "time-outline" },
   ];
 
@@ -220,9 +229,11 @@ export default function BookingScreen() {
               name={
                 activeTab === "ongoing"
                   ? "construct-outline"
-                  : activeTab === "upcoming"
-                    ? "calendar-outline"
-                    : "checkmark-done-outline"
+                  : activeTab === "manualAssignment"
+                    ? "person-add-outline"
+                    : activeTab === "upcoming"
+                      ? "calendar-outline"
+                      : "checkmark-done-outline"
               }
               size={40}
               color="#9CA3AF"

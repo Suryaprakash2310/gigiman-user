@@ -76,6 +76,7 @@ type BookingContextType = {
   bookings: BookingItem[];
   ongoing: BookingItem[];
   upcoming: BookingItem[];
+  manualBookings: BookingItem[];
 
   upsertBooking: (booking: BookingItem) => void;
   updateBookingItem: (id: string, updates: Partial<BookingItem>) => void;
@@ -258,7 +259,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     () =>
       bookings.filter(
         b =>
-          ["searching", "otp", "in_progress", "assigned"].includes(b.status)
+          ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
+          b.assignmentStatus !== "FAILED"
       ),
     [bookings]
   );
@@ -267,7 +269,18 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     () =>
       bookings.filter(
         b =>
-          ["searching", "otp", "in_progress", "assigned"].includes(b.status)
+          ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
+          b.assignmentStatus !== "FAILED"
+      ),
+    [bookings]
+  );
+
+  const manualBookings = useMemo(
+    () =>
+      bookings.filter(
+        b =>
+          b.assignmentStatus === "FAILED" &&
+          (b.paymentStatus === "paid" || b.paymentStatus === "partially_paid")
       ),
     [bookings]
   );
@@ -286,6 +299,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         bookings,
         ongoing,
         upcoming,
+        manualBookings,
         upsertBooking,
         updateBookingItem,
         updateStatus,

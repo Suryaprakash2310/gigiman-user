@@ -15,6 +15,14 @@ export default function BookingListCard({ booking, onPress }: Props) {
   const styles = createStyles(theme);
 
   const getStatusConfig = () => {
+    if (booking.assignmentStatus === "FAILED") {
+      return {
+        label: "Awaiting manual assignment",
+        bg: "#FEE2E2",
+        color: "#DC2626",
+      };
+    }
+
     switch (booking.status) {
       case "searching":
         return {

@@ -159,10 +159,11 @@ export default function BookingSearchScreen() {
 
     if (
       booking.status === "otp" ||
-      (booking.status as string) === "assigned" ||
-      booking.assignmentStatus === "FAILED"
+      (booking.status as string) === "assigned"
     ) {
       navigation.replace("BookingDetails", { bookingId });
+    } else if (booking.assignmentStatus === "FAILED") {
+      navigation.navigate("HomeTab", { screen: "Notifications" });
     }
 
   }, [bookings, bookingId, navigation]);
