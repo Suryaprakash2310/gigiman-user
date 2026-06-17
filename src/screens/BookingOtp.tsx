@@ -729,7 +729,7 @@ export default function BookingOtp() {
               : booking.status === 'assigned'
               ? 'Technician Assigned!'
               : booking.assignmentStatus === 'FAILED'
-              ? 'Assignment Failed'
+              ? 'Awaiting Manual Assignment'
               : 'Searching Technician...'}
           </AppText>
         </View>
