@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/env';
 
+import { DeviceEventEmitter } from 'react-native';
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 1000000,
@@ -21,6 +23,9 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     console.error('API ERROR:', error?.response?.data || error.message);
+    if (error?.response?.status === 401) {
+      DeviceEventEmitter.emit('FORCE_LOGOUT');
+    }
     return Promise.reject(error);
   }
 );

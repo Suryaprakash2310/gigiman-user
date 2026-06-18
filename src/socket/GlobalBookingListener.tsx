@@ -52,7 +52,7 @@ export default function GlobalBookingListener() {
     };
 
     const handleAssignmentFailure = (bookingId: string) => {
-      updateBookingItem(bookingId, { assignmentStatus: "FAILED" });
+      updateBookingItem(bookingId, { status: "manual_assign", assignmentStatus: "FAILED" });
       
       const booking = bookingsRef.current.find(b => String(b._id) === String(bookingId));
       

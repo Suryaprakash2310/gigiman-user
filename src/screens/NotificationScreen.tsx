@@ -152,7 +152,7 @@ export default function NotificationScreen() {
           }
           if (bookingRef) {
             const bookingObj = bookings.find(b => String(b._id) === String(bookingRef));
-            if (item.type === "FAILED_BOOKING" || bookingObj?.assignmentStatus === "FAILED" || item.title === "Technician Assigned") {
+            if (item.type === "FAILED_BOOKING" || bookingObj?.assignmentStatus === "FAILED" || bookingObj?.status === "manual_assign" || item.title === "Technician Assigned") {
               (navigation as any).navigate("BookingTab", {
                 screen: "BookingsMain",
                 params: { activeTab: "manualAssignment" },

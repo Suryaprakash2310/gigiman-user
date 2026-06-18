@@ -26,10 +26,22 @@ export default function BookingScreen() {
   const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const route = useRoute<BookingRouteProp>();
-  const { ongoing, upcoming, manualBookings } = useBooking();
+  const { ongoing, upcoming, manualBookings, refreshBookings } = useBooking();
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshBookings();
+    } catch (err) {
+      console.warn("Refresh failed:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshBookings]);
 
   // Handle initial tab from params or logic
   useEffect(() => {
@@ -57,11 +69,9 @@ export default function BookingScreen() {
   // History state
   const [historyBookings, setHistoryBookings] = useState<BookingItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // Fetch history when tab is selected
   const fetchHistory = useCallback(async () => {
-    if (historyLoaded) return;
     setHistoryLoading(true);
     try {
       const bookings = await BookingAPI.getUserBookings();
@@ -82,13 +92,12 @@ export default function BookingScreen() {
           : "",
       }));
       setHistoryBookings(mapped);
-      setHistoryLoaded(true);
     } catch (err) {
       console.log("History fetch error:", err);
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyLoaded]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "history") {
@@ -111,7 +120,7 @@ export default function BookingScreen() {
   const empty = data.length === 0;
 
   const handleCardPress = (booking: BookingItem) => {
-    if (booking.assignmentStatus === "FAILED") {
+    if (booking.assignmentStatus === "FAILED" || booking.status === "manual_assign") {
       navigation.navigate("BookingDetails", { bookingId: booking._id });
       return;
     }
@@ -145,7 +154,7 @@ export default function BookingScreen() {
     switch (activeTab) {
       case "ongoing":
         return {
-          title: "No Oncoming Services",
+          title: "No Ongoing Services",
           subtitle: "Book a service and track its live status here.",
         };
       case "manualAssignment":
@@ -167,9 +176,9 @@ export default function BookingScreen() {
   };
 
   const tabs: { key: TabType; label: string; icon: string }[] = [
-    { key: "ongoing", label: "Oncoming", icon: "pulse-outline" },
+    { key: "ongoing", label: "Ongoing", icon: "pulse-outline" },
     { key: "upcoming", label: "Upcoming", icon: "calendar-outline" },
-    { key: "manualAssignment", label: "Awaiting Manual Assignment", icon: "person-add-outline" },
+    { key: "manualAssignment", label: "Awaiting Assignment", icon: "person-add-outline" },
     { key: "history", label: "History", icon: "time-outline" },
   ];
 
@@ -271,6 +280,8 @@ export default function BookingScreen() {
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           renderItem={({ item }) => (
             <BookingListCard
               booking={item}

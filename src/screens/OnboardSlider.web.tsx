@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Image, StyleSheet, Dimensions } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, StyleSheet, Dimensions, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "@/src/theme/useTheme";
@@ -12,21 +12,95 @@ const PAGES = [
     title: "Find Trusted Services",
     subtitle:
       "Discover electricians, plumbers, cleaners and more — all verified.",
-    image: require("../../assets/images/onboardImage.png"),
+    image: require("../../assets/images/onboard_booking.png"),
   },
   {
     title: "Book Instantly",
     subtitle:
       "Choose your service and schedule instantly in just a few taps.",
-    image: require("../../assets/images/onboardImage.png"),
+    image: require("../../assets/images/onboard_booking.png"),
   },
   {
     title: "Track Your Service",
     subtitle:
       "Get live updates and know exactly when your service partner arrives.",
-    image: require("../../assets/images/onboardImage.png"),
+    image: require("../../assets/images/onboard_booking.png"),
   },
 ];
+
+const AnimatedOnboardImage = ({ source, isActive, style }: { source: any; isActive: boolean; style: any }) => {
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      // Entrance animation
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 6,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Idle floating animation
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(floatAnim, {
+            toValue: -10,
+            duration: 2200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(floatAnim, {
+            toValue: 10,
+            duration: 2200,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      loop.start();
+
+      return () => loop.stop();
+    } else {
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 0.85,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      floatAnim.setValue(0);
+    }
+  }, [isActive, source, floatAnim, opacityAnim, scaleAnim]);
+
+  return (
+    <Animated.Image
+      source={source}
+      style={[
+        style,
+        {
+          opacity: opacityAnim,
+          transform: [
+            { scale: scaleAnim },
+            { translateY: floatAnim },
+          ],
+        },
+      ]}
+    />
+  );
+};
 
 export default function OnboardSlider({ navigation }: any) {
   const { theme } = useTheme();
@@ -55,12 +129,12 @@ export default function OnboardSlider({ navigation }: any) {
         </AppText>
 
         <View style={styles.page}>
-          <Image source={item.image} style={styles.image} />
+          <AnimatedOnboardImage source={item.image} isActive={true} style={styles.image} />
 
           <OnboardingCard
             title={item.title}
             subtitle={item.subtitle}
-            buttonLabel={page === 2 ? "Get Started" : "Next"}
+            buttonLabel={page === PAGES.length - 1 ? "Get Started" : "Next"}
             onPress={next}
           />
         </View>

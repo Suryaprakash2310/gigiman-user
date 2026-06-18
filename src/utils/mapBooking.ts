@@ -6,15 +6,26 @@ function normalizeStatus(booking: any): BookingStatus {
 
   // 1. Check for Terminal Statuses
   if (status === "completed") return "completed";
-  if (status === "cancelled" || status === "cancalled" || status === "failed") return "cancelled";
+  if (
+    status === "cancelled" ||
+    status === "cancalled" ||
+    (status === "failed" && assignment !== "failed" && assignment !== "manual_assign")
+  ) {
+    return "cancelled";
+  }
 
-  // 2. Check for Scheduled Status
+  // 2. Check for Manual Assign / Failed Assignment Statuses
+  if (status === "manual_assign" || assignment === "manual_assign" || assignment === "failed") {
+    return "manual_assign";
+  }
+
+  // 3. Check for Scheduled Status
   if (assignment === "scheduled" || status === "scheduled") return "scheduled";
 
-  // 3. Check for Active / In-Progress Statuses
+  // 4. Check for Active / In-Progress Statuses
   if (status === "in_progress") return "in_progress";
 
-  // 4. Check for Assigned / OTP Statuses
+  // 5. Check for Assigned / OTP Statuses
   // If assignment is "searching", we stay on searching screen
   if (assignment === "searching") return "searching";
 
@@ -27,10 +38,14 @@ function normalizeStatus(booking: any): BookingStatus {
     assignment === "assigned"
   ) {
     // If technician is assigned, we go to OTP
+    // But if it is manually assigned and still in "assigned" status, we keep it as "assigned"
+    if (booking.isManuallyAssigned && status === "assigned") {
+      return "assigned";
+    }
     return "otp";
   }
 
-  // 5. Default to Searching
+  // 6. Default to Searching
   return "searching";
 }
 
@@ -114,7 +129,7 @@ export function mapBookingToBookingItem(
     scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,
     durationInMinutes: booking.durationInMinutes,
     paymentStatus: booking.paymentStatus,
-    assignmentStatus: booking.assignmentStatus,
+    assignmentStatus: booking.assignmentStatus ? String(booking.assignmentStatus).toUpperCase() : undefined,
     paymentType: booking.paymentType,
     advanceAmount: booking.advanceAmount,
     remainingAmount: booking.remainingAmount,

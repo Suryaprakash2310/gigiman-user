@@ -1,6 +1,5 @@
 import { socket } from "@/src/socket/socket";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
-import { DeviceEventEmitter } from "react-native";
 import { useAuthContext } from "@/src/context/AuthContext";
 import React, {
   createContext,
@@ -23,7 +22,8 @@ export type BookingStatus =
   | "in_progress"
   | "completed"
   | "cancelled"
-  | "assigned";
+  | "assigned"
+  | "manual_assign";
 /* ============================= */
 /*          BOOKING TYPE         */
 /* ============================= */
@@ -59,7 +59,10 @@ export type BookingItem = {
   isManuallyAssigned?: boolean;
   phone?: string;
   eta?: string;
+  primaryEmployee?: any;
+  servicerCompany?: any;
   cartItems?: {
+    _id?: string;
     serviceCategoryId: string;
     serviceCategoryName: string;
     price: number;
@@ -99,6 +102,7 @@ type BookingContextType = {
   getLatestActiveBooking: () => BookingItem | null;
   activeBookings: BookingItem[];
   resetBookings: () => void;
+  refreshBookings: () => Promise<void>;
 };
 
 const BookingContext = createContext<BookingContextType | null>(null);
@@ -198,6 +202,27 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const fetchInitialBookings = React.useCallback(async () => {
+    try {
+      const [active, scheduled] = await Promise.all([
+        BookingAPI.getActiveBookings(),
+        BookingAPI.getScheduledBookings()
+      ]);
+
+      const activeMapped = (active || []).map((b: any) => mapBookingToBookingItem(b));
+      const scheduledMapped = (scheduled || []).map((b: any) => mapBookingToBookingItem(b));
+
+      setBookings([...activeMapped, ...scheduledMapped]);
+    } catch (err) {
+      console.warn("Booking fetch failed:", err);
+    }
+  }, []);
+
+  const refreshBookings = React.useCallback(async () => {
+    if (!accessToken) return;
+    await fetchInitialBookings();
+  }, [accessToken, fetchInitialBookings]);
+
   useEffect(() => {
     if (!accessToken) return;
 
@@ -205,24 +230,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
     setBookings([]); // 🔥 clear old user data first
 
-    const fetchInitialBookings = async () => {
-      try {
-        const [active, scheduled] = await Promise.all([
-          BookingAPI.getActiveBookings(),
-          BookingAPI.getScheduledBookings()
-        ]);
-
-        const activeMapped = (active || []).map((b: any) => mapBookingToBookingItem(b));
-        const scheduledMapped = (scheduled || []).map((b: any) => mapBookingToBookingItem(b));
-
-        setBookings([...activeMapped, ...scheduledMapped]);
-      } catch (err) {
-        console.warn("Booking fetch failed:", err);
-      }
-    };
-
     fetchInitialBookings();
-  }, [accessToken]);
+  }, [accessToken, fetchInitialBookings]);
 
   /* ----------------------------- */
   /* SINGLE SOURCE OF TRUTH        */
@@ -272,8 +281,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       bookings.filter(
         b =>
           ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
-          b.assignmentStatus !== "FAILED" &&
-          !b.isManuallyAssigned
+          !(b.isManuallyAssigned && b.status === "assigned") &&
+          (b.assignmentStatus !== "FAILED" || b.isManuallyAssigned || !!b.primaryEmployee || !!b.servicerCompany)
       ),
     [bookings]
   );
@@ -283,8 +292,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       bookings.filter(
         b =>
           ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
-          b.assignmentStatus !== "FAILED" &&
-          !b.isManuallyAssigned
+          !(b.isManuallyAssigned && b.status === "assigned") &&
+          (b.assignmentStatus !== "FAILED" || b.isManuallyAssigned || !!b.primaryEmployee || !!b.servicerCompany)
       ),
     [bookings]
   );
@@ -292,7 +301,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const manualBookings = useMemo(
     () =>
       bookings.filter(
-        b => (b.assignmentStatus === "FAILED" || b.isManuallyAssigned) &&
+        b => ((b.assignmentStatus === "FAILED" || b.status === "manual_assign") &&
+              !b.isManuallyAssigned &&
+              !b.primaryEmployee &&
+              !b.servicerCompany ||
+              (b.isManuallyAssigned && b.status === "assigned")) &&
              b.status !== "completed" &&
              b.status !== "cancelled"
       ),
@@ -322,6 +335,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         getLatestActiveBooking,
         activeBookings,
         resetBookings,
+        refreshBookings,
       }}
     >
       {children}

@@ -250,20 +250,7 @@ export default function BookingOtp() {
     );
   };
 
-  const handleShowInfo = () => {
-    Alert.alert(
-      "Booking Options",
-      "What would you like to do?",
-      [
-        { text: "Close", style: "cancel" },
-        {
-          text: "Cancel Booking",
-          style: "destructive",
-          onPress: () => confirmCancelBooking()
-        }
-      ]
-    );
-  };
+
 
   const handleRejectService = async () => {
     const currentBooking = bookingRef.current;
@@ -424,9 +411,11 @@ export default function BookingOtp() {
   const navigation = useNavigation<any>();
 
   useEffect(() => {
+    scale.value = 0;
+    opacity.value = 0;
     scale.value = withSpring(1, { damping: 12 });
     opacity.value = withDelay(300, withSpring(1));
-  }, []);
+  }, [booking?.status, booking?.isManuallyAssigned, opacity, scale]);
 
   // part socket
   useEffect(() => {
@@ -678,8 +667,6 @@ export default function BookingOtp() {
         <AppHeader
           showBack={true}
           onBackPress={handleBack}
-          rightIcon="information-circle-outline"
-          onRightPress={handleShowInfo}
         />
 
         {PendingRequest && !Array.isArray(PendingRequest.parts) && (
@@ -691,7 +678,7 @@ export default function BookingOtp() {
             style={[
               styles.checkCircle,
               {
-                backgroundColor: booking.assignmentStatus === 'FAILED'
+                backgroundColor: ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
                   ? theme.colors.danger + '30'
                   : ['pending', 'confirmed', 'searching'].includes(booking.status)
                   ? theme.colors.primary + '30'
@@ -704,7 +691,7 @@ export default function BookingOtp() {
               name={
                 booking.status === 'completed'
                   ? 'checkmark-done-outline'
-                  : booking.assignmentStatus === 'FAILED'
+                  : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
                   ? 'alert-circle-outline'
                   : ['pending', 'confirmed', 'searching'].includes(booking.status)
                   ? 'search-outline'
@@ -712,7 +699,7 @@ export default function BookingOtp() {
               }
               size={32}
               color={
-                booking.assignmentStatus === 'FAILED'
+                ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
                   ? theme.colors.danger
                   : ['pending', 'confirmed', 'searching'].includes(booking.status)
                   ? theme.colors.primary
@@ -727,7 +714,7 @@ export default function BookingOtp() {
               ? 'Service in Progress'
               : (booking.status === 'assigned' || booking.status === 'otp')
               ? 'Technician Assigned!'
-              : (booking.assignmentStatus === 'FAILED' && !booking.isManuallyAssigned)
+              : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
               ? 'Awaiting Manual Assignment'
               : 'Searching Technician...'}
           </AppText>
@@ -793,7 +780,7 @@ export default function BookingOtp() {
           )}
 
           {/* Technician Card */}
-          {booking.name && (['assigned', 'otp', 'in_progress', 'completed'].includes(booking.status) || booking.assignmentStatus === 'FAILED') && (
+          {booking.name && (['assigned', 'otp', 'in_progress', 'completed'].includes(booking.status) || booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && (
             <BookingDetailsCard
               name={booking.name ?? "Assigned Technician"}
               role={booking.serviceCategoryName}
@@ -1161,7 +1148,7 @@ export default function BookingOtp() {
                 Secure Payment with Razorpay
               </AppText>
               <AppText size="small" color="textMuted" style={{ marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
-                You will be redirected to Razorpay's secure checkout. Supports Cards, UPI, Netbanking, and popular wallets.
+                You will be redirected to Razorpay&apos;s secure checkout. Supports Cards, UPI, Netbanking, and popular wallets.
               </AppText>
             </View>
 

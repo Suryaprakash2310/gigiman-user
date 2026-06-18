@@ -50,12 +50,19 @@ export default function AppHeader({
         {showBack && (
           <TouchableOpacity
             onPress={onBackPress || (() => navigation.goBack())}
-            style={[styles.iconBtn, { backgroundColor: theme.colors.background }]}
+            style={[
+              styles.iconBtn,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
           >
             <Ionicons
               name="chevron-back"
-              size={22}
+              size={20}
               color={theme.colors.text}
+              style={{ marginRight: 2 }}
             />
           </TouchableOpacity>
         )}
@@ -75,9 +82,15 @@ export default function AppHeader({
         {rightIcon && (
           <TouchableOpacity
             onPress={onRightPress}
-            style={[styles.iconBtn, { backgroundColor: theme.colors.background }]}
+            style={[
+              styles.iconBtn,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
           >
-            <Ionicons name={rightIcon as any} size={22} color={theme.colors.text} />
+            <Ionicons name={rightIcon as any} size={20} color={theme.colors.text} />
           </TouchableOpacity>
         )}
       </View>
@@ -110,11 +123,17 @@ const styles = StyleSheet.create({
   },
 
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1.2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
   },
 
   shadow: {
