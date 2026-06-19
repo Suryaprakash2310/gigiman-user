@@ -85,6 +85,7 @@ const OtpScreen: React.FC = () => {
         user: {
           ...data.user,
           profileCompleted: true,
+          isVerified: true,
         },
         accessToken: data.token,
       });

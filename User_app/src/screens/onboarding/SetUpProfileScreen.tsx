@@ -59,7 +59,11 @@ export default function CompleteProfileScreen() {
       });
 
       await login({
-        user: res.data.user,
+        user: {
+          ...res.data.user,
+          profileCompleted: true,
+          isVerified: true,
+        },
         accessToken: res.data.token,
         refreshToken: res.data.token,
       });

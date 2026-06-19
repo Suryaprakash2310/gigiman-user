@@ -150,16 +150,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accessToken,
     refreshToken,
   }) => {
-    setUser(user);
-    setAccessToken(accessToken);
-    if (refreshToken) setRefreshToken(refreshToken);
     console.log("user coordinates:", user);
+    
+    // 1. Write to AsyncStorage first
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
     await AsyncStorage.setItem(ACCESS_KEY, accessToken);
-
     if (refreshToken) {
       await AsyncStorage.setItem(REFRESH_KEY, refreshToken);
     }
+
+    // 2. Update React states to trigger UI navigation & api calls safely
+    setAccessToken(accessToken);
+    if (refreshToken) setRefreshToken(refreshToken);
+    setUser(user);
   };
 
   return (
