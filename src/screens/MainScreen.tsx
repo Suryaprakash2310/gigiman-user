@@ -3,13 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useState } from "react";
 import {
-  Dimensions,
   Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  useWindowDimensions,
+  useWindowDimensions
 } from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,11 +21,10 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { AppTabsParamList } from "../navigation/AppStack";
 
-import { BannerAPI } from "../api/banner.api";
-import { getBanners, getPopularServices } from "../api/dashboard.api";
 import { useAuthContext } from "@/src/context/AuthContext";
-import { useNotifications } from "@/src/context/NotificationContext";
 import { useCartContext } from "@/src/context/CartContext";
+import { useNotifications } from "@/src/context/NotificationContext";
+import { getBanners, getPopularServices } from "../api/dashboard.api";
 
 const SPACING = 20;
 const CARD_RADIUS = 24;
@@ -265,7 +263,7 @@ const Hero = ({ navigation }: any) => {
   // Deep indigo/navy gradient complement
   return (
     <LinearGradient
-      colors={[theme.colors.primary, "#3b2582"]}
+      colors={[theme.colors.primary, theme.colors.primaryDark]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.hero}

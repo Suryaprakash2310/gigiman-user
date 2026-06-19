@@ -1,110 +1,54 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, Dimensions, Animated } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import React, { useState } from "react";
+import {
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import Svg, { Path } from "react-native-svg";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { useTheme } from "@/src/theme/useTheme";
 import AppText from "@/src/components/ui/AppText";
-import OnboardingCard from "@/src/components/OnboardCard";
-const { width } = Dimensions.get("window");
+import { useTheme } from "@/src/theme/useTheme";
 
 const PAGES = [
   {
-    title: "Find Trusted Services",
+    title: "Verified Cleaning Professionals",
     subtitle:
-      "Discover electricians, plumbers, cleaners and more — all verified.",
-    image: require("../../assets/images/onboard_booking.png"),
+      "Trained, background-checked and committed to quality service.",
+    image: require("../../assets/images/slider1.png"),
+    icon: "shield-check-outline",
+    sparkles: true,
   },
   {
     title: "Book Instantly",
     subtitle:
-      "Choose your service and schedule instantly in just a few taps.",
-    image: require("../../assets/images/onboard_booking.png"),
+      "Schedule your cleaning service in just a few taps.",
+    image: require("../../assets/images/slider2.png"),
+    icon: "calendar-check-outline",
+    sparkles: true,
   },
   {
-    title: "Track Your Service",
+    title: "Live Updates, Total Peace of Mind",
     subtitle:
-      "Get live updates and know exactly when your service partner arrives.",
-    image: require("../../assets/images/onboard_booking.png"),
+      "Track your cleaner in real-time until the job is done.",
+    image: require("../../assets/images/slider3.png"),
+    icon: "map-marker-outline",
+    sparkles: false,
   },
 ];
-
-const AnimatedOnboardImage = ({ source, isActive, style }: { source: any; isActive: boolean; style: any }) => {
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const floatAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (isActive) {
-      // Entrance animation
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 6,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Idle floating animation
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(floatAnim, {
-            toValue: -10,
-            duration: 2200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(floatAnim, {
-            toValue: 10,
-            duration: 2200,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      loop.start();
-
-      return () => loop.stop();
-    } else {
-      Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0.85,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      floatAnim.setValue(0);
-    }
-  }, [isActive, source, floatAnim, opacityAnim, scaleAnim]);
-
-  return (
-    <Animated.Image
-      source={source}
-      style={[
-        style,
-        {
-          opacity: opacityAnim,
-          transform: [
-            { scale: scaleAnim },
-            { translateY: floatAnim },
-          ],
-        },
-      ]}
-    />
-  );
-};
 
 export default function OnboardSlider({ navigation }: any) {
   const { theme } = useTheme();
   const [page, setPage] = useState(0);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  const isDesktop = windowWidth >= 600;
+
+  // Responsive sizes inside the device mockup container or full screen
+  const containerWidth = isDesktop ? 400 : windowWidth;
+  const containerHeight = isDesktop ? Math.min(820, windowHeight - 40) : windowHeight;
 
   const next = () => {
     if (page < PAGES.length - 1) {
@@ -114,50 +58,303 @@ export default function OnboardSlider({ navigation }: any) {
     }
   };
 
-  const styles = createStyles(theme);
+  const skip = () => {
+    navigation.replace("PhoneLogin");
+  };
 
   const item = PAGES[page];
+  const styles = createStyles(theme, isDesktop, containerWidth, containerHeight);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[theme.colors.primary, theme.colors.primaryDark]}
-        style={styles.gradient}
-      >
-        <AppText size="h1" weight="bold" style={styles.logo}>
-          GIGIMAN
-        </AppText>
+    <View style={styles.outerContainer}>
+      <View style={styles.deviceFrame}>
+        {/* Skip Button */}
+        {page < PAGES.length - 1 && (
+          <TouchableOpacity style={styles.skip} onPress={skip} activeOpacity={0.7}>
+            <AppText style={styles.skipText}>Skip</AppText>
+          </TouchableOpacity>
+        )}
 
+        {/* Slide Page Content */}
         <View style={styles.page}>
-          <AnimatedOnboardImage source={item.image} isActive={true} style={styles.image} />
+          {/* Top Image Section (Edge to Edge) */}
+          <View style={styles.imageContainer}>
+            <Image source={item.image} style={styles.image} resizeMode="cover" />
+          </View>
 
-          <OnboardingCard
-            title={item.title}
-            subtitle={item.subtitle}
-            buttonLabel={page === PAGES.length - 1 ? "Get Started" : "Next"}
-            onPress={next}
-          />
+          {/* Wave Curve Divider */}
+          <View style={styles.curveContainer}>
+            <Svg
+              height={50}
+              width={containerWidth}
+              viewBox={`0 0 ${containerWidth} 50`}
+              preserveAspectRatio="none"
+            >
+              <Path
+                d={`M0 0 C${containerWidth * 0.25} 35, ${containerWidth * 0.75} 35, ${containerWidth} 0 L${containerWidth} 50 L0 50 Z`}
+                fill="#04392D"
+              />
+            </Svg>
+          </View>
+
+          {/* Bottom Content Card Panel */}
+          <View style={styles.contentContainer}>
+            {/* Badge */}
+            <View style={styles.badgeContainer}>
+              <MaterialCommunityIcons
+                name={item.icon as any}
+                size={36}
+                color="#04392D"
+              />
+            </View>
+
+            {/* Decorative Sparkles */}
+            {item.sparkles && (
+              <>
+                <MaterialCommunityIcons
+                  name="creation"
+                  size={14}
+                  color="#A9C2BC"
+                  style={{
+                    position: "absolute",
+                    top: 15,
+                    left: containerWidth / 2 - 65,
+                  }}
+                />
+                <MaterialCommunityIcons
+                  name="creation"
+                  size={18}
+                  color="#A9C2BC"
+                  style={{
+                    position: "absolute",
+                    top: 35,
+                    left: containerWidth / 2 + 50,
+                  }}
+                />
+              </>
+            )}
+
+            {/* Spacer to push title below badge */}
+            <View style={{ height: 45 }} />
+
+            {/* Texts */}
+            <View style={styles.textContainer}>
+              <AppText style={styles.title}>{item.title}</AppText>
+              <AppText style={styles.subtitle}>{item.subtitle}</AppText>
+            </View>
+
+            {/* Footer with dots and button */}
+            <View style={styles.footerContainer}>
+              {/* Pagination Dots */}
+              <View style={styles.dotsRow}>
+                {PAGES.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.dot,
+                      page === i ? styles.activeDot : styles.inactiveDot,
+                    ]}
+                  />
+                ))}
+              </View>
+
+              {/* Action Button */}
+              <TouchableOpacity
+                style={
+                  page === PAGES.length - 1
+                    ? styles.startedButton
+                    : styles.nextButton
+                }
+                onPress={next}
+                activeOpacity={0.8}
+              >
+                <AppText
+                  style={
+                    page === PAGES.length - 1
+                      ? styles.startedButtonText
+                      : styles.nextButtonText
+                  }
+                >
+                  {page === PAGES.length - 1 ? "Get Started" : "Next"}
+                </AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </LinearGradient>
+      </View>
     </View>
   );
 }
 
-const createStyles = (theme: any) =>
+const createStyles = (
+  theme: any,
+  isDesktop: boolean,
+  containerWidth: number,
+  containerHeight: number
+) =>
   StyleSheet.create({
-    container: { flex: 1 },
-    gradient: { flex: 1, paddingTop: 60 },
-    logo: { color: "#fff", textAlign: "center", marginBottom: 20 },
+    outerContainer: {
+      flex: 1,
+      backgroundColor: isDesktop ? "#011E16" : "#04392D",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    deviceFrame: {
+      width: containerWidth,
+      height: containerHeight,
+      backgroundColor: "#04392D",
+      borderRadius: isDesktop ? 24 : 0,
+      overflow: "hidden",
+      position: "relative",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.3,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+
+    skip: {
+      position: "absolute",
+      right: 24,
+      top: 24,
+      zIndex: 20,
+      padding: 8,
+    },
+
+    skipText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "600",
+      textShadowColor: "rgba(0, 0, 0, 0.4)",
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+
     page: {
       flex: 1,
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 24,
-      paddingBottom: 40,
+      backgroundColor: "#04392D",
     },
+
+    imageContainer: {
+      flex: 1.25,
+      width: "100%",
+    },
+
     image: {
-      width: width * 0.75,
-      height: width * 0.75,
-      resizeMode: "contain",
+      width: "100%",
+      height: "100%",
+    },
+
+    curveContainer: {
+      width: "100%",
+      height: 50,
+      backgroundColor: "transparent",
+      marginTop: -50,
+      zIndex: 2,
+    },
+
+    contentContainer: {
+      flex: 1,
+      backgroundColor: "#04392D",
+      paddingHorizontal: 24,
+      justifyContent: "space-between",
+      paddingBottom: 32,
+      zIndex: 3,
+    },
+
+    badgeContainer: {
+      position: "absolute",
+      top: -36,
+      alignSelf: "center",
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: "#FFFFFF",
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+      zIndex: 10,
+    },
+
+    textContainer: {
+      alignItems: "center",
+      paddingHorizontal: 12,
+    },
+
+    title: {
+      color: "#FFFFFF",
+      fontSize: 24,
+      fontWeight: "bold",
+      textAlign: "center",
+      marginBottom: 12,
+    },
+
+    subtitle: {
+      color: "#A9C2BC",
+      fontSize: 15,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+
+    footerContainer: {
+      width: "100%",
+      alignItems: "center",
+    },
+
+    dotsRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 24,
+    },
+
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginHorizontal: 4,
+    },
+
+    activeDot: {
+      backgroundColor: "#10B981",
+    },
+
+    inactiveDot: {
+      backgroundColor: "#1E4E42",
+    },
+
+    nextButton: {
+      width: "100%",
+      backgroundColor: "#FFFFFF",
+      paddingVertical: 16,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    nextButtonText: {
+      color: "#04392D",
+      fontWeight: "bold",
+      fontSize: 16,
+    },
+
+    startedButton: {
+      width: "100%",
+      backgroundColor: "#10B981",
+      paddingVertical: 16,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    startedButtonText: {
+      color: "#FFFFFF",
+      fontWeight: "bold",
+      fontSize: 16,
     },
   });

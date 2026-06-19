@@ -1,19 +1,20 @@
-import React, { useRef, useState, useEffect } from "react";
-import {
-  View,
-  StyleSheet,
-  Dimensions,
-  Platform,
-  TouchableOpacity,
-  Animated,
-} from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useRef, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { useTheme } from "@/src/theme/useTheme";
 import AppText from "@/src/components/ui/AppText";
-import OnboardingCard from "@/src/components/OnboardCard";
+import { useTheme } from "@/src/theme/useTheme";
+
 const { width } = Dimensions.get("window");
 
 let PagerView: any = null;
@@ -24,98 +25,30 @@ if (Platform.OS !== "web") {
 
 const PAGES = [
   {
-    title: "Find Trusted Services",
+    title: "Verified Cleaning Professionals",
     subtitle:
-      "Discover electricians, plumbers, cleaners and more — all verified.",
-    image: require("../../assets/images/onboard_booking.png"),
+      "Trained, background-checked and committed to quality service.",
+    image: require("../../assets/images/slider1.png"),
+    icon: "shield-check-outline",
+    sparkles: true,
   },
   {
     title: "Book Instantly",
     subtitle:
-      "Choose your service and schedule instantly in just a few taps.",
-    image: require("../../assets/images/onboard_booking.png"),
+      "Schedule your cleaning service in just a few taps.",
+    image: require("../../assets/images/slider2.png"),
+    icon: "calendar-check-outline",
+    sparkles: true,
   },
   {
-    title: "Track Your Service",
+    title: "Live Updates, Total Peace of Mind",
     subtitle:
-      "Get live updates and know exactly when your service partner arrives.",
-    image: require("../../assets/images/onboard_booking.png"),
+      "Track your cleaner in real-time until the job is done.",
+    image: require("../../assets/images/slider3.png"),
+    icon: "map-marker-outline",
+    sparkles: false,
   },
 ];
-
-const AnimatedOnboardImage = ({ source, isActive, style }: { source: any; isActive: boolean; style: any }) => {
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const floatAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (isActive) {
-      // Entrance animation
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 6,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Idle floating animation
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(floatAnim, {
-            toValue: -10,
-            duration: 2200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(floatAnim, {
-            toValue: 10,
-            duration: 2200,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      loop.start();
-
-      return () => loop.stop();
-    } else {
-      Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0.85,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      floatAnim.setValue(0);
-    }
-  }, [isActive, source, floatAnim, opacityAnim, scaleAnim]);
-
-  return (
-    <Animated.Image
-      source={source}
-      style={[
-        style,
-        {
-          opacity: opacityAnim,
-          transform: [
-            { scale: scaleAnim },
-            { translateY: floatAnim },
-          ],
-        },
-      ]}
-    />
-  );
-};
 
 export default function OnboardingFlow({ navigation }: any) {
   const { theme } = useTheme();
@@ -139,77 +72,142 @@ export default function OnboardingFlow({ navigation }: any) {
     }
   };
 
-  const renderPage = (item: any, index: number) => (
-    <View key={index} style={styles.page}>
-      <AnimatedOnboardImage
-        source={item.image}
-        isActive={page === index}
-        style={styles.image}
-      />
+  const renderPage = (item: any, index: number) => {
+    return (
+      <View key={index} style={styles.page}>
+        {/* Top Image Section (Edge to Edge) */}
+        <View style={styles.imageContainer}>
+          <Image source={item.image} style={styles.image} resizeMode="cover" />
+        </View>
 
-      <OnboardingCard
-        title={item.title}
-        subtitle={item.subtitle}
-        buttonLabel={index === PAGES.length - 1 ? "Get Started" : "Next"}
-        onPress={next}
-      />
-    </View>
-  );
+        {/* Wave Curve Divider */}
+        <View style={styles.curveContainer}>
+          <Svg
+            height={50}
+            width={width}
+            viewBox={`0 0 ${width} 50`}
+            preserveAspectRatio="none"
+          >
+            <Path
+              d={`M0 0 C${width * 0.25} 35, ${width * 0.75} 35, ${width} 0 L${width} 50 L0 50 Z`}
+              fill="#04392D"
+            />
+          </Svg>
+        </View>
+
+        {/* Bottom Content Card Panel */}
+        <View style={styles.contentContainer}>
+          {/* Badge */}
+          <View style={styles.badgeContainer}>
+            <MaterialCommunityIcons
+              name={item.icon as any}
+              size={36}
+              color="#04392D"
+            />
+          </View>
+
+          {/* Decorative Sparkles */}
+          {item.sparkles && (
+            <>
+              <MaterialCommunityIcons
+                name="creation"
+                size={14}
+                color="#A9C2BC"
+                style={{
+                  position: "absolute",
+                  top: 15,
+                  left: width / 2 - 65,
+                }}
+              />
+              <MaterialCommunityIcons
+                name="creation"
+                size={18}
+                color="#A9C2BC"
+                style={{
+                  position: "absolute",
+                  top: 35,
+                  left: width / 2 + 50,
+                }}
+              />
+            </>
+          )}
+
+          {/* Spacer to push title below badge */}
+          <View style={{ height: 45 }} />
+
+          {/* Texts (Heading & Subtitle) */}
+          <View style={styles.textContainer}>
+            <AppText style={styles.title}>{item.title}</AppText>
+            <AppText style={styles.subtitle}>{item.subtitle}</AppText>
+          </View>
+
+          {/* Footer containing dots and buttons */}
+          <View style={styles.footerContainer}>
+            {/* Pagination Dots */}
+            <View style={styles.dotsRow}>
+              {PAGES.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    page === i ? styles.activeDot : styles.inactiveDot,
+                  ]}
+                />
+              ))}
+            </View>
+
+            {/* Actions Button */}
+            <TouchableOpacity
+              style={
+                index === PAGES.length - 1
+                  ? styles.startedButton
+                  : styles.nextButton
+              }
+              onPress={next}
+              activeOpacity={0.8}
+            >
+              <AppText
+                style={
+                  index === PAGES.length - 1
+                    ? styles.startedButtonText
+                    : styles.nextButtonText
+                }
+              >
+                {index === PAGES.length - 1 ? "Get Started" : "Next"}
+              </AppText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[theme.colors.primary, theme.colors.primaryDark]}
-        style={styles.gradient}
-      >
-        {/* Skip Button */}
-        {PAGES.length > 1 && (
-          <TouchableOpacity
-            style={styles.skip}
-            onPress={completeOnboarding}
-          >
-            <AppText style={{ color: "#fff" }}>Skip</AppText>
-          </TouchableOpacity>
-        )}
+      {/* Skip Button */}
+      {page < PAGES.length - 1 && (
+        <TouchableOpacity
+          style={styles.skip}
+          onPress={completeOnboarding}
+          activeOpacity={0.7}
+        >
+          <AppText style={styles.skipText}>Skip</AppText>
+        </TouchableOpacity>
+      )}
 
-        {/* Logo */}
-        <AppText size="h1" weight="bold" style={styles.logo}>
-          GIGIMAN
-        </AppText>
-
-        {/* Pager */}
-        {PagerView ? (
-          <PagerView
-            style={{ flex: 1 }}
-            initialPage={0}
-            ref={pagerRef}
-            onPageSelected={(e: any) =>
-              setPage(e.nativeEvent.position)
-            }
-          >
-            {PAGES.map(renderPage)}
-          </PagerView>
-        ) : (
-          <View style={{ flex: 1 }}>
-            {renderPage(PAGES[page], page)}
-          </View>
-        )}
-
-        {/* Pagination */}
-        {PAGES.length > 1 && (
-          <View style={styles.pagination}>
-            {PAGES.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  page === i && styles.activeDot,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-      </LinearGradient>
+      {/* Pager */}
+      {PagerView ? (
+        <PagerView
+          style={{ flex: 1 }}
+          initialPage={0}
+          ref={pagerRef}
+          onPageSelected={(e: any) => setPage(e.nativeEvent.position)}
+        >
+          {PAGES.map(renderPage)}
+        </PagerView>
+      ) : (
+        <View style={{ flex: 1 }}>{renderPage(PAGES[page], page)}</View>
+      )}
     </View>
   );
 }
@@ -218,56 +216,150 @@ const createStyles = (theme: any, insets: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-    },
-
-    gradient: {
-      flex: 1,
-      paddingTop: insets.top + 10,
+      backgroundColor: "#04392D",
     },
 
     skip: {
       position: "absolute",
-      right: 20,
-      top: insets.top + 10,
-      zIndex: 10,
+      right: 24,
+      top: insets.top > 0 ? insets.top + 10 : 20,
+      zIndex: 20,
+      padding: 8,
     },
 
-    logo: {
-      color: "#fff",
-      textAlign: "center",
-      marginBottom: 10,
-      letterSpacing: 2,
+    skipText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "600",
+      textShadowColor: "rgba(0, 0, 0, 0.4)",
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
     },
 
     page: {
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 24,
-      paddingBottom: 40,
+      flex: 1,
+      backgroundColor: "#04392D",
+    },
+
+    imageContainer: {
+      flex: 1.25,
+      width: "100%",
     },
 
     image: {
-      width: width * 0.75,
-      height: width * 0.75,
-      resizeMode: "contain",
+      width: "100%",
+      height: "100%",
     },
 
-    pagination: {
+    curveContainer: {
+      width: "100%",
+      height: 50,
+      backgroundColor: "transparent",
+      marginTop: -50,
+      zIndex: 2,
+    },
+
+    contentContainer: {
+      flex: 1,
+      backgroundColor: "#04392D",
+      paddingHorizontal: 24,
+      justifyContent: "space-between",
+      paddingBottom: insets.bottom > 0 ? insets.bottom + 16 : 24,
+      zIndex: 3,
+    },
+
+    badgeContainer: {
+      position: "absolute",
+      top: -36,
+      alignSelf: "center",
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: "#FFFFFF",
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+      zIndex: 10,
+    },
+
+    textContainer: {
+      alignItems: "center",
+      paddingHorizontal: 12,
+    },
+
+    title: {
+      color: "#FFFFFF",
+      fontSize: 24,
+      fontWeight: "bold",
+      textAlign: "center",
+      marginBottom: 12,
+    },
+
+    subtitle: {
+      color: "#A9C2BC",
+      fontSize: 15,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+
+    footerContainer: {
+      width: "100%",
+      alignItems: "center",
+    },
+
+    dotsRow: {
       flexDirection: "row",
       justifyContent: "center",
-      marginBottom: 30,
-      gap: 8,
+      alignItems: "center",
+      marginBottom: 24,
     },
 
     dot: {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: "rgba(255,255,255,0.4)",
+      marginHorizontal: 4,
     },
 
     activeDot: {
-      width: 20,
-      backgroundColor: "#fff",
+      backgroundColor: "#10B981",
+    },
+
+    inactiveDot: {
+      backgroundColor: "#1E4E42",
+    },
+
+    nextButton: {
+      width: "100%",
+      backgroundColor: "#FFFFFF",
+      paddingVertical: 16,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    nextButtonText: {
+      color: "#04392D",
+      fontWeight: "bold",
+      fontSize: 16,
+    },
+
+    startedButton: {
+      width: "100%",
+      backgroundColor: "#10B981",
+      paddingVertical: 16,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    startedButtonText: {
+      color: "#FFFFFF",
+      fontWeight: "bold",
+      fontSize: 16,
     },
   });

@@ -14,7 +14,7 @@ export type AppTheme = BaseTheme & {
     danger: string;
     cardShadow: string;
     splashColor: string;
-    button:string;
+    button: string;
   };
   dark: boolean;
 };
@@ -30,7 +30,7 @@ export const lightTheme: AppTheme = {
   colors: {
     background: '#F9FAFB',    //'#F9FAFB',
     surface: '#FFFFFF',
-    primary: '#1d1145',              //'#285B5B',       // soft teal
+    primary: '#26413C',              //'#285B5B',       // soft teal
     primaryDark: '#07533B',
     accent: '#F59E0B',        // warm orange – action, excitement
     text: '#0F172A',
@@ -40,7 +40,7 @@ export const lightTheme: AppTheme = {
     danger: '#EF4444',
     cardShadow: 'rgba(0,0,0,0.06)',
     splashColor: '#285B5B',
-    button:'#1d1145'
+    button: '#285B5B'
   },
 };
 
@@ -65,7 +65,7 @@ export const darkTheme: AppTheme = {
     danger: '#F87171',
     cardShadow: 'rgba(0,0,0,0.55)',
     splashColor: '#285B5B',
-    button:'#285B5B'
+    button: '#285B5B'
   },
 };
 
