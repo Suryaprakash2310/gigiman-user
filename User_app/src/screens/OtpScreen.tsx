@@ -132,7 +132,7 @@ const OtpScreen: React.FC = () => {
           <AppText weight="bold" size="h2">Enter OTP</AppText>
 
           <AppText color="textMuted" style={{ marginTop: theme.spacing.xs }}>
-            We have sent a 4-digit code to
+            We have sent a 6-digit code to
           </AppText>
 
           <AppText weight="semibold" style={{ marginTop: theme.spacing.xs }}>

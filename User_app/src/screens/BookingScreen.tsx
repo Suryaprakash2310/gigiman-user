@@ -278,6 +278,7 @@ export default function BookingScreen() {
         <FlatList
           data={data}
           keyExtractor={(item) => item._id}
+          style={[styles.list, activeTab === "history" && { marginTop: 20 }]}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshing={refreshing}
@@ -307,13 +308,17 @@ const createStyles = (theme: any) =>
     },
     headerRow: {
       marginBottom: 12,
+      flexShrink: 0,
     },
     tabScrollStyle: {
-      maxHeight: 48,
+      height: 52,
       marginBottom: 12,
+      flexShrink: 0,
+      flexGrow: 0,
     },
     tabRow: {
       flexDirection: "row",
+      alignItems: "center",
       gap: 8,
       paddingRight: 16,
     },
@@ -324,6 +329,9 @@ const createStyles = (theme: any) =>
       paddingVertical: 8,
       borderRadius: 20,
       borderWidth: 1,
+    },
+    list: {
+      flex: 1,
     },
     listContent: {
       paddingBottom: 40,
