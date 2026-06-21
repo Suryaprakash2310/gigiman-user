@@ -18,15 +18,16 @@ import AppText from "@/src/components/ui/AppText";
 import { wp, hp } from "@/src/utils/responsive";
 import { useTheme } from "@/src/theme/useTheme";
 import { addAddressAPI, updateAddressAPI } from "@/src/api/auth";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 
 export default function AddEditAddressScreen() {
-
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, insets);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
@@ -40,38 +41,38 @@ export default function AddEditAddressScreen() {
 
   const debounceRef = useRef<any>(null);
 
-const searchAddress = (text: string) => {
+  const searchAddress = (text: string) => {
 
-  setQuery(text);
+    setQuery(text);
 
-  if (debounceRef.current) {
-    clearTimeout(debounceRef.current);
-  }
-
-  debounceRef.current = setTimeout(async () => {
-
-    if (text.length < 3) {
-      setResults([]);
-      return;
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
     }
 
-    const encoded = encodeURIComponent(text);
+    debounceRef.current = setTimeout(async () => {
 
-    const res = await axios.get(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json`,
-      {
-        params: {
-          access_token: MAPBOX_TOKEN,
-          limit: 5,
-          country: "IN"
-        }
+      if (text.length < 3) {
+        setResults([]);
+        return;
       }
-    );
 
-    setResults(res.data.features);
+      const encoded = encodeURIComponent(text);
 
-  }, 400);
-};
+      const res = await axios.get(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json`,
+        {
+          params: {
+            access_token: MAPBOX_TOKEN,
+            limit: 5,
+            country: "IN"
+          }
+        }
+      );
+
+      setResults(res.data.features);
+
+    }, 400);
+  };
   /*
    SELECT SEARCH RESULT → OPEN MAP
   */
@@ -107,67 +108,69 @@ const searchAddress = (text: string) => {
     setQuery(addr.line1);
 
   }, [route.params?.selectedAddressFromMap]);
-  
+
 
   useEffect(() => {
-  if (!route.params?.address) return;
+    if (!route.params?.address) return;
 
-  const addr = route.params.address;
+    const addr = route.params.address;
 
-  setQuery(addr.line1 || addr.address);
-  setSelectedLocation({
-    address: addr.line1 || addr.address,
-    latitude: addr.latitude,
-    longitude: addr.longitude,
-  });
+    setQuery(addr.line1 || addr.address);
+    setSelectedLocation({
+      address: addr.line1 || addr.address,
+      latitude: addr.latitude,
+      longitude: addr.longitude,
+    });
 
-}, [route.params]);
+  }, [route.params]);
   /*
    SAVE ADDRESS
   */
 
   const saveAddress = async () => {
 
-  if (!selectedLocation) {
-    Alert.alert("Select Address", "Please select address first");
-    return;
-  }
-
-  try {
-
-    if (isEdit) {
-
-      await updateAddressAPI(addressId, {
-        title: addressType,
-        address: selectedLocation.address,
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude
-      });
-
-    } else {
-
-      await addAddressAPI({
-        title: addressType,
-        address: selectedLocation.address,
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude
-      });
-
+    if (!selectedLocation) {
+      Alert.alert("Select Address", "Please select address first");
+      return;
     }
 
-    //navigation.goBack();
-    navigation.navigate("SavedAddressesScreen");
+    try {
 
-  } catch (err) {
-    console.log("Save address error", err);
-  }
+      if (isEdit) {
 
-};
+        await updateAddressAPI(addressId, {
+          title: addressType,
+          address: selectedLocation.address,
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude
+        });
+
+      } else {
+
+        await addAddressAPI({
+          title: addressType,
+          address: selectedLocation.address,
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude
+        });
+
+      }
+
+      //navigation.goBack();
+      navigation.navigate("SavedAddressesScreen");
+
+    } catch (err) {
+      console.log("Save address error", err);
+    }
+
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent}>
+    <View style={styles.scrollContent}>
+
+      <AppHeader showBack title="Add Address" />
       <View style={styles.container}>
-        <AppHeader showBack title="Add Address" />
+
         <AppText weight="semibold" style={styles.label}>Search Address</AppText>
         <TextInput
           style={styles.input}
@@ -224,21 +227,23 @@ const searchAddress = (text: string) => {
           style={styles.saveBtn}
         />
       </View>
-    </ScrollView>
+
+    </View>
   );
 }
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, insets: any) =>
   StyleSheet.create({
     scrollContent: {
-      flexGrow: 1,
-      justifyContent: "center",
-      paddingVertical: hp(4),
-      paddingHorizontal: wp(5),
+      flex: 1,
       backgroundColor: theme.colors.background,
+      paddingBottom: insets.bottom,
+      paddingTop: insets.top,
     },
     container: {
       flex: 1,
+      paddingVertical: hp(4),
+      paddingHorizontal: wp(5),
       backgroundColor: theme.colors.background,
       width: "100%",
       maxWidth: 480,

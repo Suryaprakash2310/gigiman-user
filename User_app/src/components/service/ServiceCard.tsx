@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
@@ -97,14 +97,6 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
       <View style={styles.tapIndicator} />
     </TouchableOpacity>
   );
-};
-
-const useMemo = (fn: () => any, deps: any[]) => {
-  const [value] = React.useState(() => fn());
-  React.useEffect(() => {
-    // Update value if deps change
-  }, deps);
-  return value;
 };
 
 const createStyles = (theme: any) =>
