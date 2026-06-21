@@ -3,7 +3,7 @@ import { BookingItem, useBooking } from "@/src/context/BookingContext";
 import { useTheme } from "@/src/theme/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -31,6 +31,7 @@ export default function BookingScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
   const [refreshing, setRefreshing] = useState(false);
+  const prevManualBookingsCount = useRef(manualBookings?.length || 0);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -61,9 +62,15 @@ export default function BookingScreen() {
 
   // Auto-switch tabs if a manual booking gets assigned
   useEffect(() => {
-    if (activeTab === "manualAssignment" && (manualBookings?.length || 0) === 0 && ongoing.length > 0) {
+    if (
+      activeTab === "manualAssignment" &&
+      (manualBookings?.length || 0) === 0 &&
+      prevManualBookingsCount.current > 0 &&
+      ongoing.length > 0
+    ) {
       setActiveTab("ongoing");
     }
+    prevManualBookingsCount.current = manualBookings?.length || 0;
   }, [manualBookings?.length, ongoing.length, activeTab]);
 
   // History state
@@ -198,6 +205,16 @@ export default function BookingScreen() {
       >
         {tabs.map((tab) => {
           const active = tab.key === activeTab;
+          const rawData = tab.key === "ongoing" ? ongoing : upcoming;
+          const count =
+            tab.key === "history"
+              ? historyBookings.length
+              : tab.key === "manualAssignment"
+                ? (manualBookings?.length || 0)
+                : rawData.filter(
+                    b => b.status !== "completed" && b.status !== "cancelled"
+                  ).length;
+
           return (
             <TouchableOpacity
               key={tab.key}
@@ -228,6 +245,28 @@ export default function BookingScreen() {
               >
                 {tab.label}
               </AppText>
+              {count > 0 && (
+                <View
+                  style={[
+                    styles.badge,
+                    {
+                      backgroundColor: active ? "#fff" : theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <AppText
+                    weight="bold"
+                    style={[
+                      styles.badgeText,
+                      {
+                        color: active ? theme.colors.primary : "#fff",
+                      },
+                    ]}
+                  >
+                    {count}
+                  </AppText>
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -329,6 +368,19 @@ const createStyles = (theme: any) =>
       paddingVertical: 8,
       borderRadius: 20,
       borderWidth: 1,
+    },
+    badge: {
+      marginLeft: 6,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 4,
+    },
+    badgeText: {
+      fontSize: 10,
+      lineHeight: 12,
     },
     list: {
       flex: 1,

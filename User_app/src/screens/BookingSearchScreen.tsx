@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Alert, Dimensions, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
@@ -129,6 +129,7 @@ export default function BookingSearchScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const [searchMessage, setSearchMessage] = useState("Scanning nearby area...");
+  const redirectedRef = useRef(false);
 
 
 
@@ -154,6 +155,7 @@ export default function BookingSearchScreen() {
 
 
   useEffect(() => {
+    if (redirectedRef.current) return;
     const booking = bookings.find(b => String(b._id) === String(bookingId));
     if (!booking) return;
 
@@ -161,8 +163,10 @@ export default function BookingSearchScreen() {
       booking.status === "otp" ||
       (booking.status as string) === "assigned"
     ) {
+      redirectedRef.current = true;
       navigation.replace("BookingDetails", { bookingId });
     } else if (booking.assignmentStatus === "FAILED" || booking.status === "manual_assign") {
+      redirectedRef.current = true;
       navigation.replace("BookingsMain", { activeTab: "manualAssignment" });
     }
 
@@ -207,6 +211,7 @@ export default function BookingSearchScreen() {
 
   useEffect(() => {
     const onOtpGenerated = ({ bookingId, otp }: any) => {
+      if (redirectedRef.current) return;
       console.log("[SOCKET RECEIVE] 🟢 OTP RECEIVED:", bookingId, otp);
 
       // Only update status & OTP — don't overwrite existing booking data
@@ -218,6 +223,7 @@ export default function BookingSearchScreen() {
         otp: String(otp),
       } as any);
 
+      redirectedRef.current = true;
       navigation.replace("BookingDetails", { bookingId });
     };
 

@@ -25,6 +25,15 @@ export default function GlobalBookingListener() {
 
       upsertBooking(mapped);
 
+      // Avoid double navigation if the user is already on the Searching screen.
+      // The Searching screen itself (BookingSearchScreen) handles replacing itself
+      // with BookingDetails when the booking status updates.
+      const currentRoute = navigation.getCurrentRoute?.()?.name;
+      if (currentRoute === "Searching") {
+        console.log("[SOCKET RECEIVE] User is on Searching screen, let it handle the replace navigation.");
+        return;
+      }
+
       if (mapped.assignmentStatus === "FAILED") {
         navigation.navigate("BookingTab", {
           screen: "BookingsMain",
@@ -76,6 +85,13 @@ export default function GlobalBookingListener() {
 
       addLocalNotification(localNotification);
       fetchNotifications?.(true);
+
+      // Avoid double navigation if the user is already on the Searching screen.
+      const currentRoute = navigation.getCurrentRoute?.()?.name;
+      if (currentRoute === "Searching") {
+        console.log("[SOCKET RECEIVE] User is on Searching screen, let it handle the replace navigation.");
+        return;
+      }
 
       navigation.navigate("BookingTab", {
         screen: "BookingsMain",
