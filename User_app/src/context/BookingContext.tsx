@@ -142,24 +142,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // useEffect(() => {
-  //   const onServicerAccepted = ({ booking, otp }: any) => {
-  //     console.log("[SOCKET RECEIVE] 🔥 servicer-accepted (GLOBAL):", booking._id);
-
-  //     const mapped = mapBookingToBookingItem(booking, otp);
-  //     upsertBookingRef.current(mapped);
-  //   };
-
-  //   socket.on("servicer-accepted", onServicerAccepted);
-
-  //   return () => {
-  //     socket.off("servicer-accepted", onServicerAccepted);
-  //   };
-  // }, []);
 
   useEffect(() => {
     const onServiceProposed = ({ bookingId, proposal }: any) => {
-      console.log("[SOCKET RECEIVE] 🧠 service-proposed (GLOBAL):", bookingId);
 
       setBookings(prev =>
         prev.map(b =>
@@ -178,8 +163,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const onServiceApproved = ({ bookingId, totalPrice, service }: any) => {
-      console.log("[SOCKET RECEIVE] 🎉 service-approved confirmed:", bookingId, totalPrice);
-
       setBookings(prev =>
         prev.map(b =>
           b._id === bookingId
@@ -226,7 +209,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!accessToken) return;
 
-    console.log("📦 Fetching bookings for new session");
 
     setBookings([]); // 🔥 clear old user data first
 
@@ -256,7 +238,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     bookings.find(b => b._id === id) ?? null;
 
   const resetBookings = () => {
-    console.log("🧹 Resetting booking state (logout)");
     setBookings([]);
   };
 

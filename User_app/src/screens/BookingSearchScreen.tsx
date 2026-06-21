@@ -182,7 +182,6 @@ export default function BookingSearchScreen() {
     };
 
     const onAccepted = (data: any) => {
-      console.log("[SOCKET RECEIVE] 🔥 USER RECEIVED servicer-accepted:", data);
 
       const booking = data.booking;
       const otp = data.otp;
@@ -212,7 +211,6 @@ export default function BookingSearchScreen() {
   useEffect(() => {
     const onOtpGenerated = ({ bookingId, otp }: any) => {
       if (redirectedRef.current) return;
-      console.log("[SOCKET RECEIVE] 🟢 OTP RECEIVED:", bookingId, otp);
 
       // Only update status & OTP — don't overwrite existing booking data
       // (serviceCategoryName, address, name, etc. from servicer-accepted)
@@ -244,7 +242,6 @@ export default function BookingSearchScreen() {
           text: "Yes, Cancel",
           style: "destructive",
           onPress: () => {
-            console.log("[SOCKET EMIT] 📤 user-cancel-booking:", bookingId);
             socket.emit("user-cancel-booking", { bookingId });
 
             // 🟡 Optimistic UI Update & Navigation

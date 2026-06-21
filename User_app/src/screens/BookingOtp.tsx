@@ -126,7 +126,7 @@ export default function BookingOtp() {
   const handleWebViewMessage = async (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      console.log('WebView payment message received:', data);
+      
 
       if (!data.success) {
         Alert.alert("Payment Cancelled", data.reason === "dismissed" ? "Payment was cancelled by user" : "Payment failed");
@@ -256,7 +256,6 @@ export default function BookingOtp() {
     const currentBooking = bookingRef.current;
     if (!serviceProposal || serviceActionLoading) return;
     if (!currentBooking || !currentBooking._id) return;
-    console.log("[SOCKET EMIT] ❌ Rejecting visit proposal:", bookingId);
 
     try {
       setServiceActionLoading(true);
@@ -306,52 +305,6 @@ export default function BookingOtp() {
   }, [bookingId]);
 
 
-  // useEffect(() => {
-  //   const onExtraResponse = (data: any) => {
-  //     console.log("[SOCKET RECEIVE] 📥 extra-service-response:", data);
-  //     if (data.bookingId !== bookingId) return;
-
-  //     if (data.status === "APPROVED") {
-  //       upsertBooking({
-  //         ...booking!,
-  //         pendingServiceProposal: null,
-  //         totalPrice: data.totalPrice,  // backend already summed
-  //       });
-  //       fetchBooking();
-  //     }
-
-  //     if (data.status === "REJECTED") {
-  //       upsertBooking({
-  //         ...booking!,
-  //         pendingServiceProposal: null,
-  //       });
-  //     }
-  //   };
-
-  //   socket.on("extra-service-response", onExtraResponse);
-
-  //   return () => {
-  //     socket.off("extra-service-response", onExtraResponse);
-  //   };
-  // }, [bookingId]);
-  // useEffect(() => {
-  //   const onExtraServiceProposed = (data: any) => {
-  //     console.log("[SOCKET RECEIVE] 🔥 USER received extra-service-proposed:", data);
-
-  //     if (data.bookingId !== bookingId) return;
-
-  //     upsertBooking({
-  //       ...booking!,
-  //       pendingServiceProposal: data.extraService,
-  //     });
-  //   };
-
-  //   socket.on("extra-service-proposed", onExtraServiceProposed);
-
-  //   return () => {
-  //     socket.off("extra-service-proposed", onExtraServiceProposed);
-  //   };
-  // }, [bookingId, booking]);
   useEffect(() => {
     const onExtraResponse = (data: any) => {
       if (data.bookingId !== bookingId) return;
@@ -420,7 +373,6 @@ export default function BookingOtp() {
   // part socket
   useEffect(() => {
     const onToolRequested = (payload: any) => {
-      console.log("[SOCKET RECEIVE] 🧰 tool-request received:", payload);
       setRequestQueue((prev) => {
         if (prev.some(req => req.requestId === payload.requestId)) return prev;
         return [...prev, payload];
@@ -453,65 +405,12 @@ export default function BookingOtp() {
 
 
 
-  //   if (PendingRequest && !PendingRequest.parts) {
-  //   return null; // or loader
-  // }
-  // if (PendingRequest && !Array.isArray(PendingRequest.parts)) {
-  //   return <Text>Loading parts...</Text>;
-  // }
 
-
-
-
-
-
-
-
-  // useEffect(() => {
-  //   const onBookingCompleted = ({ bookingId: completedId }: any) => {
-  //     if (completedId !== bookingId) return;
-
-  //     console.log("✅ Booking completed, redirecting to review");
-
-  //     navigation.replace("Review", 
-  //       {
-  //       bookingId: completedId,
-  //     }
-  //     );
-  //   };
-
-
-  //   socket.on("booking-completed", onBookingCompleted);
-
-  //   return () => {
-  //     socket.off("booking-completed", onBookingCompleted);
-  //   };
-  // }, [bookingId]);
-
-
-
-
-  // const handleApproveParts = () => {
-  //   if (!partRequest) return;
-
-  //   setPartActionLoading(true);
-
-  //   socket.emit("tool-permission-approved", {
-  //     requestId: partRequest.requestId,
-  //   });
-
-  //   setTimeout(() => {
-  //     setPartRequest(null);
-  //     setPartActionLoading(false);
-  //   }, 500);
-  // };
   const handleApprove = async () => {
     if (!PendingRequest || partActionLoading) return;
 
     try {
       setPartActionLoading(true);
-
-      console.log("Approving request:", PendingRequest.requestId);
 
       await api.post(`/booking/approve/${PendingRequest.requestId}`);
 
@@ -519,7 +418,6 @@ export default function BookingOtp() {
       fetchBooking();
 
     } catch (err) {
-      console.log("❌ Approve failed", err);
       Alert.alert("Error", "Failed to approve request");
     } finally {
       setPartActionLoading(false);
@@ -533,7 +431,6 @@ export default function BookingOtp() {
       setPartActionLoading(true);
 
       const reqId = PendingRequest.requestId;
-      console.log("Rejecting request:", reqId);
 
       // Optimistic UI update: Hide it instantly for a smooth experience
       setRequestQueue((prev) => prev.slice(1));
@@ -574,7 +471,6 @@ export default function BookingOtp() {
       setLastCallTime(Date.now());
       Vibration.vibrate(100);
 
-      console.log("[API CALL] 📞 Mask call:", bookingId);
 
       await initiateMaskedCall(bookingId);
 
@@ -607,23 +503,6 @@ export default function BookingOtp() {
   };
 
 
-
-
-
-
-  // const handleRejectParts = () => {
-  //   if (!PendingRequest) return;
-
-  //   socket.emit("tool-permission-rejected", {
-  //     requestId: PendingRequest.requestId,
-  //   });
-
-  //   setPendingRequest(null);
-  // };
-
-
-
-
   const animatedCircleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
@@ -637,8 +516,6 @@ export default function BookingOtp() {
   const otpBg = "#A5F3FC";
   const primaryTeal = "#0D9488";
 
-  console.log("🧪 ---------Booking from context:", booking);
-  console.log("-------pendingRequest:", PendingRequest);
 
   if (!booking) {
     return (

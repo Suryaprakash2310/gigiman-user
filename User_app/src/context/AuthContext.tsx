@@ -66,7 +66,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Firebase signout error:", e);
     }
 
-    console.log("🚪 Logout complete: session cleared");
 
     setUser(null);
     setAccessToken(null);
@@ -135,7 +134,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 🔊 Listen to FORCE_LOGOUT events
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('FORCE_LOGOUT', async () => {
-      console.log('FORCE_LOGOUT event received, executing logout...');
       await logout();
     });
 
@@ -150,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accessToken,
     refreshToken,
   }) => {
-    console.log("user coordinates:", user);
+
     
     // 1. Write to AsyncStorage first
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));

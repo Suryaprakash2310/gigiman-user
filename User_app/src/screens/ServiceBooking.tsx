@@ -313,7 +313,6 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const handleWebViewMessage = async (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      console.log('WebView payment message received:', data);
 
       if (!data.success) {
         Alert.alert("Payment Cancelled", data.reason === "dismissed" ? "Payment was cancelled by user" : "Payment failed");

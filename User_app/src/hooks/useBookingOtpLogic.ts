@@ -42,7 +42,6 @@ export function useBookingOtpLogic() {
   // Approve/Reject Service Proposal
   const handleApproveService = () => {
     if (!serviceProposal) return;
-    console.log("[SOCKET EMIT] 📤 extra-service-approve (true):", bookingId);
     socket.emit("extra-service-approve", {
       bookingId,
       extraServiceId: serviceProposal._id,
@@ -57,7 +56,6 @@ export function useBookingOtpLogic() {
   };
   const handleRejectService = () => {
     if (!serviceProposal) return;
-    console.log("[SOCKET EMIT] 📤 extra-service-approve (false):", bookingId);
     socket.emit("extra-service-approve", {
       bookingId,
       extraServiceId: serviceProposal._id,
@@ -117,7 +115,6 @@ export function useBookingOtpLogic() {
 
   useEffect(() => {
     const onExtraResponse = (data: any) => {
-      console.log("[SOCKET RECEIVE] 📥 extra-service-response:", data);
       if (data.bookingId !== bookingId) return;
       if (data.status === "APPROVED") {
         updateBookingItem(bookingId, {
@@ -148,7 +145,6 @@ export function useBookingOtpLogic() {
 
   useEffect(() => {
     const onExtraServiceProposed = (data: any) => {
-      console.log("[SOCKET RECEIVE] 📥 extra-service-proposed:", data);
       if (data.bookingId !== bookingId) return;
       updateBookingItem(bookingId, {
         pendingServiceProposal: data.extraService,
@@ -162,7 +158,6 @@ export function useBookingOtpLogic() {
 
   useEffect(() => {
     socket.on("tool-request-created", payload => {
-      console.log("[SOCKET RECEIVE] 🧰 tool-request-created:", payload);
       setPendingRequest(payload);
     });
     return () => {
@@ -172,7 +167,6 @@ export function useBookingOtpLogic() {
 
   useEffect(() => {
     socket.on("tool-requested", (payload) => {
-      console.log("[SOCKET RECEIVE] 🧰 tool-requested:", payload);
       setPendingRequest(payload);
     });
     return () => {

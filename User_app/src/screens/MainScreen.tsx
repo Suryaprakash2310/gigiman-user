@@ -72,11 +72,9 @@ export default function HomeScreen() {
       try {
         const [popularRes, bannersRes] = await Promise.all([
           getPopularServices().catch(e => {
-            console.log("popular error", e);
             return [];
           }),
           getBanners().catch(e => {
-            console.log("banner error", e);
             return [];
           })
         ]);

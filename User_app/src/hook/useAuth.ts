@@ -24,11 +24,3 @@ export function useAuth() {
 }
 
 
-// const { user } = useAuth();
-// console.log(user.name);
-// login({
-//   user: response.data.user,
-//   accessToken: response.data.accessToken,
-//   refreshToken: response.data.refreshToken
-// });
-// logout();

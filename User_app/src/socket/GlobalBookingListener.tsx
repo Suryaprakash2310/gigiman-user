@@ -19,7 +19,7 @@ export default function GlobalBookingListener() {
   useEffect(() => {
     if (!socket) return;
     const onServicerAccepted = ({ booking, otp }: any) => {
-      console.log("[SOCKET RECEIVE] 🟢 servicer-accepted payload for:", booking._id);
+    
 
       const mapped = mapBookingToBookingItem(booking, otp);
 
@@ -30,7 +30,6 @@ export default function GlobalBookingListener() {
       // with BookingDetails when the booking status updates.
       const currentRoute = navigation.getCurrentRoute?.()?.name;
       if (currentRoute === "Searching") {
-        console.log("[SOCKET RECEIVE] User is on Searching screen, let it handle the replace navigation.");
         return;
       }
 
@@ -49,8 +48,6 @@ export default function GlobalBookingListener() {
 
     /* otp generated */
     const onOtpGenerated = ({ bookingId, otp }: any) => {
-      console.log("[SOCKET RECEIVE] 🔑 otp-generated payload for:", bookingId);
-
       updateStatus(bookingId, "otp");
 
       upsertBooking({
@@ -89,7 +86,6 @@ export default function GlobalBookingListener() {
       // Avoid double navigation if the user is already on the Searching screen.
       const currentRoute = navigation.getCurrentRoute?.()?.name;
       if (currentRoute === "Searching") {
-        console.log("[SOCKET RECEIVE] User is on Searching screen, let it handle the replace navigation.");
         return;
       }
 
@@ -101,7 +97,6 @@ export default function GlobalBookingListener() {
 
     /* no provider available */
     const onNoProvider = (payload: any) => {
-      console.log("[SOCKET RECEIVE] ❌ no-servicer-available payload:", payload);
       const bookingId = payload?.bookingId || payload;
       if (bookingId && typeof bookingId === "string") {
         handleAssignmentFailure(bookingId);
@@ -110,7 +105,7 @@ export default function GlobalBookingListener() {
 
     /* no team available */
     const onNoTeam = (payload: any) => {
-      console.log("[SOCKET RECEIVE] ❌ no-team-available payload:", payload);
+
       const bookingId = payload?.bookingId || payload;
       if (bookingId && typeof bookingId === "string") {
         handleAssignmentFailure(bookingId);
@@ -118,8 +113,7 @@ export default function GlobalBookingListener() {
     };
 
     const onBookingCompleted = ({ bookingId }: any) => {
-      console.log("[SOCKET RECEIVE] ✅ booking-completed payload for:", bookingId);
-
+  
       updateStatus(bookingId, "completed");
 
       navigation.navigate("BookingTab", {
@@ -130,7 +124,6 @@ export default function GlobalBookingListener() {
 
     /* user cancelled */
     const onUserCancelBooking = (payload: any) => {
-      console.log("📥 user-cancel-booking received:", payload);
       const id = payload?.bookingId || payload;
       if (id) {
         updateStatus(id, "cancelled");

@@ -91,7 +91,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
       }
     } catch (error) {
-      console.log("Error fetching notifications:", error);
+      console.error(error);
     } finally {
       if (reset) {
         setLoading(false);
@@ -193,7 +193,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!socket || !accessToken) return;
 
     const handleNewNotification = (notification: NotificationItem) => {
-      console.log("📥 Real-time notification received:", notification);
       
       // Update local state
       setNotifications((prev) => [notification, ...prev]);

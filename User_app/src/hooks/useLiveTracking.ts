@@ -15,11 +15,9 @@ export const useLiveTracking = (bookingId: string) => {
         if (!bookingId) return;
 
         // Join the tracking room for this booking
-        console.log("[SOCKET EMIT] 📤 join-tracking:", bookingId);
         socket.emit("join-tracking", { bookingId });
 
         const onLocationUpdate = (data: { latitude: number; longitude: number; heading?: number, eta?: string }) => {
-            console.log("[SOCKET RECEIVE] 📍 servicer-location-update:", data);
             setServicerLocation({
                 latitude: data.latitude,
                 longitude: data.longitude,
@@ -32,7 +30,6 @@ export const useLiveTracking = (bookingId: string) => {
 
         return () => {
             socket.off("servicer-location-update", onLocationUpdate);
-            console.log("[SOCKET EMIT] 📤 leave-tracking:", bookingId);
             socket.emit("leave-tracking", { bookingId });
         };
     }, [bookingId]);

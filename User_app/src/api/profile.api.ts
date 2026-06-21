@@ -22,7 +22,6 @@ export const completeProfileAPI = (payload: {
 export const ProfileAPI = {
   getProfileAPI: async (): Promise<{ success: boolean; user?: UserProfile }> => {
     const res = await api.get("/user/profile");
-    console.log(res.data);
 
     return res.data; // { success, user }
   },
@@ -35,6 +34,5 @@ export const updateProfile = (data: {
   longitude?: number;
   avatar?: string | null;
 }) => {
-  console.log(data);
   return api.put('/user/edit-profile', data);
 };

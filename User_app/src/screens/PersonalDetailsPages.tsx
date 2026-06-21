@@ -35,7 +35,6 @@ export default function PersonalDetailsPage() {
                 if (avatar !== undefined) payload.avatar = avatar; // string | null
 
                 const res = await updateProfile(payload);
-                console.log('Profile updated', res.data);
                 
                 if (res.data?.success && res.data.user) {
                     const updatedUserObj = res.data.user;

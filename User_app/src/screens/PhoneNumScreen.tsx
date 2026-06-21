@@ -56,7 +56,6 @@ const PhoneNumScreen: React.FC = () => {
         console.warn("Firebase native phone auth failed, using mock bypass:", fbError);
         confirmation = {
           confirm: async (otp: string) => {
-            console.log("Mock confirm OTP called:", otp);
             return {
               user: {
                 getIdToken: async () => {
