@@ -60,7 +60,9 @@ export default function MyBookingsScreen() {
               </View>
               <Text style={styles.sub}>{item.address}</Text>
               <View style={styles.footer}>
-                <Text style={styles.status}>{item.status}</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.status}>{item.status}</Text>
+                </View>
               </View>
             </View>
           )}
@@ -107,41 +109,61 @@ const makeStyles = (theme: any, insets: any) =>
     },
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 14,
-      padding: 14,
+      borderRadius: 16,
+      padding: 16,
       marginBottom: 12,
-      elevation: 2,
+
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+
+      elevation: 3,
     },
     row: {
       flexDirection: "row",
-      justifyContent: "space-between",
+      //justifyContent: "space-between",
       alignItems: "flex-start",
     },
     service: {
-      fontSize: 15,
+      flex: 1,
+      fontSize: width < 380 ? 14 : 15,
       fontWeight: "700",
       color: theme.colors.text,
-      flex: 1,
-      marginRight: 12,
+      marginRight: 8,
     },
     amount: {
-      fontSize: 15,
+      width: 70,
+      textAlign: "right",
+      fontSize: width < 380 ? 15 : 16,
       fontWeight: "700",
       color: theme.colors.text,
     },
     sub: {
       fontSize: 13,
       color: theme.colors.textMuted,
-      marginTop: 4,
+      marginTop: 6,
+      lineHeight: 18,
     },
     footer: {
       marginTop: 10,
       flexDirection: "row",
       justifyContent: "space-between",
     },
+    statusBadge: {
+      alignSelf: "flex-start",
+      backgroundColor: "#E8F5E9",
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+    },
     status: {
       fontSize: 12,
       fontWeight: "600",
       color: theme.colors.primary,
+      textTransform: "capitalize",
     },
   });
