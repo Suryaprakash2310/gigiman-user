@@ -10,8 +10,6 @@ import { useTheme } from '../theme/useTheme';
 import CustomTabBar from '../components/ui/CustomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const Tab = createBottomTabNavigator();
-
 export type AppTabsParamList = {
   HomeTab: undefined;
   ServiceTab: undefined;
@@ -19,11 +17,11 @@ export type AppTabsParamList = {
   ProfileTab: undefined;
 };
 
+const Tab = createBottomTabNavigator<AppTabsParamList>();
 
 export default function AppStack() {
   const { setMode, theme  } = useTheme();
   const insets = useSafeAreaInsets();
-  const Tab = createBottomTabNavigator<AppTabsParamList>();
   useEffect(() => {
     setMode?.('light');
   }, []);
