@@ -115,16 +115,19 @@ const makeStyles = (theme: any, insets: any) =>
     row: {
       flexDirection: "row",
       justifyContent: "space-between",
+      alignItems: "flex-start",
     },
     service: {
       fontSize: 15,
       fontWeight: "700",
       color: theme.colors.text,
+      flex: 1,
+      marginRight: 12,
     },
     amount: {
       fontSize: 15,
       fontWeight: "700",
-      color: theme.colors.success || "#2e7d32",
+      color: theme.colors.text,
     },
     sub: {
       fontSize: 13,

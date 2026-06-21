@@ -784,7 +784,6 @@ export default function BookingOtp() {
             <BookingDetailsCard
               name={booking.name ?? "Assigned Technician"}
               role={booking.serviceCategoryName}
-              experience="5 years exp"
               image={booking.image}
               eta={booking.eta}
               phone={booking.phone}
@@ -998,7 +997,7 @@ export default function BookingOtp() {
 
               {booking.cartItems && booking.cartItems.length > 0 ? (
                 booking.cartItems.map((item, index) => (
-                  <View key={item._id || item.serviceCategoryId || index} style={styles.summaryRow}>
+                  <View key={`${item._id || item.serviceCategoryId || index}-${index}`} style={styles.summaryRow}>
                     <AppText style={{ color: "#475569" }}>
                       {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ""}
                     </AppText>
@@ -1017,7 +1016,7 @@ export default function BookingOtp() {
               )}
 
               {booking.extraServices?.filter(s => s.status === "APPROVED").map((extra, index) => (
-                <View key={extra._id || index} style={styles.summaryRow}>
+                <View key={`${extra._id || index}-${index}`} style={styles.summaryRow}>
                   <AppText style={{ color: "#475569" }}>+ {extra.serviceName}</AppText>
                   <AppText style={{ color: "#0F172A" }}>
                     ₹{extra.price}

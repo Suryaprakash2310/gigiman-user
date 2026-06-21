@@ -9,7 +9,6 @@ import AppText from './ui/AppText';
 interface BookingDetailsCardProps {
     name: string;
     role: string;
-    experience: string;
     rating?: number;
     reviews?: number;
     image?: string;
@@ -21,7 +20,6 @@ interface BookingDetailsCardProps {
 export default function BookingDetailsCard({
     name,
     role,
-    experience,
     rating,
     reviews,
     image,
@@ -54,7 +52,7 @@ export default function BookingDetailsCard({
                 </AppText>
 
                 <AppText size="body" color="textMuted" style={styles.details}>
-                    {role} • {experience}
+                    {role}
                 </AppText>
 
                 {eta ? (

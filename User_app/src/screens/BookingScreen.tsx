@@ -98,7 +98,13 @@ export default function BookingScreen() {
           ? new Date(b.createdAt).toLocaleTimeString()
           : "",
       }));
-      setHistoryBookings(mapped);
+
+      // De-duplicate history bookings by _id
+      const uniqueMapped = Array.from(
+        new Map(mapped.map(item => [item._id, item])).values()
+      );
+
+      setHistoryBookings(uniqueMapped);
     } catch (err) {
       console.log("History fetch error:", err);
     } finally {
@@ -114,12 +120,21 @@ export default function BookingScreen() {
 
   // Get data for current tab
   const getTabData = (): BookingItem[] => {
-    if (activeTab === "history") return historyBookings;
-    if (activeTab === "manualAssignment") return manualBookings || [];
+    let rawData: BookingItem[] = [];
+    if (activeTab === "history") {
+      rawData = historyBookings;
+    } else if (activeTab === "manualAssignment") {
+      rawData = manualBookings || [];
+    } else {
+      const sourceData = activeTab === "ongoing" ? ongoing : upcoming;
+      rawData = sourceData.filter(
+        b => b.status !== "completed" && b.status !== "cancelled"
+      );
+    }
 
-    const rawData = activeTab === "ongoing" ? ongoing : upcoming;
-    return rawData.filter(
-      b => b.status !== "completed" && b.status !== "cancelled"
+    // De-duplicate items by _id to prevent duplicate key warnings
+    return Array.from(
+      new Map(rawData.map(item => [String(item._id), item])).values()
     );
   };
 
@@ -316,7 +331,7 @@ export default function BookingScreen() {
       {!empty && !(activeTab === "history" && historyLoading) && (
         <FlatList
           data={data}
-          keyExtractor={(item) => item._id}
+          keyExtractor={(item) => String(item._id)}
           style={[styles.list, activeTab === "history" && { marginTop: 20 }]}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}

@@ -79,7 +79,7 @@ export default function BookingListCard({ booking, onPress }: Props) {
     <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
       <AppCard style={styles.card}>
         <View style={styles.rowTop}>
-          <AppText weight="bold">
+          <AppText weight="bold" style={styles.serviceName}>
             {booking.serviceCategoryName}
           </AppText>
 
@@ -152,7 +152,12 @@ const createStyles = (theme: any) =>
     rowTop: {
       flexDirection: "row",
       justifyContent: "space-between",
+      alignItems: "flex-start",
       marginBottom: 4,
+    },
+    serviceName: {
+      flex: 1,
+      marginRight: 12,
     },
     rowMid: {
       marginBottom: 8,

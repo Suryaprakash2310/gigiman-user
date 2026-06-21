@@ -318,7 +318,7 @@ const OffersCarousel = ({ banners, loading }: { banners: any[], loading: boolean
         decelerationRate="fast"
       >
         {banners.map((o, i) => (
-          <View key={o._id || i} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
+          <View key={`${o._id || i}-${i}`} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
             <Image source={{ uri: o.img }} style={styles.offerImg} resizeMode="stretch" />
           </View>
         ))}
@@ -490,7 +490,7 @@ const PopularSection = ({ services, loading }: any) => {
       >
         {services.map((service: any, index: number) => (
           <PopularServiceCard
-            key={service._id || index}
+            key={`${service._id || index}-${index}`}
             service={service}
             index={index}
           />
