@@ -51,7 +51,14 @@ export const SUPPORT_MENU = [
     label: 'Terms & Conditions',
     icon: 'file-text',
     screen: 'TermsAndConditionsPage',
-  }
+  },
+  {
+    id: 'privacy',
+    label: 'Privacy Policy',
+    icon: 'shield',
+    screen: '',
+    url: 'https://www.gigiman.in/privacy-policy',
+  },
 ];
 
 export const LOGOUT_MENU = [

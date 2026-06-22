@@ -6,7 +6,7 @@ import { useTheme } from '@/src/theme/useTheme';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProfileMenuItem from '../../components/ProfileMenuItem';
 import AvatarUpload from '../../components/ui/AvatorUpload';
@@ -50,7 +50,11 @@ export default function ProfileScreen() {
     fetchProfile();
   }, []);
 
-  const handlePress = (screen: string) => {
+  const handlePress = (screen: string, url?: string) => {
+    if (url) {
+      Linking.openURL(url);
+      return;
+    }
     if (!screen) return;
     navigation.navigate(screen);
   };
@@ -92,12 +96,12 @@ export default function ProfileScreen() {
 
         {/* SUPPORT MENU */}
         <View style={styles.menuBlock}>
-          {SUPPORT_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; screen: string; }) => (
+          {SUPPORT_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; screen: string; url?: string; }) => (
             <ProfileMenuItem
               key={item.id}
               label={item.label}
               icon={item.icon}
-              onPress={() => handlePress(item.screen)}
+              onPress={() => handlePress(item.screen, item.url)}
             />
           ))}
         </View>
