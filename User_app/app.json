@@ -49,9 +49,9 @@
           "image": "./assets/images/logogigi.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#285B5B",
+          "backgroundColor": "#033921",
           "dark": {
-            "backgroundColor": "#285B5B"
+            "backgroundColor": "#033921"
           }
         }
       ],
