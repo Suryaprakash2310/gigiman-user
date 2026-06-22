@@ -22,7 +22,7 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
-    console.error('API ERROR:', error?.response?.data || error.message);
+    //console.error('API ERROR:', error?.response?.data || error.message);
     if (error?.response?.status === 401) {
       // ⛔ Only emit FORCE_LOGOUT when the user was already fully verified.
       // A new user receives a tempToken before completing their profile.

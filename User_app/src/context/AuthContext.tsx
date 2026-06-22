@@ -105,11 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (savedRefresh) setRefreshToken(savedRefresh);
               await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
             } else {
-              console.warn('Backend session verification failed, logging out.');
+              //console.warn('Backend session verification failed, logging out.');
               await logout();
             }
           } catch (apiErr) {
-            console.error('Session validation error:', apiErr);
+            //console.error('Session validation error:', apiErr);
             // Check if it's a 401 or 403 unauthorized error
             if (isAxiosError(apiErr) && (apiErr.response?.status === 401 || apiErr.response?.status === 403)) {
               await logout();
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshToken,
   }) => {
 
-    
+
     // 1. Write to AsyncStorage first
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
     await AsyncStorage.setItem(ACCESS_KEY, accessToken);

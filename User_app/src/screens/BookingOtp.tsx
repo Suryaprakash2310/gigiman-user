@@ -126,7 +126,7 @@ export default function BookingOtp() {
   const handleWebViewMessage = async (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      
+
 
       if (!data.success) {
         Alert.alert("Payment Cancelled", data.reason === "dismissed" ? "Payment was cancelled by user" : "Payment failed");
@@ -480,11 +480,11 @@ export default function BookingOtp() {
       );
 
     } catch (err: any) {
-      console.log("❌ Call failed:", err?.response?.data);
+      //console.log("❌ Call failed:", err?.response?.data);
 
       Alert.alert(
         "Call Failed",
-        err?.response?.data?.message || "Unable to connect call. Please try again later."
+        "Unable to connect call. Please try again later."
       );
     } finally {
       setCalling(false);
@@ -558,8 +558,8 @@ export default function BookingOtp() {
                 backgroundColor: ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
                   ? theme.colors.danger + '30'
                   : ['pending', 'confirmed', 'searching'].includes(booking.status)
-                  ? theme.colors.primary + '30'
-                  : brightCyan
+                    ? theme.colors.primary + '30'
+                    : brightCyan
               },
               animatedCircleStyle,
             ]}
@@ -569,18 +569,18 @@ export default function BookingOtp() {
                 booking.status === 'completed'
                   ? 'checkmark-done-outline'
                   : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                  ? 'alert-circle-outline'
-                  : ['pending', 'confirmed', 'searching'].includes(booking.status)
-                  ? 'search-outline'
-                  : 'person-outline'
+                    ? 'alert-circle-outline'
+                    : ['pending', 'confirmed', 'searching'].includes(booking.status)
+                      ? 'search-outline'
+                      : 'person-outline'
               }
               size={32}
               color={
                 ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
                   ? theme.colors.danger
                   : ['pending', 'confirmed', 'searching'].includes(booking.status)
-                  ? theme.colors.primary
-                  : "#0F172A"
+                    ? theme.colors.primary
+                    : "#0F172A"
               }
             />
           </Animated.View>
@@ -588,12 +588,12 @@ export default function BookingOtp() {
             {booking.status === 'completed'
               ? 'Service Completed!'
               : booking.status === 'in_progress'
-              ? 'Service in Progress'
-              : (booking.status === 'assigned' || booking.status === 'otp')
-              ? 'Technician Assigned!'
-              : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-              ? 'Awaiting Manual Assignment'
-              : 'Searching Technician...'}
+                ? 'Service in Progress'
+                : (booking.status === 'assigned' || booking.status === 'otp')
+                  ? 'Technician Assigned!'
+                  : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
+                    ? 'Awaiting Manual Assignment'
+                    : 'Searching Technician...'}
           </AppText>
         </View>
 
@@ -609,7 +609,7 @@ export default function BookingOtp() {
                   Pay Remaining Balance
                 </AppText>
               </View>
-              
+
               <AppText size="small" color="textMuted" style={{ marginBottom: 16 }}>
                 You paid 18% advance. The remaining 82% balance amount is due now.
               </AppText>
@@ -969,9 +969,9 @@ export default function BookingOtp() {
                 </View>
               </View>
             </View>
-            </AppCard>
+          </AppCard>
 
-          </Animated.View>
+        </Animated.View>
       </ScrollView>
 
 
