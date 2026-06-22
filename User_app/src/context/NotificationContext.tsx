@@ -139,9 +139,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
-  // Fetch initial notifications when token is available
+  // Fetch initial notifications when token is available and user is verified
   useEffect(() => {
-    if (accessToken) {
+    // ⛔ Only fetch for fully verified users.
+    // New users have a tempToken before profile completion.
+    // Fetching with tempToken returns 401 → FORCE_LOGOUT → slider screen.
+    if (accessToken && user?.isVerified) {
       fetchNotifications(true);
     } else {
       setNotifications([]);
@@ -149,7 +152,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setPage(1);
       setHasMore(true);
     }
-  }, [accessToken]);
+  }, [accessToken, user]);
 
   // Toast animations
   const showToast = (notification: NotificationItem) => {

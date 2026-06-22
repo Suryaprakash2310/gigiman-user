@@ -23,7 +23,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
-  const { accessToken } = useAuthContext();
+  const { accessToken, user } = useAuthContext();
 
   const fetchCart = async () => {
     if (!accessToken) return;
@@ -110,13 +110,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Sync cart fetching with authentication status
   useEffect(() => {
-    if (accessToken) {
+    // ⛔ Only fetch for fully verified users.
+    // New users have a tempToken before profile completion.
+    // Fetching with tempToken returns 401 → FORCE_LOGOUT → slider screen.
+    if (accessToken && user?.isVerified) {
       fetchCart();
       fetchSuggestions();
     } else {
       clearCart();
     }
-  }, [accessToken]);
+  }, [accessToken, user]);
 
   return (
     <CartContext.Provider value={{

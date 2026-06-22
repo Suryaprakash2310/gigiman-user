@@ -113,7 +113,7 @@ const BookingContext = createContext<BookingContextType | null>(null);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
-  const { accessToken } = useAuthContext();
+  const { accessToken, user } = useAuthContext();
 
 
   const upsertBooking = React.useCallback((booking: BookingItem) => {
@@ -202,18 +202,20 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshBookings = React.useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken || !user?.isVerified) return;
     await fetchInitialBookings();
-  }, [accessToken, fetchInitialBookings]);
+  }, [accessToken, user, fetchInitialBookings]);
 
   useEffect(() => {
-    if (!accessToken) return;
-
+    // ⛔ Only fetch for fully verified users.
+    // A new user receives a tempToken BEFORE profile completion.
+    // Without this guard, the fetch fires with the tempToken, gets a 401,
+    // which triggers FORCE_LOGOUT and sends the user back to the slider.
+    if (!accessToken || !user?.isVerified) return;
 
     setBookings([]); // 🔥 clear old user data first
-
     fetchInitialBookings();
-  }, [accessToken, fetchInitialBookings]);
+  }, [accessToken, user, fetchInitialBookings]);
 
   /* ----------------------------- */
   /* SINGLE SOURCE OF TRUTH        */

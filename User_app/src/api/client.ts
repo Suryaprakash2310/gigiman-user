@@ -21,10 +21,22 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (res) => res,
-  (error) => {
+  async (error) => {
     console.error('API ERROR:', error?.response?.data || error.message);
     if (error?.response?.status === 401) {
-      DeviceEventEmitter.emit('FORCE_LOGOUT');
+      // ⛔ Only emit FORCE_LOGOUT when the user was already fully verified.
+      // A new user receives a tempToken before completing their profile.
+      // If we emit FORCE_LOGOUT for their 401s, they get sent back to the
+      // onboarding slider instead of staying on the profile completion screen.
+      try {
+        const savedUser = await AsyncStorage.getItem('gg_user');
+        const parsedUser = savedUser ? JSON.parse(savedUser) : null;
+        if (parsedUser?.isVerified) {
+          DeviceEventEmitter.emit('FORCE_LOGOUT');
+        }
+      } catch {
+        // If we can't read the stored user, don't force logout.
+      }
     }
     return Promise.reject(error);
   }
