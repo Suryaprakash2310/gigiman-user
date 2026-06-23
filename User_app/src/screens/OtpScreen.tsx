@@ -103,7 +103,6 @@ const OtpScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await sendOtpApi(phone); // Optional backend call
       const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
       setConfirmation(newConfirmation);
       otpRef.current?.reset();
