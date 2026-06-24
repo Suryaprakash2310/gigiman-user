@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import auth from '@react-native-firebase/auth';
 import { useRef } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -53,13 +54,20 @@ const PhoneNumScreen: React.FC = () => {
       navigation.navigate("OtpScreen", { phone, confirmation });
     } catch (err: any) {
       console.log("OTP ERROR:", err);
+      Alert.alert(
+        "OTP Error",
+        JSON.stringify({
+          code: err?.code,
+          message: err?.message,
+        })
+      );
 
       if (err.code === 'auth/invalid-phone-number') {
         setError("Invalid phone number");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Too many attempts. Try later.");
       } else {
-        setError("Failed to send OTP");
+        setError("Failed to send OTP:" + err.message);
       }
     } finally {
       setLoading(false);
