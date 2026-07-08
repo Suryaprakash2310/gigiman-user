@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:909756007187:android:31795ebc46619cd86e10e6",
+        "android_client_info": {
+          "package_name": "com.suryaprakash23.gigiman"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBne0MQsLKOTNqYl_OMlbovZ0aLR-w62ZA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:909756007187:android:090aa01aa32e585d6e10e6",
         "android_client_info": {
           "package_name": "com.suryaprakash23.gigiuser"
