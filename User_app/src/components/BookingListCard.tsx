@@ -115,19 +115,29 @@ export default function BookingListCard({ booking, onPress }: Props) {
         </View>
 
         <View style={styles.rowBottom}>
-          <View
-            style={[
-              styles.pill,
-              { backgroundColor: statusConfig.bg },
-            ]}
-          >
-            <AppText
-              size="small"
-              weight="semibold"
-              style={{ color: statusConfig.color }}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={[
+                styles.pill,
+                { backgroundColor: statusConfig.bg },
+              ]}
             >
-              {statusConfig.label}
-            </AppText>
+              <AppText
+                size="small"
+                weight="semibold"
+                style={{ color: statusConfig.color }}
+              >
+                {statusConfig.label}
+              </AppText>
+            </View>
+
+            {booking.otp && (booking.status === "otp" || booking.status === "assigned") && (
+              <View style={[styles.pill, { backgroundColor: "#A5F3FC" }]}>
+                <AppText size="small" weight="bold" style={{ color: "#0E7490" }}>
+                  OTP: {booking.otp}
+                </AppText>
+              </View>
+            )}
           </View>
 
           {(booking.status === "in_progress" || booking.status === "completed" || booking.status === "assigned" || booking.status === "otp") &&

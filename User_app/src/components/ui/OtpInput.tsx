@@ -14,12 +14,14 @@ interface OtpInputProps {
   resendEnabled?: boolean;
   resendTime?: number; // in seconds
   onResend?: () => void;
+  onOtpChange?: (otp: string) => void;
 }
 
 export interface OtpInputRef {
   reset: () => void;
   setValue: (value: string) => void;
   focus: () => void;
+  getValue: () => string;
 }
 
 
@@ -30,6 +32,7 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
     resendEnabled = true,
     resendTime = 60,
     onResend,
+    onOtpChange,
   }, ref
   ) => {
     const [otp, setOtp] = useState<string[]>(Array(otpLength).fill(''));
@@ -48,6 +51,9 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
     useImperativeHandle(ref, () => ({
       reset: () => {
         setOtp(Array(otpLength).fill(''));
+        if (onOtpChange) {
+          onOtpChange('');
+        }
         inputRefs.current[0]?.focus();
       },
       setValue: (value: string) => {
@@ -55,12 +61,18 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
         const newOtp = Array(otpLength).fill('');
         digits.forEach((d, i) => (newOtp[i] = d));
         setOtp(newOtp);
+        if (onOtpChange) {
+          onOtpChange(digits.join(''));
+        }
         if (digits.length === otpLength) {
           onOtpComplete(digits.join(''));
         }
       },
       focus: () => {
         inputRefs.current[0]?.focus();
+      },
+      getValue: () => {
+        return otp.join('');
       },
     }));
 
@@ -78,6 +90,9 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
           newOtp[i + index] = chars[i];
         }
         setOtp(newOtp);
+        if (onOtpChange) {
+          onOtpChange(newOtp.join(''));
+        }
         if (newOtp.join('').length === otpLength) {
           onOtpComplete(newOtp.join(''));
           Keyboard.dismiss();
@@ -93,6 +108,9 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
       newOtp[index] = text;
 
       setOtp(newOtp);
+      if (onOtpChange) {
+        onOtpChange(newOtp.join(''));
+      }
 
       if (text && index < otpLength - 1) {
         inputRefs.current[index + 1]?.focus();

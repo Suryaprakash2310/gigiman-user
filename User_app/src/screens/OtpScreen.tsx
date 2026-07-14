@@ -20,10 +20,10 @@ import AppText from '../components/ui/AppText';
 import OtpInput, { OtpInputRef } from '../components/ui/OtpInput';
 import { useAuthContext } from "../context/AuthContext";
 import { useTheme } from '../theme/useTheme';
+import { getConfirmationResult, setConfirmationResult } from '../utils/authSession';
 
 type OtpRouteParams = {
   phone?: string;
-  confirmation?: any;
 };
 
 const OtpScreen: React.FC = () => {
@@ -39,8 +39,7 @@ const OtpScreen: React.FC = () => {
     useRoute<RouteProp<Record<string, OtpRouteParams>, string>>();
 
   const phone = route?.params?.phone ?? '';
-  const initialConfirmation = route?.params?.confirmation || null;
-  const [confirmation, setConfirmation] = useState(route?.params?.confirmation);  //const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal | null>(null);
+  const [confirmation, setConfirmation] = useState<any>(() => getConfirmationResult());
 
   const styles = createStyles(theme);
 
@@ -51,6 +50,9 @@ const OtpScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+
+      console.log("Confirmation:", confirmation);
+      console.log("OTP:", otp);
 
       if (!confirmation) {
         throw new Error("Missing confirmation object");
@@ -91,7 +93,18 @@ const OtpScreen: React.FC = () => {
       });
 
     } catch (err: any) {
-      setError(err?.message || err?.response?.data?.message || "Invalid OTP");
+      console.log("OTP Verification error:", err);
+      let friendlyMessage = "Invalid OTP. Please check and try again.";
+      if (err.code === 'auth/session-expired' || err.code === 'auth/code-expired') {
+        friendlyMessage = "The verification code has expired. Please tap 'Resend' to get a new code.";
+      } else if (err.code === 'auth/invalid-verification-code') {
+        friendlyMessage = "The code you entered is incorrect. Please try again.";
+      } else if (err.code === 'auth/too-many-requests') {
+        friendlyMessage = "Too many attempts. Please try again later.";
+      } else if (err.message) {
+        friendlyMessage = err.message.replace(/\[auth\/.*?\]\s*/g, '');
+      }
+      setError(friendlyMessage);
       otpRef.current?.reset();
     } finally {
       setLoading(false);
@@ -105,11 +118,29 @@ const OtpScreen: React.FC = () => {
     try {
       const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
       setConfirmation(newConfirmation);
+      setConfirmationResult(newConfirmation);
       otpRef.current?.reset();
     } catch (err: any) {
-      setError(err?.message || err?.response?.data?.message || "Failed to resend OTP");
+      console.log("OTP Resend error:", err);
+      let friendlyMessage = "Failed to resend OTP. Please try again.";
+      if (err.code === 'auth/too-many-requests') {
+        friendlyMessage = "Too many attempts. Please try again later.";
+      } else if (err.message) {
+        friendlyMessage = err.message.replace(/\[auth\/.*?\]\s*/g, '');
+      }
+      setError(friendlyMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyPress = () => {
+    if (loading) return;
+    const enteredOtp = otpRef.current?.getValue() || '';
+    if (enteredOtp.length === 6) {
+      handleOtpComplete(enteredOtp);
+    } else {
+      setError("Please enter the complete 6-digit code.");
     }
   };
 
@@ -146,6 +177,9 @@ const OtpScreen: React.FC = () => {
               resendTime={30}
               onOtpComplete={handleOtpComplete}
               onResend={handleResend}
+              onOtpChange={() => {
+                if (error) setError(null);
+              }}
             />
           </View>
           {error && (
@@ -165,7 +199,7 @@ const OtpScreen: React.FC = () => {
         >
           <AppButton
             title={loading ? "Verifying..." : "Verify"}
-            onPress={() => otpRef.current?.focus()}
+            onPress={handleVerifyPress}
             disabled={loading}
           />
         </View>

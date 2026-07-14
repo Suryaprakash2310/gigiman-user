@@ -536,9 +536,19 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       }
     } catch (err: any) {
       console.error('Booking error:', err);
+      let errorMsg = 'Please try again';
+      if (err?.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err?.message) {
+        if (err.message.toLowerCase().includes("location")) {
+          errorMsg = "Please turn ON the location";
+        } else {
+          errorMsg = err.message;
+        }
+      }
       Alert.alert(
         'Booking Failed',
-        err?.response?.data?.message || 'Please try again'
+        errorMsg
       );
     } finally {
       setBooking(false);

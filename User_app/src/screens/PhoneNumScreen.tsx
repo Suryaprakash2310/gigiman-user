@@ -23,6 +23,7 @@ import AppButton from '../components/ui/AppButton';
 import AppCard from '../components/ui/AppCard';
 import AppText from '../components/ui/AppText';
 import { useTheme } from '../theme/useTheme';
+import { setConfirmationResult } from '../utils/authSession';
 
 const PhoneNumScreen: React.FC = () => {
   const { theme, setMode } = useTheme();
@@ -51,7 +52,8 @@ const PhoneNumScreen: React.FC = () => {
       setLoading(true);
       setError(null);
       const confirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
-      navigation.navigate("OtpScreen", { phone, confirmation });
+      setConfirmationResult(confirmation);
+      navigation.navigate("OtpScreen", { phone });
     } catch (err: any) {
       console.log("OTP ERROR:", err);
       Alert.alert(

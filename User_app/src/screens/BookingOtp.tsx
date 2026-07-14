@@ -600,62 +600,6 @@ export default function BookingOtp() {
         <Animated.View style={animatedContentStyle}>
 
 
-          {/* Remaining Balance Payment Section */}
-          {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && ['in_progress', 'completed'].includes(booking.status) && (
-            <AppCard style={styles.balancePaymentCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <Ionicons name="card-outline" size={24} color={theme.colors.primary} />
-                <AppText weight="bold" size="h3" style={{ marginLeft: 10 }}>
-                  Pay Remaining Balance
-                </AppText>
-              </View>
-
-              <AppText size="small" color="textMuted" style={{ marginBottom: 16 }}>
-                You paid 18% advance. The remaining 82% balance amount is due now.
-              </AppText>
-
-              <View style={[styles.priceBox, { backgroundColor: theme.colors.background }]}>
-                <View style={styles.priceRow}>
-                  <AppText>Total Price</AppText>
-                  <AppText weight="medium">₹{booking.totalPrice}</AppText>
-                </View>
-                <View style={styles.priceRow}>
-                  <AppText>Advance Paid (18%)</AppText>
-                  <AppText weight="medium" style={{ color: theme.colors.success }}>-₹{booking.advanceAmount}</AppText>
-                </View>
-                <View style={styles.priceDivider} />
-                <View style={styles.priceRow}>
-                  <AppText weight="bold">Remaining Balance (82%)</AppText>
-                  <AppText weight="bold" size="h3" style={{ color: theme.colors.primary }}>
-                    ₹{booking.remainingAmount}
-                  </AppText>
-                </View>
-              </View>
-
-              <View style={styles.balanceActionRow}>
-                <TouchableOpacity
-                  style={[styles.balanceBtn, { backgroundColor: theme.colors.border }]}
-                  onPress={handleBalancePaymentCash}
-                  disabled={paying}
-                >
-                  <AppText weight="bold" style={{ color: theme.colors.text }}>
-                    Pay Cash
-                  </AppText>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.balanceBtn, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => setShowPaymentSheet(true)}
-                  disabled={paying}
-                >
-                  <AppText weight="bold" style={{ color: '#fff' }}>
-                    Pay Online
-                  </AppText>
-                </TouchableOpacity>
-              </View>
-            </AppCard>
-          )}
-
           {/* Technician Card */}
           {booking.name && (['assigned', 'otp', 'in_progress', 'completed'].includes(booking.status) || booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && (
             <BookingDetailsCard
@@ -669,7 +613,7 @@ export default function BookingOtp() {
           )}
 
           {/* OTP Section */}
-          {booking.rawStatus?.toLowerCase() === 'accepted' && booking.otp && (
+          {booking.otp && (booking.status === 'otp' || booking.status === 'assigned' || booking.rawStatus?.toLowerCase() === 'assigned' || booking.rawStatus?.toLowerCase() === 'accepted') && (
             <View
               style={[
                 styles.otpContainer,
