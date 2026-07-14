@@ -55,21 +55,12 @@ const PhoneNumScreen: React.FC = () => {
       setConfirmationResult(confirmation);
       navigation.navigate("OtpScreen", { phone });
     } catch (err: any) {
-      console.log("OTP ERROR:", err);
-      Alert.alert(
-        "OTP Error",
-        JSON.stringify({
-          code: err?.code,
-          message: err?.message,
-        })
-      );
-
       if (err.code === 'auth/invalid-phone-number') {
         setError("Invalid phone number");
       } else if (err.code === 'auth/too-many-requests') {
         setError("Too many attempts. Try later.");
       } else {
-        setError("Failed to send OTP:" + err.message);
+        setError("Failed to send OTP. Try again later");
       }
     } finally {
       setLoading(false);
