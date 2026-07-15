@@ -116,7 +116,7 @@ const OtpScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+      const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`, true);
       setConfirmation(newConfirmation);
       setConfirmationResult(newConfirmation);
       otpRef.current?.reset();
@@ -174,7 +174,7 @@ const OtpScreen: React.FC = () => {
             <OtpInput
               ref={otpRef}
               otpLength={6}
-              resendTime={30}
+              resendTime={60}
               onOtpComplete={handleOtpComplete}
               onResend={handleResend}
               onOtpChange={() => {
