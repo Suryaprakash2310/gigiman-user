@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Dimensions,
 } from 'react-native';
 
 interface OtpInputProps {
@@ -38,6 +39,16 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
     const [otp, setOtp] = useState<string[]>(Array(otpLength).fill(''));
     const [timer, setTimer] = useState<number>(resendTime);
     const inputRefs = useRef<TextInput[]>([]);
+
+    // Calculate responsive box sizing to prevent overflow on small screen devices
+    const { width: screenWidth } = Dimensions.get('window');
+    const horizontalMargin = 4;
+    const paddingSpace = 48;
+    const maxBoxWidth = 50;
+    const calculatedBoxWidth = Math.min(
+      maxBoxWidth,
+      (screenWidth - paddingSpace - (otpLength * horizontalMargin * 2)) / otpLength
+    );
 
     // Timer countdown
     useEffect(() => {
@@ -114,6 +125,8 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
 
       if (text && index < otpLength - 1) {
         inputRefs.current[index + 1]?.focus();
+      } else if (!text && index > 0) {
+        inputRefs.current[index - 1]?.focus();
       }
 
       if (newOtp.join('').length === otpLength) {
@@ -131,9 +144,15 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
     };
 
     // Handle resend
-    const handleResend = () => {
-      if (onResend) onResend();
-      setTimer(resendTime);
+    const handleResend = async () => {
+      try {
+        if (onResend) {
+          await onResend();
+        }
+        setTimer(resendTime);
+      } catch (err) {
+        setTimer(0);
+      }
     };
 
     return (
@@ -145,7 +164,13 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
               ref={(ref: TextInput | null) => {
                 inputRefs.current[index] = ref!;
               }}
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  width: calculatedBoxWidth,
+                  marginHorizontal: horizontalMargin,
+                },
+              ]}
               keyboardType="number-pad"
               maxLength={1}
               value={digit}
