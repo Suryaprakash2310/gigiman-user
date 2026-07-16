@@ -105,7 +105,9 @@ const OtpScreen: React.FC = () => {
         friendlyMessage = err.message.replace(/\[auth\/.*?\]\s*/g, '');
       }
       setError(friendlyMessage);
-      otpRef.current?.reset();
+      if (err.code === 'auth/session-expired' || err.code === 'auth/code-expired' || err.code === 'auth/invalid-verification-code') {
+        otpRef.current?.reset();
+      }
     } finally {
       setLoading(false);
     }
@@ -129,6 +131,7 @@ const OtpScreen: React.FC = () => {
         friendlyMessage = err.message.replace(/\[auth\/.*?\]\s*/g, '');
       }
       setError(friendlyMessage);
+      throw err;
     } finally {
       setLoading(false);
     }
