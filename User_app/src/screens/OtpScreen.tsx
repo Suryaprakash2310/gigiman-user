@@ -9,7 +9,7 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import auth from '@react-native-firebase/auth';
+import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
@@ -121,7 +121,9 @@ const OtpScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const newConfirmation = await auth().signInWithPhoneNumber(`+91${phone}`, true);
+      const authInstance = getAuth();
+      await signOut(authInstance);
+      const newConfirmation = await signInWithPhoneNumber(authInstance, `+91${phone}`);
       setConfirmation(newConfirmation);
       setConfirmationResult(newConfirmation);
       otpRef.current?.reset();
@@ -160,7 +162,7 @@ const OtpScreen: React.FC = () => {
       >
         {/* <FirebaseRecaptchaVerifierModal
           ref={recaptchaVerifier}
-          firebaseConfig={auth.app.options}
+          firebaseConfig={getAuth().app.options}
         /> */}
 
         {/* TOP SECTION */}

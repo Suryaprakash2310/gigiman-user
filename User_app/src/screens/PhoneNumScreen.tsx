@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 // import { auth } from "../../firebase_integration";
 // import { signInWithPhoneNumber } from "firebase/auth";
 // import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
-import auth from '@react-native-firebase/auth';
+import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { useRef } from "react";
 import {
   Alert,
@@ -51,7 +51,9 @@ const PhoneNumScreen: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const confirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+      const authInstance = getAuth();
+      await signOut(authInstance);
+      const confirmation = await signInWithPhoneNumber(authInstance, `+91${phone}`);
       setConfirmationResult(confirmation);
       navigation.navigate("OtpScreen", { phone });
     } catch (err: any) {
@@ -76,7 +78,7 @@ const PhoneNumScreen: React.FC = () => {
       >
         {/* <FirebaseRecaptchaVerifierModal
           ref={recaptchaVerifier}
-          firebaseConfig={auth.app.options}
+          firebaseConfig={getAuth().app.options}
         /> */}
         {/* HEADER */}
         <View style={styles.header}>
