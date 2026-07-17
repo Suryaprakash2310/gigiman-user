@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
   Dimensions,
+  Platform,
 } from 'react-native';
 
 interface OtpInputProps {
@@ -177,6 +178,8 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
               onChangeText={(text) => handleChange(text, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               returnKeyType="next"
+              textContentType="oneTimeCode"
+              autoComplete={Platform.OS === 'ios' ? 'one-time-code' : 'sms-otp'}
             />
           ))}
         </View>

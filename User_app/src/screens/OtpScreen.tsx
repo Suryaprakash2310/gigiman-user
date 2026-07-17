@@ -44,6 +44,65 @@ const OtpScreen: React.FC = () => {
   const otpRef = useRef<OtpInputRef>(null);
   const isConfirming = useRef(false);
 
+  // ⚡ Auto-verification listener
+  useEffect(() => {
+    const unsubscribe = getAuth().onAuthStateChanged(async (user) => {
+      if (user && (user.phoneNumber === `+91${phone}` || user.phoneNumber?.replace(/\s+/g, '') === `+91${phone}`)) {
+        console.log("onAuthStateChanged: user auto-verified in background! Completing login flow.");
+        if (isConfirming.current) return;
+        isConfirming.current = true;
+        try {
+          setLoading(true);
+          setError(null);
+          
+          const firebaseToken = await user.getIdToken();
+          if (!firebaseToken) {
+            throw new Error("Failed to get Firebase token.");
+          }
+
+          // Call backend /verify-otp with firebaseToken
+          const res = await verifyOtpApi(phone, firebaseToken);
+          const data = res.data;
+
+          // 🟡 NEW USER
+          if (data.next === "COMPLETE_PROFILE") {
+            await login({
+              user: {
+                _id: "temp",
+                phone,
+                profileCompleted: false,
+              },
+              accessToken: data.tempToken,
+            });
+            return;
+          }
+
+          // 🟢 EXISTING USER
+          await login({
+            user: {
+              ...data.user,
+              profileCompleted: true,
+              isVerified: true,
+            },
+            accessToken: data.token,
+          });
+        } catch (err: any) {
+          console.log("Background auto-login verification error:", err);
+          let friendlyMessage = "Background verification failed. Please try manually.";
+          if (err.message) {
+            friendlyMessage = err.message.replace(/\[auth\/.*?\]\s*/g, '');
+          }
+          setError(friendlyMessage);
+        } finally {
+          setLoading(false);
+          isConfirming.current = false;
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [phone]);
+
   const handleOtpComplete = async (otp: string) => {
     if (isConfirming.current) return;
     isConfirming.current = true;
@@ -61,7 +120,16 @@ const OtpScreen: React.FC = () => {
 
       console.log("Verification ID:", (activeConfirmation as any)._verificationId);
       console.log("Current User:", getAuth().currentUser);
-      const userCredential = await activeConfirmation.confirm(otp);
+
+      let userCredential;
+      const currentUser = getAuth().currentUser;
+
+      if (currentUser && (currentUser.phoneNumber === `+91${phone}` || currentUser.phoneNumber?.replace(/\s+/g, '') === `+91${phone}`)) {
+        console.log("User already verified via auto-verification. Retrieving token directly.");
+        userCredential = { user: currentUser };
+      } else {
+        userCredential = await activeConfirmation.confirm(otp);
+      }
       console.log("UID:", userCredential.user.uid);
 
       const firebaseToken = await userCredential.user.getIdToken();
