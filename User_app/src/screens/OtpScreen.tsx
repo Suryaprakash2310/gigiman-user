@@ -9,11 +9,8 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import { auth } from "../../firebase_integration";
-// import { signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
-// import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import auth from '@react-native-firebase/auth';
-import { sendOtpApi, verifyOtpApi } from "../api/auth";
+import { verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
 import AppText from '../components/ui/AppText';
@@ -45,20 +42,24 @@ const OtpScreen: React.FC = () => {
 
   /** OtpInput ref (correct way) */
   const otpRef = useRef<OtpInputRef>(null);
+  const isConfirming = useRef(false);
 
   const handleOtpComplete = async (otp: string) => {
+    if (isConfirming.current) return;
+    isConfirming.current = true;
     try {
       setLoading(true);
       setError(null);
 
-      console.log("Confirmation:", confirmation);
+      const activeConfirmation = confirmation || getConfirmationResult();
+      console.log("Confirmation:", activeConfirmation);
       console.log("OTP:", otp);
 
-      if (!confirmation) {
-        throw new Error("Missing confirmation object");
+      if (!activeConfirmation) {
+        throw new Error("Verification session has expired. Please tap 'Resend' to get a new code.");
       }
 
-      const userCredential = await confirmation.confirm(otp);
+      const userCredential = await activeConfirmation.confirm(otp);
 
       const firebaseToken = await userCredential.user.getIdToken();
       if (!firebaseToken) {
@@ -110,11 +111,13 @@ const OtpScreen: React.FC = () => {
       }
     } finally {
       setLoading(false);
+      isConfirming.current = false;
     }
   };
 
   /** Called when resend pressed */
   const handleResend = async () => {
+    if (loading || isConfirming.current) return;
     setLoading(true);
     setError(null);
     try {
@@ -138,7 +141,7 @@ const OtpScreen: React.FC = () => {
   };
 
   const handleVerifyPress = () => {
-    if (loading) return;
+    if (loading || isConfirming.current) return;
     const enteredOtp = otpRef.current?.getValue() || '';
     if (enteredOtp.length === 6) {
       handleOtpComplete(enteredOtp);
@@ -178,7 +181,6 @@ const OtpScreen: React.FC = () => {
               ref={otpRef}
               otpLength={6}
               resendTime={60}
-              onOtpComplete={handleOtpComplete}
               onResend={handleResend}
               onOtpChange={() => {
                 if (error) setError(null);

@@ -11,7 +11,7 @@ import {
 
 interface OtpInputProps {
   otpLength?: number;
-  onOtpComplete: (otp: string) => void;
+  onOtpComplete?: (otp: string) => void;
   resendEnabled?: boolean;
   resendTime?: number; // in seconds
   onResend?: () => void;
@@ -76,7 +76,7 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
           onOtpChange(digits.join(''));
         }
         if (digits.length === otpLength) {
-          onOtpComplete(digits.join(''));
+          onOtpComplete?.(digits.join(''));
         }
       },
       focus: () => {
@@ -105,7 +105,7 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
           onOtpChange(newOtp.join(''));
         }
         if (newOtp.join('').length === otpLength) {
-          onOtpComplete(newOtp.join(''));
+          onOtpComplete?.(newOtp.join(''));
           Keyboard.dismiss();
         } else {
           inputRefs.current[Math.min(index + chars.length, otpLength - 1)]?.focus();
@@ -130,7 +130,7 @@ const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(
       }
 
       if (newOtp.join('').length === otpLength) {
-        onOtpComplete(newOtp.join(''));
+        onOtpComplete?.(newOtp.join(''));
         Keyboard.dismiss();
 
       }
