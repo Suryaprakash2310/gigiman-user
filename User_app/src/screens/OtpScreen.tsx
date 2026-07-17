@@ -59,7 +59,10 @@ const OtpScreen: React.FC = () => {
         throw new Error("Verification session has expired. Please tap 'Resend' to get a new code.");
       }
 
+      console.log("Verification ID:", (activeConfirmation as any)._verificationId);
+      console.log("Current User:", getAuth().currentUser);
       const userCredential = await activeConfirmation.confirm(otp);
+      console.log("UID:", userCredential.user.uid);
 
       const firebaseToken = await userCredential.user.getIdToken();
       if (!firebaseToken) {
