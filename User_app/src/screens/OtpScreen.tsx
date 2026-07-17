@@ -118,8 +118,11 @@ const OtpScreen: React.FC = () => {
         throw new Error("Verification session has expired. Please tap 'Resend' to get a new code.");
       }
 
-      console.log("Verification ID:", (activeConfirmation as any)._verificationId);
+      console.log("=================================");
+      console.log("Stored confirmation:", activeConfirmation);
+      console.log("VerificationId:", (activeConfirmation as any)?._verificationId);
       console.log("Current User:", getAuth().currentUser);
+      console.log("=================================");
 
       let userCredential;
       const currentUser = getAuth().currentUser;
@@ -193,7 +196,6 @@ const OtpScreen: React.FC = () => {
     setError(null);
     try {
       const authInstance = getAuth();
-      await signOut(authInstance);
       const newConfirmation = await signInWithPhoneNumber(authInstance, `+91${phone}`);
       setConfirmation(newConfirmation);
       setConfirmationResult(newConfirmation);
