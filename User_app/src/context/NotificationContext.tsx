@@ -236,8 +236,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return theme.colors.success;
       case "PROMO":
         return "#c02bff";
-      case "ALERT":
       case "FAILED_BOOKING":
+        return theme.colors.primary;
+      case "ALERT":
       case "BLOCK":
         return theme.colors.danger;
       default:

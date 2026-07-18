@@ -18,8 +18,8 @@ export default function BookingListCard({ booking, onPress }: Props) {
     if (booking.assignmentStatus === "FAILED" && !booking.isManuallyAssigned) {
       return {
         label: "Awaiting manual assignment",
-        bg: "#FEE2E2",
-        color: "#DC2626",
+        bg: "#DBEAFE",
+        color: "#1D4ED8",
       };
     }
 

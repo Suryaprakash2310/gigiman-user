@@ -53,9 +53,6 @@ const PhoneNumScreen: React.FC = () => {
       setError(null);
       const authInstance = getAuth();
       const confirmation = await signInWithPhoneNumber(authInstance, `+91${phone}`);
-      console.log("SEND OTP SUCCESS");
-      console.log("VerificationId:", (confirmation as any)._verificationId);
-      console.log("Confirmation object:", confirmation);
       setConfirmationResult(confirmation);
       navigation.navigate("OtpScreen", { phone });
     } catch (err: any) {

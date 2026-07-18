@@ -556,7 +556,7 @@ export default function BookingOtp() {
               styles.checkCircle,
               {
                 backgroundColor: ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                  ? theme.colors.danger + '30'
+                  ? theme.colors.primary + '30'
                   : ['pending', 'confirmed', 'searching'].includes(booking.status)
                     ? theme.colors.primary + '30'
                     : brightCyan
@@ -577,7 +577,7 @@ export default function BookingOtp() {
               size={32}
               color={
                 ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                  ? theme.colors.danger
+                  ? theme.colors.primary
                   : ['pending', 'confirmed', 'searching'].includes(booking.status)
                     ? theme.colors.primary
                     : "#0F172A"
@@ -799,6 +799,45 @@ export default function BookingOtp() {
                 >
                   <AppText style={styles.callText}>
                     {calling ? "Connecting..." : "📞 Call Technician"}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </AppCard>
+          )}
+
+          {/* Remaining Balance Payment */}
+          {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (
+            <AppCard style={styles.balancePaymentCard}>
+              <AppText weight="bold" size="h3" style={{ marginBottom: 12 }}>
+                Remaining Balance Payment
+              </AppText>
+              <View style={[styles.priceBox, { backgroundColor: theme.colors.background }]}>
+                <View style={styles.priceRow}>
+                  <AppText color="textMuted">Remaining Amount</AppText>
+                  <AppText weight="bold" style={{ color: theme.colors.text }}>
+                    ₹{booking.remainingAmount}
+                  </AppText>
+                </View>
+              </View>
+
+              <View style={styles.balanceActionRow}>
+                <TouchableOpacity
+                  style={[styles.balanceBtn, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
+                  onPress={handleBalancePaymentCash}
+                  disabled={paying}
+                >
+                  <AppText weight="semibold" style={{ color: theme.colors.text }}>
+                    Pay via Cash
+                  </AppText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.balanceBtn, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => setShowPaymentSheet(true)}
+                  disabled={paying}
+                >
+                  <AppText weight="semibold" style={{ color: '#fff' }}>
+                    Pay Online
                   </AppText>
                 </TouchableOpacity>
               </View>

@@ -9,6 +9,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookingAPI } from "../api/booking.api";
 
 /* ============================= */
@@ -112,12 +113,109 @@ const BookingContext = createContext<BookingContextType | null>(null);
 /* ============================= */
 
 export function BookingProvider({ children }: { children: ReactNode }) {
-  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [rawBookings, setRawBookings] = useState<BookingItem[]>([]);
+  const [manualAssignments, setManualAssignments] = useState<Record<string, Partial<BookingItem>>>({});
+
+  const bookings = useMemo(() => {
+    return rawBookings.map(b => {
+      const saved = manualAssignments[b._id];
+      if (saved) {
+        return {
+          ...b,
+          ...saved,
+          name: b.name || saved.name,
+          phone: b.phone || saved.phone,
+          otp: b.otp || saved.otp,
+          status: (b.status === "manual_assign" || b.assignmentStatus === "FAILED") ? (saved.status || b.status) : b.status,
+          isManuallyAssigned: b.isManuallyAssigned || saved.isManuallyAssigned,
+          eta: b.eta || saved.eta,
+          image: b.image || saved.image,
+          rating: b.rating || saved.rating,
+          reviews: b.reviews || saved.reviews,
+        };
+      }
+      return b;
+    });
+  }, [rawBookings, manualAssignments]);
+
   const { accessToken, user } = useAuthContext();
+
+  // Load manual assignments from AsyncStorage on mount
+  useEffect(() => {
+    const loadManualAssignments = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("gg_manual_assignments");
+        if (stored) {
+          setManualAssignments(JSON.parse(stored));
+        }
+      } catch (err) {
+        console.warn("Failed to load manual assignments:", err);
+      }
+    };
+    loadManualAssignments();
+  }, []);
+
+  // Sync manual assignments on rawBookings changes
+  useEffect(() => {
+    const updateStorage = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("gg_manual_assignments");
+        const current = stored ? JSON.parse(stored) : {};
+        let changed = false;
+
+        for (const b of rawBookings) {
+          if (b.status === "completed" || b.status === "cancelled") {
+            if (current[b._id]) {
+              delete current[b._id];
+              changed = true;
+            }
+          } else if (b.isManuallyAssigned || (b.name && ["assigned", "otp", "in_progress"].includes(b.status))) {
+            const existing = current[b._id];
+            if (!existing || existing.name !== b.name || existing.status !== b.status || existing.otp !== b.otp) {
+              current[b._id] = {
+                _id: b._id,
+                name: b.name,
+                phone: b.phone,
+                otp: b.otp,
+                status: b.status,
+                isManuallyAssigned: true,
+                eta: b.eta,
+                image: b.image,
+                rating: b.rating,
+                reviews: b.reviews,
+                primaryEmployee: b.primaryEmployee,
+                servicerCompany: b.servicerCompany,
+              };
+              changed = true;
+            }
+          }
+        }
+
+        if (changed) {
+          await AsyncStorage.setItem("gg_manual_assignments", JSON.stringify(current));
+          setManualAssignments(current);
+        }
+      } catch (err) {
+        console.warn("Error updating manual assignments storage:", err);
+      }
+    };
+
+    if (rawBookings.length > 0) {
+      updateStorage();
+    }
+  }, [rawBookings]);
+
+  // Clear manual assignments on logout
+  useEffect(() => {
+    if (!accessToken) {
+      setManualAssignments({});
+      AsyncStorage.removeItem("gg_manual_assignments").catch(() => {});
+    }
+  }, [accessToken]);
 
 
   const upsertBooking = React.useCallback((booking: BookingItem) => {
-    setBookings(prev => {
+    setRawBookings(prev => {
       if (!prev.length) return [booking];
 
       const exists = prev.find(b => b._id === booking._id);
@@ -146,7 +244,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onServiceProposed = ({ bookingId, proposal }: any) => {
 
-      setBookings(prev =>
+      setRawBookings(prev =>
         prev.map(b =>
           b._id === bookingId
             ? { ...b, pendingServiceProposal: proposal }
@@ -163,7 +261,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const onServiceApproved = ({ bookingId, totalPrice, service }: any) => {
-      setBookings(prev =>
+      setRawBookings(prev =>
         prev.map(b =>
           b._id === bookingId
             ? {
@@ -195,7 +293,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       const activeMapped = (active || []).map((b: any) => mapBookingToBookingItem(b));
       const scheduledMapped = (scheduled || []).map((b: any) => mapBookingToBookingItem(b));
 
-      setBookings([...activeMapped, ...scheduledMapped]);
+      setRawBookings([...activeMapped, ...scheduledMapped]);
     } catch (err) {
       console.warn("Booking fetch failed:", err);
     }
@@ -213,7 +311,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     // which triggers FORCE_LOGOUT and sends the user back to the slider.
     if (!accessToken || !user?.isVerified) return;
 
-    setBookings([]); // 🔥 clear old user data first
+    setRawBookings([]); // 🔥 clear old user data first
     fetchInitialBookings();
   }, [accessToken, user, fetchInitialBookings]);
 
@@ -223,7 +321,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
 
   const updateBookingItem = (id: string, updates: Partial<BookingItem>) => {
-    setBookings(prev =>
+    setRawBookings(prev =>
       prev.map(b => (b._id === id ? { ...b, ...updates } : b))
     );
   };
@@ -240,7 +338,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     bookings.find(b => b._id === id) ?? null;
 
   const resetBookings = () => {
-    setBookings([]);
+    setRawBookings([]);
   };
 
   /* ============================= */

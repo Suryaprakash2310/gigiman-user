@@ -111,18 +111,10 @@ const OtpScreen: React.FC = () => {
       setError(null);
 
       const activeConfirmation = confirmation || getConfirmationResult();
-      console.log("Confirmation:", activeConfirmation);
-      console.log("OTP:", otp);
 
       if (!activeConfirmation) {
         throw new Error("Verification session has expired. Please tap 'Resend' to get a new code.");
       }
-
-      console.log("=================================");
-      console.log("Stored confirmation:", activeConfirmation);
-      console.log("VerificationId:", (activeConfirmation as any)?._verificationId);
-      console.log("Current User:", getAuth().currentUser);
-      console.log("=================================");
 
       let userCredential;
       const currentUser = getAuth().currentUser;
@@ -133,7 +125,6 @@ const OtpScreen: React.FC = () => {
       } else {
         userCredential = await activeConfirmation.confirm(otp);
       }
-      console.log("UID:", userCredential.user.uid);
 
       const firebaseToken = await userCredential.user.getIdToken();
       if (!firebaseToken) {
