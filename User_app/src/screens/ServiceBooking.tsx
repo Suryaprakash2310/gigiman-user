@@ -272,7 +272,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       setCouponLoading(true);
       setCouponError('');
       setCouponSuccess('');
-      
+
       const cartTotal = category.price * quantity;
       const res = await CouponAPI.validateCoupon(couponCode, cartTotal);
 
@@ -338,7 +338,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         // 2. Perform booking success local state updates
         const bookingPrice = isCartCheckout ? filteredCartTotalPrice : ((category?.price || 0) * quantity);
         const finalPrice = bookingPrice - discountAmount;
-        
+
         upsertBooking({
           _id: currentBookingId!,
           serviceCategoryName: category?.serviceCategoryName || "Cart Checkout",
@@ -575,7 +575,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <AppHeader showBack onBackPress={handleBack} title="Service Details" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -583,14 +583,14 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             Loading service details...
           </AppText>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Error state
   if (!category) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <AppHeader showBack onBackPress={handleBack} title="Service Details" />
         <View style={styles.errorContainer}>
           <Ionicons
@@ -606,7 +606,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             The service you're looking for is no longer available
           </AppText>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -617,7 +617,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const totalPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
 
   return (
-    <SafeAreaView
+    <View
       style={[
         styles.safe,
         { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
@@ -766,7 +766,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         {bookingMode === 'now' && (
           <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.paymentOptionsCard}>
             <AppText weight="bold" style={{ marginBottom: 12 }}>Payment Options</AppText>
-            
+
             <TouchableOpacity
               style={[
                 styles.paymentOptionRow,
@@ -887,10 +887,10 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             isComingSoon(category?.status)
               ? 'Coming Soon - Booking Unavailable'
               : booking
-              ? 'Booking...'
-              : bookingMode === 'schedule'
-                ? 'Schedule Service'
-                : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
+                ? 'Booking...'
+                : bookingMode === 'schedule'
+                  ? 'Schedule Service'
+                  : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
           }
           disabled={isComingSoon(category?.status) || booking || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
           onPress={handleBookNow}
@@ -998,7 +998,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           setPaying(false);
         }}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+        <View style={{ flex: 1, backgroundColor: "#0f172a" }}>
           <View style={{
             flexDirection: 'row',
             justifyContent: 'space-between',
@@ -1036,9 +1036,9 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               )}
             />
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

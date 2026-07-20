@@ -17,8 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
-import { getStatusBadgeConfig, isComingSoon } from "@/src/utils/serviceStatus";
-
+import { getStatusBadgeConfig, isComingSoon, sortServicesByAvailability } from "@/src/utils/serviceStatus";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { AppTabsParamList } from "../navigation/AppStack";
@@ -485,14 +484,14 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
 
             <AppText
               size="caption"
-              color={comingSoon ? "warning" : "textMuted"}
+              color={comingSoon ? "accent" : "textMuted"}
               numberOfLines={1}
             >
               {comingSoon
                 ? "Coming Soon"
                 : service.totalBookings
-                ? `${service.totalBookings} bookings • ₹${service.totalRevenue}`
-                : "Popular service"}
+                  ? `${service.totalBookings} bookings • ₹${service.totalRevenue}`
+                  : "Popular service"}
             </AppText>
           </View>
         </View>
