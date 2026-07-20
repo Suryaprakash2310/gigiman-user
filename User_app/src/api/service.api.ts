@@ -3,6 +3,7 @@ export interface DomainService {
   _id: string;
   domainName: string;
   domainImage?: string;
+  status?: string;
 }
 
 export interface CategoryService {
@@ -16,6 +17,7 @@ export interface CategoryService {
   price?: number;
   durationInMinutes?: number;
   employeeCount?: number;
+  status?: string;
 }
 
 export interface ShowSubServiceResponse {

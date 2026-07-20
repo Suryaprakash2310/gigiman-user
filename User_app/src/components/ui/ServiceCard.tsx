@@ -4,6 +4,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
   Dimensions,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -11,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "@/src/theme/useTheme";
 import AppText from "@/src/components/ui/AppText";
+import { getStatusBadgeConfig, isComingSoon } from "@/src/utils/serviceStatus";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -25,6 +27,7 @@ type Props = {
     id: string;
     label: string;
     image: string; // base64 from backend
+    status?: string;
   };
   index: number;
 };
@@ -34,21 +37,49 @@ const ServiceCard: React.FC<Props> = ({ category, index }) => {
   const s = categoryCardStyles(theme);
   const navigation = useNavigation<any>();
 
+  const badgeConfig = getStatusBadgeConfig(category.status);
+  const comingSoon = isComingSoon(category.status);
+
+  const handlePress = () => {
+    if (comingSoon) {
+      Alert.alert("Coming Soon", "This service is coming soon and cannot be booked yet.");
+      return;
+    }
+    navigation.navigate("ServiceTab", {
+      serviceId: category.id,
+      categoryName: category.label,
+    });
+  };
+
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 60 + 200).springify()}
       style={{ width: CARD_WIDTH }}
     >
       <TouchableOpacity
-        activeOpacity={0.88}
-        onPress={() =>
-          navigation.navigate("ServiceTab", {
-            serviceId: category.id,
-            categoryName: category.label,
-          })
-        }
+        activeOpacity={comingSoon ? 0.9 : 0.88}
+        onPress={handlePress}
       >
         <View style={s.card}>
+          {badgeConfig && (
+            <View
+              style={[
+                s.badge,
+                {
+                  backgroundColor: badgeConfig.bgColor,
+                  borderColor: badgeConfig.borderColor,
+                },
+              ]}
+            >
+              <AppText
+                weight="bold"
+                style={[s.badgeText, { color: badgeConfig.textColor }]}
+              >
+                {badgeConfig.label}
+              </AppText>
+            </View>
+          )}
+
           {/* IMAGE CONTAINER */}
           <View style={s.imageContainer}>
             <Image
@@ -90,6 +121,24 @@ const categoryCardStyles = (theme: any) =>
       alignItems: "center",
       borderWidth: theme.dark ? 1 : 0,
       borderColor: theme.colors.border,
+      position: "relative",
+    },
+
+    badge: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      zIndex: 2,
+    },
+
+    badgeText: {
+      fontSize: 9,
+      textTransform: "uppercase",
+      letterSpacing: 0.2,
     },
 
     imageContainer: {

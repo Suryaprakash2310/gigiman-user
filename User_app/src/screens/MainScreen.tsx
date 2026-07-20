@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
+import { getStatusBadgeConfig, isComingSoon } from "@/src/utils/serviceStatus";
 
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
@@ -412,7 +414,14 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
   const image =
     service.servicecategoryImage || service.serviceImage || null;
 
+  const badgeConfig = getStatusBadgeConfig(service.status);
+  const comingSoon = isComingSoon(service.status);
+
   const handlePress = () => {
+    if (comingSoon) {
+      Alert.alert("Coming Soon", "This service is coming soon and cannot be booked yet.");
+      return;
+    }
     const serviceId =
       service._id || service.serviceId || service.domainServiceId;
 
@@ -424,7 +433,7 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
 
   return (
     <Animated.View entering={FadeInRight.delay(index * 120).springify()}>
-      <TouchableOpacity activeOpacity={0.92} onPress={handlePress}>
+      <TouchableOpacity activeOpacity={comingSoon ? 0.9 : 0.92} onPress={handlePress}>
         <View style={styles.card}>
           <View style={styles.imageContainer}>
             {image ? (
@@ -441,11 +450,32 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
               </LinearGradient>
             )}
 
-            <View style={styles.badge}>
-              <AppText size="caption" weight="bold" style={{ color: "#fff" }}>
-                BESTSELLER
-              </AppText>
-            </View>
+            {badgeConfig ? (
+              <View
+                style={[
+                  styles.badge,
+                  {
+                    backgroundColor: badgeConfig.bgColor,
+                    borderColor: badgeConfig.borderColor,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <AppText
+                  size="caption"
+                  weight="bold"
+                  style={{ color: badgeConfig.textColor }}
+                >
+                  {badgeConfig.label}
+                </AppText>
+              </View>
+            ) : (
+              <View style={styles.badge}>
+                <AppText size="caption" weight="bold" style={{ color: "#fff" }}>
+                  BESTSELLER
+                </AppText>
+              </View>
+            )}
           </View>
 
           <View style={styles.content}>
@@ -453,8 +483,14 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
               {service.serviceCategoryName || service.name || service._id}
             </AppText>
 
-            <AppText size="caption" color="textMuted" numberOfLines={1}>
-              {service.totalBookings
+            <AppText
+              size="caption"
+              color={comingSoon ? "warning" : "textMuted"}
+              numberOfLines={1}
+            >
+              {comingSoon
+                ? "Coming Soon"
+                : service.totalBookings
                 ? `${service.totalBookings} bookings • ₹${service.totalRevenue}`
                 : "Popular service"}
             </AppText>

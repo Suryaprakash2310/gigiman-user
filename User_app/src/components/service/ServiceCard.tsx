@@ -5,11 +5,13 @@ import {
   View,
   Image,
   ActivityIndicator,
+  Alert,
   Dimensions,
 } from 'react-native';
 import AppText from '@/src/components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
 import { DomainService } from '@/src/api/service.api';
+import { getStatusBadgeConfig, isComingSoon } from '@/src/utils/serviceStatus';
 
 interface ServiceCardProps {
   service: DomainService;
@@ -24,7 +26,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
+  const badgeConfig = getStatusBadgeConfig(service.status);
+  const comingSoon = isComingSoon(service.status);
+
   const handlePress = () => {
+    if (comingSoon) {
+      Alert.alert('Coming Soon', 'This service is coming soon and cannot be booked yet.');
+      return;
+    }
     onPress(service.domainName, service._id);
   };
 
@@ -39,13 +48,33 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
 
   return (
     <TouchableOpacity
-      activeOpacity={0.75}
-      style={styles.card}
+      activeOpacity={comingSoon ? 0.9 : 0.75}
+      style={[styles.card, comingSoon && styles.comingSoonCard]}
       onPress={handlePress}
       accessible={true}
       accessibilityLabel={`${service.domainName} service`}
       accessibilityRole="button"
     >
+      {/* Top Status Tag Badge */}
+      {badgeConfig && (
+        <View
+          style={[
+            styles.statusTag,
+            {
+              backgroundColor: badgeConfig.bgColor,
+              borderColor: badgeConfig.borderColor,
+            },
+          ]}
+        >
+          <AppText
+            weight="bold"
+            style={[styles.statusTagText, { color: badgeConfig.textColor }]}
+          >
+            {badgeConfig.label}
+          </AppText>
+        </View>
+      )}
+
       {/* Image Container */}
       <View style={styles.imageContainer}>
         {imageError ? (
@@ -85,16 +114,16 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
 
         <AppText
           size="small"
-          color="textMuted"
+          color={comingSoon ? "warning" : "textMuted"}
           numberOfLines={1}
           style={styles.subtitle}
         >
-          View services
+          {comingSoon ? "Coming Soon" : "View services"}
         </AppText>
       </View>
 
       {/* Tap Indicator */}
-      <View style={styles.tapIndicator} />
+      {!comingSoon && <View style={styles.tapIndicator} />}
     </TouchableOpacity>
   );
 };
@@ -118,6 +147,25 @@ const createStyles = (theme: any) =>
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 3,
+      position: 'relative',
+    },
+    comingSoonCard: {
+      opacity: 0.9,
+    },
+    statusTag: {
+      position: 'absolute',
+      top: theme.spacing.xs,
+      right: theme.spacing.xs,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      zIndex: 2,
+    },
+    statusTagText: {
+      fontSize: 9,
+      textTransform: 'uppercase',
+      letterSpacing: 0.2,
     },
     imageContainer: {
       width: 100,

@@ -7,6 +7,7 @@ import {
   Platform,
   FlatList,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServiceAPI } from '@/src/api/service.api';
@@ -17,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CategoryCard from '@/src/components/service/CategoryCard';
 import CategoryCardSkeleton from '@/src/components/service/CategoryCardSkeleton';
 import { useCartContext } from '@/src/context/CartContext';
+import { isComingSoon } from '@/src/utils/serviceStatus';
 
 interface CategoryItem {
   _id: string;
@@ -26,6 +28,7 @@ interface CategoryItem {
   price?: number;
   durationInMinutes?: number;
   employeeCount?: number;
+  status?: string;
 }
 
 interface CategoryState {
@@ -101,12 +104,27 @@ export default function ServiceCategory({ route, navigation }: any) {
   }, [loadCategories, fetchCart]);
 
   const handleCategoryPress = useCallback(
-    (categoryId: string) => {
+    (item: CategoryItem) => {
+      if (isComingSoon(item.status)) {
+        Alert.alert('Coming Soon', 'This service is coming soon and cannot be booked yet.');
+        return;
+      }
       navigation.navigate('Booking', {
-        serviceCategoryId: categoryId,
+        serviceCategoryId: item._id,
       });
     },
     [navigation]
+  );
+
+  const handleAddToCart = useCallback(
+    (item: CategoryItem) => {
+      if (isComingSoon(item.status)) {
+        Alert.alert('Coming Soon', 'This service is coming soon and cannot be booked yet.');
+        return;
+      }
+      addToCart(item._id);
+    },
+    [addToCart]
   );
 
   const renderHeader = () => (
@@ -196,8 +214,9 @@ export default function ServiceCategory({ route, navigation }: any) {
               price={item.price}
               duration={item.durationInMinutes}
               employeeCount={item.employeeCount}
-              onPress={() => handleCategoryPress(item._id)}
-              onAddToCart={() => addToCart(item._id)}
+              status={item.status}
+              onPress={() => handleCategoryPress(item)}
+              onAddToCart={() => handleAddToCart(item)}
               isAdded={cartItems.some((cart) => cart.serviceCategoryId === item._id)}
               index={index}
             />

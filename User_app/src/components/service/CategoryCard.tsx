@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   Pressable,
@@ -12,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { getStatusBadgeConfig, isComingSoon } from '@/src/utils/serviceStatus';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +25,7 @@ interface CategoryCardProps {
   price?: string | number;
   duration?: number;
   employeeCount?: number;
+  status?: string;
   onPress?: () => void;
   index?: number;
   onAddToCart?: () => void;
@@ -37,6 +40,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   duration = 60,
   employeeCount,
   image,
+  status,
   onPress,
   index = 0,
   onAddToCart,
@@ -49,13 +53,25 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   const [imageError, setImageError] = useState(false);
 
   const cleanDescription = description?.replace(/<[^>]*>?/gm, '');
+  const badgeConfig = getStatusBadgeConfig(status);
+  const comingSoon = isComingSoon(status);
+
+  const handleCardPress = () => {
+    if (comingSoon) {
+      Alert.alert('Coming Soon', 'This service is coming soon and cannot be booked yet.');
+      return;
+    }
+    if (onPress) {
+      onPress();
+    }
+  };
 
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 60).duration(350)}
     >
       <Pressable
-        onPress={onPress}
+        onPress={handleCardPress}
         android_ripple={{ color: `${theme.colors.primary}15` }}
         style={({ pressed }) => [
           styles.card,
@@ -100,14 +116,34 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
         {/* Content Section */}
         <View style={styles.contentWrapper}>
           <View>
-            <AppText
-              weight="bold"
-              size="body"
-              numberOfLines={3}
-              style={styles.title}
-            >
-              {title}
-            </AppText>
+            <View style={styles.headerRow}>
+              <AppText
+                weight="bold"
+                size="body"
+                numberOfLines={2}
+                style={[styles.title, { flex: 1 }]}
+              >
+                {title}
+              </AppText>
+              {badgeConfig && (
+                <View
+                  style={[
+                    styles.badge,
+                    {
+                      backgroundColor: badgeConfig.bgColor,
+                      borderColor: badgeConfig.borderColor,
+                    },
+                  ]}
+                >
+                  <AppText
+                    weight="bold"
+                    style={[styles.badgeText, { color: badgeConfig.textColor }]}
+                  >
+                    {badgeConfig.label}
+                  </AppText>
+                </View>
+              )}
+            </View>
 
             {cleanDescription && (
               <AppText
@@ -157,7 +193,17 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
               </AppText>
             ) : <View />}
 
-            {onAddToCart ? (
+            {comingSoon ? (
+              <View style={styles.comingSoonBtn}>
+                <AppText
+                  weight="bold"
+                  size="caption"
+                  style={{ color: '#EA580C' }}
+                >
+                  Coming Soon
+                </AppText>
+              </View>
+            ) : onAddToCart ? (
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
@@ -181,7 +227,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
         </View>
 
         {/* Arrow (Legacy) */}
-        {!onAddToCart && (
+        {!onAddToCart && !comingSoon && (
           <Ionicons
             name="chevron-forward"
             size={18}
@@ -196,6 +242,33 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 6,
+      marginBottom: 3,
+    },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      alignSelf: 'flex-start',
+    },
+    badgeText: {
+      fontSize: 10,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    comingSoonBtn: {
+      backgroundColor: '#FFF7ED',
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderWidth: 1,
+      borderColor: '#FFEDD5',
+    },
     card: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -50,6 +50,8 @@ import ServiceHeader from '@/src/components/booking/ServiceHeader';
 import { AppTabsParamList } from '@/src/navigation/AppStack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { getStatusBadgeConfig, isComingSoon } from '@/src/utils/serviceStatus';
+
 type Nav = BottomTabNavigationProp<AppTabsParamList, 'BookingTab'>;
 
 interface Props {
@@ -72,6 +74,7 @@ interface ServiceCategory {
   servicecategoryImage?: string;
   description?: string;
   domainService?: string;
+  status?: string;
 }
 
 const { width } = Dimensions.get('window');
@@ -413,6 +416,11 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   };
 
   const handleBookNow = useCallback(async () => {
+    if (isComingSoon(category?.status)) {
+      Alert.alert('Coming Soon', 'This service is coming soon and cannot be booked yet.');
+      return;
+    }
+
     if (!user?._id) {
       Alert.alert('Login Required', 'Please login to book a service');
       return;
@@ -617,11 +625,33 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     >
       <AppHeader showBack onBackPress={handleBack} title={isCartCheckout ? "Checkout" : "Service Details"} />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+        {isComingSoon(category?.status) && (
+          <Animated.View
+            entering={FadeInDown.duration(400)}
+            style={{
+              backgroundColor: '#FFF7ED',
+              borderColor: '#FFEDD5',
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <Ionicons name="time-outline" size={24} color="#EA580C" />
+            <View style={{ flex: 1 }}>
+              <AppText weight="bold" style={{ color: '#EA580C' }}>
+                Coming Soon
+              </AppText>
+              <AppText size="small" style={{ color: '#C2410C', marginTop: 2 }}>
+                This service is coming soon and is currently unavailable for booking.
+              </AppText>
+            </View>
+          </Animated.View>
+        )}
+
         {isCartCheckout ? (
           /* Cart Order Summary Card (Screen 6) */
           <Animated.View entering={FadeInDown.duration(400)} style={styles.summaryCard}>
@@ -849,13 +879,15 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
         <AppButton
           title={
-            booking
+            isComingSoon(category?.status)
+              ? 'Coming Soon - Booking Unavailable'
+              : booking
               ? 'Booking...'
               : bookingMode === 'schedule'
                 ? 'Schedule Service'
                 : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
           }
-          disabled={booking || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
+          disabled={isComingSoon(category?.status) || booking || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
           onPress={handleBookNow}
           loading={booking}
           variant="primary"

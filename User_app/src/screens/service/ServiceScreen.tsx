@@ -99,17 +99,18 @@ export default function ServicesScreen({ navigation }: any) {
 
         const res = await ServiceAPI.getSubServicesByDomainId(domainId);
         const list = res?.services || res?.categoriesservices || [];
-        const names = (list as any[])
-          .map(
-            (s) =>
+        const items = (list as any[])
+          .map((s) => ({
+            name:
               s?.serviceName ||
               s?.parentServiceName ||
-              s?.serviceCategoryName
-          )
-          .filter(Boolean);
+              s?.serviceCategoryName,
+            status: s?.status,
+          }))
+          .filter((item) => Boolean(item.name));
 
         setSubServiceState({
-          services: names,
+          services: items as any,
           loading: false,
           error: null,
         });
