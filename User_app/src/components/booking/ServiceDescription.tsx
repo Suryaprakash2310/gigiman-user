@@ -30,7 +30,7 @@ const ServiceDescription: React.FC<ServiceDescriptionProps> = ({
       .replace(/&#39;/g, "'");
     return text
       .split(/\r?\n/)
-      .map((s) => s.trim())
+      .map((s) => s.trim().replace(/^[✓✔☑]\s*/, ''))
       .filter(Boolean);
   };
 
@@ -66,14 +66,6 @@ const ServiceDescription: React.FC<ServiceDescriptionProps> = ({
       <View style={styles.featuresContainer}>
         {allFeatures.map((feature, index) => (
           <View key={index} style={styles.featureItem}>
-            <View style={styles.checkmark}>
-              <Ionicons
-                name="checkmark"
-                size={14}
-                color={theme.colors.primary}
-                weight="bold"
-              />
-            </View>
             <AppText
               size="body"
               numberOfLines={3}
@@ -115,17 +107,6 @@ const createStyles = (theme: any) =>
     featureItem: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: theme.spacing.md,
-    },
-    checkmark: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: `${theme.colors.primary}15`,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 2,
-      flexShrink: 0,
     },
     featureText: {
       flex: 1,

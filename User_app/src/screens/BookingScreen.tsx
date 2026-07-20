@@ -26,23 +26,11 @@ export default function BookingScreen() {
   const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const route = useRoute<BookingRouteProp>();
-  const { ongoing, upcoming, manualBookings, refreshBookings } = useBooking();
+  const { ongoing, upcoming, manualBookings } = useBooking();
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
-  const [refreshing, setRefreshing] = useState(false);
   const prevManualBookingsCount = useRef(manualBookings?.length || 0);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await refreshBookings();
-    } catch (err) {
-      console.warn("Refresh failed:", err);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshBookings]);
 
   // Handle initial tab from params or logic
   useEffect(() => {
@@ -335,8 +323,6 @@ export default function BookingScreen() {
           style={[styles.list, activeTab === "history" && { marginTop: 20 }]}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
           renderItem={({ item }) => (
             <BookingListCard
               booking={item}

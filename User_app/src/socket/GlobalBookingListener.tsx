@@ -65,8 +65,8 @@ export default function GlobalBookingListener() {
       const localNotification = {
         _id: `failed_${bookingId}_${Date.now()}`,
         userId: null,
-        title: "Service Assignment Delayed",
-        message: "Your booking has been confirmed. We are currently unable to assign a technician automatically. Our team will manually assign a technician shortly.",
+        title: "Service Provider Assignment in Progress",
+        message: "Your booking has been confirmed. We're finding the best service provider for your request. A technician will be assigned within 10–15 minutes. Thank you for your patience.",
         description: "Booking advance payment is completed and admin will assign a service provider manually.",
         isRead: false,
         type: "FAILED_BOOKING" as const,

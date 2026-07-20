@@ -31,6 +31,7 @@ import { injectRazorpayData } from "@/src/utils/razorpayInjector";
 
 import { initiateMaskedCall } from "@/src/api/call.api";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
+import BookingProcessTracker from "@/src/components/BookingProcessTracker";
 import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
 import AppButton from "@/src/components/ui/AppButton";
@@ -599,6 +600,8 @@ export default function BookingOtp() {
 
         <Animated.View style={animatedContentStyle}>
 
+          {/* 4 Process Booking Tracker */}
+          <BookingProcessTracker booking={booking} />
 
           {/* Technician Card */}
           {booking.name && (['assigned', 'otp', 'in_progress', 'completed'].includes(booking.status) || booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && (

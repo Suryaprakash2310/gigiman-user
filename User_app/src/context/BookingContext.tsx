@@ -140,7 +140,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const { accessToken, user } = useAuthContext();
 
-  // Load manual assignments from AsyncStorage on mount
+  // Load manual assignments from AsyncStorage on mount / auth change
   useEffect(() => {
     const loadManualAssignments = async () => {
       try {
@@ -152,10 +152,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         console.warn("Failed to load manual assignments:", err);
       }
     };
-    loadManualAssignments();
-  }, []);
+    if (accessToken) {
+      loadManualAssignments();
+    }
+  }, [accessToken]);
 
-  // Sync manual assignments on rawBookings changes
+  // Sync manual assignments on rawBookings changes (without deleting saved assignments)
   useEffect(() => {
     const updateStorage = async () => {
       try {
@@ -164,12 +166,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         let changed = false;
 
         for (const b of rawBookings) {
-          if (b.status === "completed" || b.status === "cancelled") {
-            if (current[b._id]) {
-              delete current[b._id];
-              changed = true;
-            }
-          } else if (b.isManuallyAssigned || (b.name && ["assigned", "otp", "in_progress"].includes(b.status))) {
+          if (b.isManuallyAssigned || (b.name && ["assigned", "otp", "in_progress"].includes(b.status))) {
             const existing = current[b._id];
             if (!existing || existing.name !== b.name || existing.status !== b.status || existing.otp !== b.otp) {
               current[b._id] = {
@@ -185,6 +182,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
                 reviews: b.reviews,
                 primaryEmployee: b.primaryEmployee,
                 servicerCompany: b.servicerCompany,
+              };
+              changed = true;
+            }
+          } else if (current[b._id]) {
+            const existing = current[b._id];
+            if (existing.status !== b.status) {
+              current[b._id] = {
+                ...existing,
+                status: b.status,
               };
               changed = true;
             }
@@ -204,14 +210,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       updateStorage();
     }
   }, [rawBookings]);
-
-  // Clear manual assignments on logout
-  useEffect(() => {
-    if (!accessToken) {
-      setManualAssignments({});
-      AsyncStorage.removeItem("gg_manual_assignments").catch(() => {});
-    }
-  }, [accessToken]);
 
 
   const upsertBooking = React.useCallback((booking: BookingItem) => {

@@ -1,3 +1,4 @@
+import BookingProcessTracker from "@/src/components/BookingProcessTracker";
 import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
 import { BookingItem } from "@/src/context/BookingContext";
@@ -147,6 +148,9 @@ export default function BookingListCard({ booking, onPress }: Props) {
               </AppText>
             )}
         </View>
+
+        {/* 4 Process Stepper */}
+        <BookingProcessTracker booking={booking} compact={true} />
       </AppCard>
     </TouchableOpacity>
   );
