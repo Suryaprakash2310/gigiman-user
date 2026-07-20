@@ -51,3 +51,18 @@ export const getStatusBadgeConfig = (status?: string | null): StatusBadgeConfig 
   
   return null; // 'available' has no tag by default
 };
+
+export const sortServicesByAvailability = <T extends { status?: string }>(items: T[]): T[] => {
+  return [...items].sort((a, b) => {
+    const statusA = getServiceStatus(a?.status);
+    const statusB = getServiceStatus(b?.status);
+
+    const priority = (s: ServiceStatus) => {
+      if (s === 'available') return 0;
+      if (s === 'new_service') return 1;
+      return 2; // coming_soon at the bottom
+    };
+
+    return priority(statusA) - priority(statusB);
+  });
+};

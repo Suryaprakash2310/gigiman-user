@@ -22,6 +22,7 @@ import { DomainService, ServiceAPI } from "@/src/api/service.api";
 import ServiceCard from "@/src/components/service/ServiceCard";
 import ServiceSearchBar from "@/src/components/service/ServiceSearchBar";
 import SubServiceList from "@/src/components/service/SubServiceList";
+import { sortServicesByAvailability } from "@/src/utils/serviceStatus";
 
 interface ServiceState {
   services: DomainService[];
@@ -69,7 +70,7 @@ export default function ServicesScreen({ navigation }: any) {
     try {
       setServiceState((prev) => ({ ...prev, loading: true, error: null }));
       const res = await ServiceAPI.getServicesAPI();
-      const servicesList = res.services || [];
+      const servicesList = sortServicesByAvailability(res.services || []);
       setServiceState({
         services: servicesList,
         loading: false,
@@ -108,9 +109,10 @@ export default function ServicesScreen({ navigation }: any) {
             status: s?.status,
           }))
           .filter((item) => Boolean(item.name));
+        const sortedItems = sortServicesByAvailability(items);
 
         setSubServiceState({
-          services: items as any,
+          services: sortedItems as any,
           loading: false,
           error: null,
         });

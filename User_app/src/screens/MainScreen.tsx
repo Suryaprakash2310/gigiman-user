@@ -503,6 +503,7 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
 
 const PopularSection = ({ services, loading }: any) => {
   const { theme } = useTheme();
+  const sortedServices = sortServicesByAvailability(services || []);
 
   if (loading) {
     return (
@@ -522,7 +523,7 @@ const PopularSection = ({ services, loading }: any) => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingLeft: SPACING }}
       >
-        {services.map((service: any, index: number) => (
+        {sortedServices.map((service: any, index: number) => (
           <PopularServiceCard
             key={`${service._id || index}-${index}`}
             service={service}

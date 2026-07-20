@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CategoryCard from '@/src/components/service/CategoryCard';
 import CategoryCardSkeleton from '@/src/components/service/CategoryCardSkeleton';
 import { useCartContext } from '@/src/context/CartContext';
-import { isComingSoon } from '@/src/utils/serviceStatus';
+import { isComingSoon, sortServicesByAvailability } from '@/src/utils/serviceStatus';
 
 interface CategoryItem {
   _id: string;
@@ -66,9 +66,10 @@ export default function ServiceCategory({ route, navigation }: any) {
         const services = res?.services || [];
         const svc = services.find((s: any) => s.serviceName === serviceName); 
         const cats = (svc?.serviceCategory || []) as CategoryItem[];
+        const sortedCats = sortServicesByAvailability(cats);
         setState((prev) => ({
           ...prev,
-          items: cats,
+          items: sortedCats,
           loading: false,
         }));
         return;
@@ -78,10 +79,11 @@ export default function ServiceCategory({ route, navigation }: any) {
       const filtered = (res.categoriesservices || []).filter(
         (c: any) => c.parentServiceName === serviceName
       ) as CategoryItem[];
+      const sortedFiltered = sortServicesByAvailability(filtered);
 
       setState((prev) => ({
         ...prev,
-        items: filtered,
+        items: sortedFiltered,
         loading: false,
       }));
     } catch (err) {
