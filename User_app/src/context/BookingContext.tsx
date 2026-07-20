@@ -166,7 +166,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         let changed = false;
 
         for (const b of rawBookings) {
-          if (b.isManuallyAssigned || (b.name && ["assigned", "otp", "in_progress"].includes(b.status))) {
+          if (b.status === "completed" || b.status === "cancelled") {
+            if (current[b._id]) {
+              delete current[b._id];
+              changed = true;
+            }
+          } else if (b.isManuallyAssigned || (b.name && ["assigned", "otp", "in_progress"].includes(b.status))) {
             const existing = current[b._id];
             if (!existing || existing.name !== b.name || existing.status !== b.status || existing.otp !== b.otp) {
               current[b._id] = {
