@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gigiman",
     "slug": "gigi-user",
-    "version": "1.0.10",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/logogigi.png",
     "scheme": "gigiman",
@@ -47,7 +47,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/logogigi.png",
-          "imageWidth": 200,
+          "imageWidth": 300,
           "resizeMode": "contain",
           "backgroundColor": "#033921",
           "dark": {
