@@ -625,6 +625,11 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     >
       <AppHeader showBack onBackPress={handleBack} title={isCartCheckout ? "Checkout" : "Service Details"} />
 
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {isComingSoon(category?.status) && (
           <Animated.View
             entering={FadeInDown.duration(400)}
