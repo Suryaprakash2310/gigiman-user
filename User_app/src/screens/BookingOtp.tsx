@@ -809,7 +809,7 @@ export default function BookingOtp() {
           )}
 
           {/* Remaining Balance Payment */}
-          {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (
+          {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 && (
             <AppCard style={styles.balancePaymentCard}>
               <AppText weight="bold" size="h3" style={{ marginBottom: 12 }}>
                 Remaining Balance Payment
@@ -888,7 +888,7 @@ export default function BookingOtp() {
               ))}
 
               <View style={styles.divider} />
-              {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' ? (
+              {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 ? (
                 <>
                   <View style={styles.summaryRow}>
                     <AppText style={{ color: "#475569" }}>Total Price</AppText>
@@ -911,12 +911,22 @@ export default function BookingOtp() {
                   </View>
                 </>
               ) : (
-                <View style={styles.summaryRow}>
-                  <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
-                  <AppText style={{ color: "#0F172A" }} weight="bold">
-                    ₹{booking.totalPrice}
-                  </AppText>
-                </View>
+                <>
+                  <View style={styles.summaryRow}>
+                    <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
+                    <AppText style={{ color: "#0F172A" }} weight="bold">
+                      ₹{booking.totalPrice}
+                    </AppText>
+                  </View>
+                  <View style={[styles.summaryRow, { marginTop: 6, alignItems: "center" }]}>
+                    <AppText style={{ color: "#475569" }} weight="medium">Payment Status</AppText>
+                    <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                      <AppText size="small" weight="bold" style={{ color: "#166534" }}>
+                        Full Payment Paid ✅
+                      </AppText>
+                    </View>
+                  </View>
+                </>
               )}
 
               <View style={styles.divider} />
