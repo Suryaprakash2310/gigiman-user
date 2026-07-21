@@ -72,7 +72,7 @@ export default function ServicesScreen({ navigation }: any) {
       const res = await ServiceAPI.getServicesAPI();
       const servicesList = sortServicesByAvailability(res.services || []);
       setServiceState({
-        services: servicesList,
+        services: servicesList as DomainService[],
         loading: false,
         error: null,
       });

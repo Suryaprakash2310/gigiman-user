@@ -29,6 +29,7 @@ import { WebView } from 'react-native-webview';
 import { razorpayHTML } from "@/src/utils/razorpayTemplate";
 import { injectRazorpayData } from "@/src/utils/razorpayInjector";
 
+import { ServiceAPI, CategoryService } from "@/src/api/service.api";
 import { initiateMaskedCall } from "@/src/api/call.api";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
 import BookingProcessTracker from "@/src/components/BookingProcessTracker";
@@ -71,6 +72,143 @@ export default function BookingOtp() {
   const [paying, setPaying] = useState(false);
   const [paymentHtml, setPaymentHtml] = useState<string | null>(null);
   const [showWebViewModal, setShowWebViewModal] = useState(false);
+
+  // Ongoing Extra Service booking state
+  const [showAddExtraModal, setShowAddExtraModal] = useState(false);
+  const [availableExtras, setAvailableExtras] = useState<CategoryService[]>([]);
+  const [loadingExtras, setLoadingExtras] = useState(false);
+  const [selectedExtras, setSelectedExtras] = useState<Record<string, { service: CategoryService; quantity: number }>>({});
+  const [submittingExtra, setSubmittingExtra] = useState(false);
+  const [extraSearchQuery, setExtraSearchQuery] = useState("");
+
+  const handleOpenAddExtraModal = async () => {
+    setShowAddExtraModal(true);
+    if (availableExtras.length === 0) {
+      try {
+        setLoadingExtras(true);
+        const data: any = await ServiceAPI.getSubServicesAPI();
+        let list: CategoryService[] = [];
+        if (data?.categoriesservices && Array.isArray(data.categoriesservices)) {
+          list = data.categoriesservices as CategoryService[];
+        } else if (data?.services && Array.isArray(data.services)) {
+          list = data.services.flatMap((s: any) => s.serviceCategory || []);
+        }
+        setAvailableExtras(list);
+      } catch (err) {
+        console.warn("Failed to load extra services:", err);
+      } finally {
+        setLoadingExtras(false);
+      }
+    }
+  };
+
+  const handleToggleExtraQuantity = (service: CategoryService, delta: number) => {
+    const serviceId = service._id || service.serviceCategoryName;
+    setSelectedExtras(prev => {
+      const currentQty = prev[serviceId]?.quantity || 0;
+      const newQty = Math.max(0, currentQty + delta);
+      if (newQty === 0) {
+        const copy = { ...prev };
+        delete copy[serviceId];
+        return copy;
+      }
+      return {
+        ...prev,
+        [serviceId]: { service, quantity: newQty }
+      };
+    });
+  };
+
+  const selectedExtrasList = Object.values(selectedExtras);
+  const totalExtraPrice = selectedExtrasList.reduce((acc, item) => acc + ((item.service.price || 0) * item.quantity), 0);
+  const totalExtraDuration = selectedExtrasList.reduce((acc, item) => acc + ((item.service.durationInMinutes || 15) * item.quantity), 0);
+
+  const filteredAvailableExtras = availableExtras.filter(item => {
+    if (!extraSearchQuery.trim()) return true;
+    const name = (item.serviceCategoryName || item.parentServiceName || "").toLowerCase();
+    return name.includes(extraSearchQuery.trim().toLowerCase());
+  });
+
+  const handleAddExtraServicesSubmit = async () => {
+    if (selectedExtrasList.length === 0 || submittingExtra || !booking?._id) return;
+    try {
+      setSubmittingExtra(true);
+
+      const itemsToSubmit = selectedExtrasList.map(item => ({
+        serviceCategoryId: item.service._id,
+        serviceName: item.service.serviceCategoryName || item.service.parentServiceName || "Extra Service",
+        price: item.service.price || 0,
+        durationInMinutes: item.service.durationInMinutes || 15,
+        quantity: item.quantity,
+        status: "APPROVED"
+      }));
+
+      // 1. API Call to backend (/booking/extra/propose and /booking/extra/approve)
+      for (const item of itemsToSubmit) {
+        try {
+          const proposeRes = await api.post(`/booking/extra/propose`, {
+            bookingId: booking._id,
+            serviceCategoryId: item.serviceCategoryId,
+          });
+          const extraService = proposeRes.data?.extraService;
+          if (extraService && extraService._id) {
+            await api.post(`/booking/extra/approve`, {
+              bookingId: booking._id,
+              extraServiceId: extraService._id,
+              approve: true,
+            });
+          }
+        } catch (err: any) {
+          // Fallback call
+          await api.post(`/booking/extra-service/add`, {
+            bookingId: booking._id,
+            extraServices: [item],
+          }).catch(e => console.warn("Extra service fallback:", e.message));
+        }
+      }
+
+      // 2. Emit socket event so partner and backend sync in real-time
+      socket.emit("extra-service-approve", {
+        bookingId: booking._id,
+        extraServices: itemsToSubmit,
+        userId: user?._id,
+        approve: true
+      });
+
+      // 3. Optimistic local update in BookingContext
+      const existingExtras = booking.extraServices || [];
+      const updatedExtras = [
+        ...existingExtras,
+        ...itemsToSubmit.map(it => ({
+          _id: String(it.serviceCategoryId || Date.now()),
+          serviceName: it.serviceName,
+          price: it.price * it.quantity,
+          status: "APPROVED"
+        }))
+      ];
+
+      const updatedPrice = (booking.totalPrice || 0) + totalExtraPrice;
+      const updatedDuration = (booking.durationInMinutes || 0) + totalExtraDuration;
+
+      updateBookingItem(booking._id, {
+        extraServices: updatedExtras,
+        totalPrice: updatedPrice,
+        durationInMinutes: updatedDuration,
+      });
+
+      // 4. Refetch booking details from server
+      await fetchBooking();
+
+      setShowAddExtraModal(false);
+      setSelectedExtras({});
+      Alert.alert("Success", "Extra service added to your ongoing booking!");
+    } catch (error: any) {
+      console.error("Error adding extra service:", error);
+      Alert.alert("Error", error?.message || "Failed to add extra service. Please try again.");
+    } finally {
+      setSubmittingExtra(false);
+    }
+  };
 
   //const currentBooking = bookingRef.current;
   useEffect(() => {
@@ -808,6 +946,36 @@ export default function BookingOtp() {
             </AppCard>
           )}
 
+          {/* Ongoing Service Extra Booking Card */}
+          {['assigned', 'otp', 'in_progress'].includes(booking.status) && (
+            <AppCard style={styles.addExtraCard}>
+              <View style={styles.addExtraHeader}>
+                <View style={[styles.iconCircle, { backgroundColor: "#EEF2FF" }]}>
+                  <Ionicons name="sparkles" size={22} color="#4F46E5" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
+                    Need Extra Services?
+                  </AppText>
+                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                    Add extra tasks or services to your ongoing booking
+                  </AppText>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.addExtraBtn}
+                onPress={handleOpenAddExtraModal}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 15 }}>
+                  + Add Extra Service
+                </AppText>
+              </TouchableOpacity>
+            </AppCard>
+          )}
+
           {/* Remaining Balance Payment */}
           {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 && (
             <AppCard style={styles.balancePaymentCard}>
@@ -1088,6 +1256,169 @@ export default function BookingOtp() {
             />
           )}
         </SafeAreaView>
+      </Modal>
+
+      {/* Modal for Booking Extra Services During Ongoing Service */}
+      <Modal
+        visible={showAddExtraModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!submittingExtra) setShowAddExtraModal(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: theme.colors.surface }]}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View>
+                <AppText weight="bold" size="h2" style={{ color: theme.colors.text }}>
+                  Book Extra Services
+                </AppText>
+                <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                  Select additional services for this ongoing booking
+                </AppText>
+              </View>
+              {!submittingExtra && (
+                <TouchableOpacity
+                  onPress={() => setShowAddExtraModal(false)}
+                  style={styles.closeBtn}
+                >
+                  <Ionicons name="close" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Search Input */}
+            <View style={styles.extraSearchBox}>
+              <Ionicons name="search-outline" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
+              <TextInput
+                placeholder="Search extra services..."
+                placeholderTextColor="#94A3B8"
+                value={extraSearchQuery}
+                onChangeText={setExtraSearchQuery}
+                style={styles.extraSearchInput}
+              />
+              {extraSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setExtraSearchQuery("")}>
+                  <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Service List */}
+            {loadingExtras ? (
+              <View style={styles.loaderBox}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <AppText style={{ marginTop: 12 }} color="textMuted">
+                  Fetching available services...
+                </AppText>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
+                {filteredAvailableExtras.length === 0 ? (
+                  <View style={styles.emptyExtrasBox}>
+                    <Ionicons name="layers-outline" size={40} color="#CBD5E1" />
+                    <AppText style={{ marginTop: 8, color: "#64748B" }}>
+                      No extra services found
+                    </AppText>
+                  </View>
+                ) : (
+                  filteredAvailableExtras.map((item, index) => {
+                    const serviceId = item._id || item.serviceCategoryName || String(index);
+                    const selectedQty = selectedExtras[serviceId]?.quantity || 0;
+                    const price = item.price || 0;
+
+                    return (
+                      <View key={serviceId + index} style={styles.extraItemCard}>
+                        <View style={{ flex: 1, paddingRight: 12 }}>
+                          <AppText weight="semibold" size="body" style={{ color: "#0F172A" }}>
+                            {item.serviceCategoryName || item.parentServiceName}
+                          </AppText>
+                          {item.description ? (
+                            <AppText size="caption" color="textMuted" numberOfLines={2} style={{ marginTop: 2 }}>
+                              {item.description}
+                            </AppText>
+                          ) : null}
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 12 }}>
+                            <AppText weight="bold" style={{ color: theme.colors.primary }}>
+                              ₹{price}
+                            </AppText>
+                            {item.durationInMinutes ? (
+                              <AppText size="caption" color="textMuted">
+                                ⏱ {item.durationInMinutes} mins
+                              </AppText>
+                            ) : null}
+                          </View>
+                        </View>
+
+                        {/* Quantity Controller */}
+                        {selectedQty === 0 ? (
+                          <TouchableOpacity
+                            style={styles.addQtyBtn}
+                            onPress={() => handleToggleExtraQuantity(item, 1)}
+                          >
+                            <AppText weight="bold" style={{ color: "#0D9488", fontSize: 13 }}>
+                              + ADD
+                            </AppText>
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={styles.qtyRow}>
+                            <TouchableOpacity
+                              style={styles.qtyControlBtn}
+                              onPress={() => handleToggleExtraQuantity(item, -1)}
+                            >
+                              <Ionicons name="remove" size={16} color="#0D9488" />
+                            </TouchableOpacity>
+                            <AppText weight="bold" style={{ marginHorizontal: 8, color: "#0F172A" }}>
+                              {selectedQty}
+                            </AppText>
+                            <TouchableOpacity
+                              style={styles.qtyControlBtn}
+                              onPress={() => handleToggleExtraQuantity(item, 1)}
+                            >
+                              <Ionicons name="add" size={16} color="#0D9488" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+
+            {/* Footer / Confirmation */}
+            {selectedExtrasList.length > 0 && (
+              <View style={styles.modalFooter}>
+                <View style={styles.extraSummaryBar}>
+                  <View>
+                    <AppText size="small" color="textMuted">
+                      Selected ({selectedExtrasList.reduce((a, b) => a + b.quantity, 0)} items)
+                    </AppText>
+                    <AppText weight="bold" size="h2" style={{ color: theme.colors.primary }}>
+                      + ₹{totalExtraPrice}
+                    </AppText>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.confirmExtraBtn, submittingExtra && { opacity: 0.7 }]}
+                    onPress={handleAddExtraServicesSubmit}
+                    disabled={submittingExtra}
+                  >
+                    {submittingExtra ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 15 }}>
+                        Book Extra Services
+                      </AppText>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1426,6 +1757,130 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 15,
     backgroundColor: "#F8FAFC",
+  },
+  addExtraCard: {
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E0E7FF",
+    backgroundColor: "#F5F3FF",
+  },
+  addExtraHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  addExtraBtn: {
+    backgroundColor: "#0D9488",
+    flexDirection: "row",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0D9488",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  extraSearchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 16,
+  },
+  extraSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#0F172A",
+  },
+  loaderBox: {
+    paddingVertical: 30,
+    alignItems: "center",
+  },
+  emptyExtrasBox: {
+    paddingVertical: 30,
+    alignItems: "center",
+  },
+  extraItemCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  addQtyBtn: {
+    backgroundColor: "#CCFBF1",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#99F6E4",
+  },
+  qtyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDFA",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "#99F6E4",
+  },
+  qtyControlBtn: {
+    padding: 4,
+  },
+  modalFooter: {
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingTop: 16,
+    marginTop: 10,
+  },
+  extraSummaryBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  confirmExtraBtn: {
+    backgroundColor: "#0D9488",
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0D9488",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
 
 });
