@@ -24,3 +24,33 @@ export const auth = getAuth(app);
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
+
+import messaging from '@react-native-firebase/messaging';
+import axios from 'axios';
+
+export const registerUserFcmToken = async (userAuthToken: string, API_BASE_URL: string) => {
+  try {
+    // 1. Request notification permissions from user
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+    if (enabled) {
+      // 2. Get FCM Device Token
+      const fcmToken = await messaging().getToken();
+      console.log("User FCM Token:", fcmToken);
+      // 3. Register FCM token with backend
+      const endpoint = API_BASE_URL.endsWith('/api')
+        ? `${API_BASE_URL}/notification/user/fcm-token`
+        : `${API_BASE_URL}/api/notification/user/fcm-token`;
+      await axios.post(
+        endpoint,
+        { fcmToken },
+        { headers: { Authorization: `Bearer ${userAuthToken}` } }
+      );
+    }
+  } catch (error) {
+    console.error("Failed to register FCM token:", error);
+  }
+};
+

@@ -1,5 +1,5 @@
-// App.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
+import messaging from '@react-native-firebase/messaging';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,6 +12,14 @@ import { SocketProvider } from './src/socket/SocketProvider';
 import { NotificationProvider } from './src/context/NotificationContext';
 
 export default function App() {
+  useEffect(() => {
+    // Foreground notification handler
+    const unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
+      console.log('Foreground Push Notification Received:', remoteMessage);
+    });
+    return unsubscribe;
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

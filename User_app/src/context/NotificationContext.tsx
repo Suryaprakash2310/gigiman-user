@@ -15,6 +15,9 @@ import { useSocket } from "@/src/socket/SocketProvider";
 import { useTheme } from "@/src/theme/useTheme";
 import AppText from "@/src/components/ui/AppText";
 import { NotificationAPI, NotificationItem } from "@/src/api/notification.api";
+import { API_BASE_URL } from "@/src/config/env";
+import { registerUserFcmToken } from "@/firebase_integration";
+import messaging from "@react-native-firebase/messaging";
 
 interface NotificationContextProps {
   notifications: NotificationItem[];
@@ -146,6 +149,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // Fetching with tempToken returns 401 → FORCE_LOGOUT → slider screen.
     if (accessToken && user?.isVerified) {
       fetchNotifications(true);
+      registerUserFcmToken(accessToken, API_BASE_URL);
     } else {
       setNotifications([]);
       setUnreadCount(0);
@@ -214,6 +218,42 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
   }, [socket, accessToken]);
 
+  const addLocalNotification = React.useCallback((notification: NotificationItem) => {
+    setNotifications((prev) => {
+      if (prev.some((n) => n._id === notification._id)) {
+        return prev;
+      }
+      return [notification, ...prev];
+    });
+    if (!notification.isRead) {
+      setUnreadCount((prev) => prev + 1);
+    }
+  }, []);
+
+  // FCM Push Notifications Listener in Foreground
+  useEffect(() => {
+    const unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
+      console.log("Foreground FCM Push Notification Received:", remoteMessage);
+      if (remoteMessage.notification) {
+        const notifItem: NotificationItem = {
+          _id: remoteMessage.messageId || String(Date.now()),
+          userId: user?._id || null,
+          title: remoteMessage.notification.title || "New Notification",
+          message: remoteMessage.notification.body || "",
+          isRead: false,
+          type: (remoteMessage.data?.type as any) || "SYSTEM",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          data: remoteMessage.data,
+        };
+        addLocalNotification(notifItem);
+        showToast(notifItem);
+      }
+    });
+
+    return unsubscribe;
+  }, [user, addLocalNotification]);
+
   const getIconName = (type: string) => {
     switch (type) {
       case "BOOKING":
@@ -245,18 +285,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return theme.colors.primary;
     }
   };
-
-  const addLocalNotification = React.useCallback((notification: NotificationItem) => {
-    setNotifications((prev) => {
-      if (prev.some((n) => n._id === notification._id)) {
-        return prev;
-      }
-      return [notification, ...prev];
-    });
-    if (!notification.isRead) {
-      setUnreadCount((prev) => prev + 1);
-    }
-  }, []);
 
   return (
     <NotificationContext.Provider
