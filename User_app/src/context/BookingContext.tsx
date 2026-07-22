@@ -34,6 +34,7 @@ export type BookingItem = {
   address: string;
   status: BookingStatus;
   totalPrice?: number;
+  domainService?: string;
   isScheduled?: boolean;
   scheduleDateTime?: string;
   name?: string;
@@ -365,6 +366,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       bookings.filter(
         b =>
           ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
+          !(b.status === "assigned" && b.isManuallyAssigned) &&
           (b.assignmentStatus !== "FAILED" || b.isManuallyAssigned || !!b.primaryEmployee || !!b.servicerCompany)
       ),
     [bookings]
@@ -375,6 +377,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       bookings.filter(
         b =>
           ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
+          !(b.status === "assigned" && b.isManuallyAssigned) &&
           (b.assignmentStatus !== "FAILED" || b.isManuallyAssigned || !!b.primaryEmployee || !!b.servicerCompany)
       ),
     [bookings]
@@ -383,12 +386,16 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const manualBookings = useMemo(
     () =>
       bookings.filter(
-        b => (b.assignmentStatus === "FAILED" || b.status === "manual_assign") &&
+        b =>
+          b.status !== "completed" &&
+          b.status !== "cancelled" &&
+          (
+            ((b.assignmentStatus === "FAILED" || b.status === "manual_assign") &&
              !b.isManuallyAssigned &&
              !b.primaryEmployee &&
-             !b.servicerCompany &&
-             b.status !== "completed" &&
-             b.status !== "cancelled"
+             !b.servicerCompany) ||
+            (b.status === "assigned" && b.isManuallyAssigned)
+          )
       ),
     [bookings]
   );

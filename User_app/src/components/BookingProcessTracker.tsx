@@ -15,7 +15,6 @@ export type StepState = "completed" | "in_progress" | "pending";
 
 export interface ProcessStep {
   id: number;
-  emoji: string;
   iconName: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
@@ -26,94 +25,97 @@ export function getBookingProcessSteps(booking: BookingItem): ProcessStep[] {
   const status = booking.status;
   const isFailedOrManual =
     booking.assignmentStatus === "FAILED" || status === "manual_assign";
+  const isManuallyAssigned = booking.isManuallyAssigned || false;
+
+  const steps: ProcessStep[] = [];
 
   // Step 1: Payment Confirmed
-  const step1State: StepState =
-    status === "cancelled" ? "pending" : "completed";
+  const step1State: StepState = status === "cancelled" ? "pending" : "completed";
+  steps.push({
+    id: 1,
+    iconName: "card-outline",
+    title: "Payment Confirmed",
+    subtitle: booking.paymentType === "ADVANCE" ? "Advance payment received" : "Payment confirmed",
+    state: step1State,
+  });
 
-  // Step 2: Assigning Service Provider
+  // Step 2: Auto-Searching
   let step2State: StepState = "pending";
-  if (["assigned", "otp", "in_progress", "completed"].includes(status)) {
+  if (["assigned", "otp", "in_progress", "completed"].includes(status) || isFailedOrManual || isManuallyAssigned) {
     step2State = "completed";
-  } else if (
-    ["searching", "scheduled"].includes(status) ||
-    isFailedOrManual
-  ) {
+  } else if (["searching", "scheduled"].includes(status)) {
     step2State = "in_progress";
   }
+  
+  steps.push({
+    id: 2,
+    iconName: "search-outline",
+    title: "Searching Technician",
+    subtitle: step2State === "completed" ? "Auto-search finished" : "Searching nearby technicians...",
+    state: step2State,
+  });
 
-  // Step 3: Service Provider Assigned
-  let step3State: StepState = "pending";
-  if (["in_progress", "completed"].includes(status)) {
-    step3State = "completed";
-  } else if (["assigned", "otp"].includes(status)) {
-    step3State = "in_progress";
+  // Step 3: Awaiting Manual Assignment (Only if failed or manually assigned)
+  if (isFailedOrManual || isManuallyAssigned) {
+    let step3State: StepState = "pending";
+    if (["assigned", "otp", "in_progress", "completed"].includes(status) && isManuallyAssigned) {
+      step3State = "completed";
+    } else if (isFailedOrManual && !isManuallyAssigned) {
+      step3State = "in_progress";
+    }
+    
+    steps.push({
+      id: 3,
+      iconName: "time-outline",
+      title: "Awaiting Manual Assignment",
+      subtitle: step3State === "completed" ? "Assigned by admin" : "Awaiting manual assignment...",
+      state: step3State,
+    });
   }
 
-  // Step 4: Service Completed
+  // Step 4 (or 3 if no manual): Service Provider Assigned
   let step4State: StepState = "pending";
-  if (status === "completed") {
+  if (["in_progress", "completed"].includes(status)) {
     step4State = "completed";
-  } else if (status === "in_progress") {
+  } else if (["assigned", "otp"].includes(status)) {
     step4State = "in_progress";
   }
 
-  // Subtitle descriptions
-  const step2Subtitle =
-    step2State === "completed"
-      ? "Provider allocated"
-      : isFailedOrManual
-      ? "Awaiting manual assignment"
-      : "Searching nearby technician...";
+  steps.push({
+    id: steps.length + 1,
+    iconName: "person-outline",
+    title: "Technician Assigned",
+    subtitle:
+      step4State === "completed" || step4State === "in_progress"
+        ? booking.name
+          ? `Assigned to ${booking.name}`
+          : "Service provider ready"
+        : "Waiting for technician",
+    state: step4State,
+  });
 
-  const step3Subtitle =
-    step3State === "completed" || step3State === "in_progress"
-      ? booking.name
-        ? `Assigned to ${booking.name}`
-        : "Service provider ready"
-      : "Waiting for assignment";
+  // Step 5 (or 4 if no manual): Service Completed
+  let step5State: StepState = "pending";
+  if (status === "completed") {
+    step5State = "completed";
+  } else if (status === "in_progress") {
+    step5State = "in_progress";
+  }
 
-  const step4Subtitle =
-    step4State === "completed"
-      ? "Service completed successfully"
-      : step4State === "in_progress"
-      ? "Service currently in progress"
-      : "Pending completion";
+  steps.push({
+    id: steps.length + 1,
+    iconName: "checkmark-done-outline",
+    title: "Service Completed",
+    subtitle:
+      step5State === "completed"
+        ? "Service completed successfully"
+        : step5State === "in_progress"
+        ? "Service currently in progress"
+        : "Pending completion",
+    state: step5State,
+  });
 
-  return [
-    {
-      id: 1,
-      emoji: "✅",
-      iconName: "checkmark-circle",
-      title: "Payment Confirmed",
-      subtitle: booking.paymentType === "ADVANCE" ? "Advance payment received" : "Payment confirmed",
-      state: step1State,
-    },
-    {
-      id: 2,
-      emoji: "🔄",
-      iconName: "sync-circle",
-      title: "Assigning Service Provider",
-      subtitle: step2Subtitle,
-      state: step2State,
-    },
-    {
-      id: 3,
-      emoji: "👨‍🔧",
-      iconName: "person-circle",
-      title: "Service Provider Assigned",
-      subtitle: step3Subtitle,
-      state: step3State,
-    },
-    {
-      id: 4,
-      emoji: "✅",
-      iconName: "checkmark-done-circle",
-      title: "Service Completed",
-      subtitle: step4Subtitle,
-      state: step4State,
-    },
-  ];
+  return steps;
 }
 
 export default function BookingProcessTracker({ booking, compact = false }: Props) {
@@ -129,34 +131,35 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
           const isInProgress = step.state === "in_progress";
 
           let circleBg = "#E2E8F0";
-          let iconColor = "#94A3B8";
 
           if (isCompleted) {
-            circleBg = "#10B981";
-            iconColor = "#FFFFFF";
+            circleBg = "#0D9488"; // Teal
           } else if (isInProgress) {
-            circleBg = theme.colors.primary;
-            iconColor = "#FFFFFF";
+            circleBg = "#0D9488"; // Teal
           }
 
           return (
             <React.Fragment key={step.id}>
               <View style={styles.compactStep}>
                 <View style={[styles.compactDot, { backgroundColor: circleBg }]}>
-                  <AppText style={styles.compactEmoji}>{step.emoji}</AppText>
+                  <Ionicons 
+                    name={step.iconName} 
+                    size={12} 
+                    color={isCompleted || isInProgress ? "#FFFFFF" : "#94A3B8"} 
+                  />
                 </View>
                 <AppText
                   size="caption"
                   weight={isInProgress || isCompleted ? "bold" : "regular"}
                   style={{
                     color: isCompleted
-                      ? "#10B981"
+                      ? "#0D9488"
                       : isInProgress
-                      ? theme.colors.primary
+                      ? "#0D9488"
                       : "#94A3B8",
                     fontSize: 10,
                     textAlign: "center",
-                    marginTop: 2,
+                    marginTop: 4,
                   }}
                   numberOfLines={1}
                 >
@@ -172,7 +175,7 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
                       backgroundColor:
                         steps[index + 1].state === "completed" ||
                         steps[index + 1].state === "in_progress"
-                          ? "#10B981"
+                          ? "#0D9488"
                           : "#E2E8F0",
                     },
                   ]}
@@ -188,7 +191,7 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
   return (
     <AppCard style={styles.container}>
       <AppText weight="bold" size="h3" style={styles.cardHeaderTitle}>
-        Booking Status
+        Service Timeline
       </AppText>
 
       <View style={styles.timelineContainer}>
@@ -196,23 +199,20 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
           const isCompleted = step.state === "completed";
           const isInProgress = step.state === "in_progress";
 
-          let badgeBg = "#F1F5F9";
-          let badgeBorderColor = "#CBD5E1";
-          let textColor = "#64748B";
+          let badgeBg = "#F8FAFC";
+          let badgeBorderColor = "#E2E8F0";
 
           if (isCompleted) {
             badgeBg = "#ECFDF5";
-            badgeBorderColor = "#10B981";
-            textColor = "#065F46";
+            badgeBorderColor = "#34D399";
           } else if (isInProgress) {
-            badgeBg = "#EFF6FF";
-            badgeBorderColor = theme.colors.primary;
-            textColor = theme.colors.primary;
+            badgeBg = "#F0FDFA";
+            badgeBorderColor = "#0D9488";
           }
 
           return (
             <View key={step.id} style={styles.stepWrapper}>
-              {/* Left Column: Emoji/Icon & Connector Line */}
+              {/* Left Column: Icon & Connector Line */}
               <View style={styles.leftCol}>
                 <View
                   style={[
@@ -223,7 +223,11 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
                     },
                   ]}
                 >
-                  <AppText style={styles.emojiText}>{step.emoji}</AppText>
+                  <Ionicons 
+                    name={step.iconName} 
+                    size={16} 
+                    color={isCompleted ? "#059669" : isInProgress ? "#0D9488" : "#94A3B8"} 
+                  />
                 </View>
 
                 {index < steps.length - 1 && (
@@ -235,25 +239,11 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
                           backgroundColor:
                             steps[index + 1].state === "completed" ||
                             steps[index + 1].state === "in_progress"
-                              ? "#10B981"
+                              ? "#0D9488"
                               : "#E2E8F0",
                         },
                       ]}
                     />
-                    <AppText
-                      style={[
-                        styles.downArrow,
-                        {
-                          color:
-                            steps[index + 1].state === "completed" ||
-                            steps[index + 1].state === "in_progress"
-                              ? "#10B981"
-                              : "#CBD5E1",
-                        },
-                      ]}
-                    >
-                      ↓
-                    </AppText>
                   </View>
                 )}
               </View>
@@ -277,10 +267,16 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
                       styles.statusPill,
                       {
                         backgroundColor: isCompleted
-                          ? "#DCFCE7"
+                          ? "#ECFDF5"
                           : isInProgress
-                          ? "#DBEAFE"
-                          : "#F1F5F9",
+                          ? "#F0FDFA"
+                          : "#F8FAFC",
+                        borderColor: isCompleted
+                          ? "#A7F3D0"
+                          : isInProgress
+                          ? "#99F6E4"
+                          : "#E2E8F0",
+                        borderWidth: 1,
                       },
                     ]}
                   >
@@ -289,14 +285,14 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
                       weight="bold"
                       style={{
                         color: isCompleted
-                          ? "#166534"
+                          ? "#047857"
                           : isInProgress
-                          ? "#1D4ED8"
+                          ? "#0D9488"
                           : "#94A3B8",
-                        fontSize: 10,
+                        fontSize: 9,
                       }}
                     >
-                      {isCompleted ? "DONE" : isInProgress ? "IN PROGRESS" : "PENDING"}
+                      {isCompleted ? "DONE" : isInProgress ? "ACTIVE" : "PENDING"}
                     </AppText>
                   </View>
                 </View>
@@ -316,22 +312,26 @@ export default function BookingProcessTracker({ booking, compact = false }: Prop
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      padding: 16,
-      borderRadius: 20,
+      padding: 20,
+      borderRadius: 24,
       marginVertical: 12,
       backgroundColor: "#FFFFFF",
-      elevation: 3,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: "#F1F5F9",
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.03,
+      shadowRadius: 20,
+      elevation: 2,
     },
     cardHeaderTitle: {
-      marginBottom: 16,
+      marginBottom: 20,
       color: "#0F172A",
+      fontSize: 16,
+      letterSpacing: -0.3,
     },
     timelineContainer: {
-      paddingLeft: 4,
+      paddingLeft: 6,
     },
     stepWrapper: {
       flexDirection: "row",
@@ -339,58 +339,52 @@ const createStyles = (theme: any) =>
     },
     leftCol: {
       alignItems: "center",
-      marginRight: 14,
-      width: 40,
+      marginRight: 16,
+      width: 32,
     },
     iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 2,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      borderWidth: 1.5,
       justifyContent: "center",
       alignItems: "center",
     },
-    emojiText: {
-      fontSize: 20,
-    },
     lineConnectorContainer: {
       alignItems: "center",
-      marginVertical: 2,
-      height: 34,
+      marginVertical: 4,
+      height: 38,
       justifyContent: "center",
     },
     verticalLine: {
       width: 2,
-      height: 18,
+      height: 28,
       borderRadius: 1,
-    },
-    downArrow: {
-      fontSize: 14,
-      fontWeight: "bold",
-      marginTop: -2,
     },
     rightCol: {
       flex: 1,
-      paddingTop: 2,
-      paddingBottom: 20,
+      paddingTop: 1,
+      paddingBottom: 24,
     },
     stepTitleRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: 2,
+      marginBottom: 4,
     },
     stepTitle: {
       fontSize: 14,
+      letterSpacing: -0.2,
     },
     stepSubtitle: {
       fontSize: 12,
       color: "#64748B",
+      lineHeight: 16,
     },
     statusPill: {
       paddingHorizontal: 8,
       paddingVertical: 2,
-      borderRadius: 12,
+      borderRadius: 8,
     },
 
     // Compact mode styles for card preview
@@ -413,9 +407,6 @@ const createStyles = (theme: any) =>
       borderRadius: 14,
       justifyContent: "center",
       alignItems: "center",
-    },
-    compactEmoji: {
-      fontSize: 13,
     },
     compactLine: {
       flex: 0.5,

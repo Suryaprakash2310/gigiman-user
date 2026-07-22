@@ -86,12 +86,21 @@ export default function BookingOtp() {
     if (availableExtras.length === 0) {
       try {
         setLoadingExtras(true);
-        const data: any = await ServiceAPI.getSubServicesAPI();
         let list: CategoryService[] = [];
-        if (data?.categoriesservices && Array.isArray(data.categoriesservices)) {
-          list = data.categoriesservices as CategoryService[];
-        } else if (data?.services && Array.isArray(data.services)) {
-          list = data.services.flatMap((s: any) => s.serviceCategory || []);
+        if (booking?.domainService) {
+          const data: any = await ServiceAPI.getSubServicesByDomainId(booking.domainService);
+          if (data?.services && Array.isArray(data.services)) {
+            list = data.services.flatMap((s: any) => s.serviceCategory || []);
+          } else if (data?.categoriesservices && Array.isArray(data.categoriesservices)) {
+            list = data.categoriesservices as CategoryService[];
+          }
+        } else {
+          const data: any = await ServiceAPI.getSubServicesAPI();
+          if (data?.categoriesservices && Array.isArray(data.categoriesservices)) {
+            list = data.categoriesservices as CategoryService[];
+          } else if (data?.services && Array.isArray(data.services)) {
+            list = data.services.flatMap((s: any) => s.serviceCategory || []);
+          }
         }
         setAvailableExtras(list);
       } catch (err) {
@@ -947,7 +956,7 @@ export default function BookingOtp() {
           )}
 
           {/* Ongoing Service Extra Booking Card */}
-          {['assigned', 'otp', 'in_progress'].includes(booking.status) && (
+          {booking && ['assigned', 'otp', 'in_progress', 'manual_assign'].includes(booking.status) && (
             <AppCard style={styles.addExtraCard}>
               <View style={styles.addExtraHeader}>
                 <View style={[styles.iconCircle, { backgroundColor: "#EEF2FF" }]}>
