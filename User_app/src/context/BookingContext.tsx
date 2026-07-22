@@ -193,6 +193,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             }
           } else if (current[b._id]) {
             const existing = current[b._id];
+
+            // Ignore backend rollback for manually assigned bookings
+            if (
+              existing.isManuallyAssigned &&
+              (b.status === "manual_assign" || b.assignmentStatus === "FAILED")
+            ) {
+              continue;
+            }
+
             if (existing.status !== b.status) {
               current[b._id] = {
                 ...existing,
@@ -391,9 +400,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           b.status !== "cancelled" &&
           (
             ((b.assignmentStatus === "FAILED" || b.status === "manual_assign") &&
-             !b.isManuallyAssigned &&
-             !b.primaryEmployee &&
-             !b.servicerCompany) ||
+              !b.isManuallyAssigned &&
+              !b.primaryEmployee &&
+              !b.servicerCompany) ||
             (b.status === "assigned" && b.isManuallyAssigned)
           )
       ),

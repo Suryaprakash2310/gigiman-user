@@ -48,7 +48,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/logogigi.png",
-          "imageWidth": 300,
+          "imageWidth": 400,
           "resizeMode": "contain",
           "backgroundColor": "#033921",
           "dark": {
