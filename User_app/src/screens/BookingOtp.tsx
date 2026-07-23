@@ -83,6 +83,7 @@ export default function BookingOtp() {
 
   const handleOpenAddExtraModal = async () => {
     setShowAddExtraModal(true);
+    console.log("DEBUG: handleOpenAddExtraModal booking = ", JSON.stringify(booking));
     if (availableExtras.length === 0) {
       try {
         setLoadingExtras(true);
@@ -94,7 +95,10 @@ export default function BookingOtp() {
           } else if (data?.categoriesservices && Array.isArray(data.categoriesservices)) {
             list = data.categoriesservices as CategoryService[];
           }
-        } else {
+        }
+        
+        // Fallback to all subservices if the domain specific query was empty or not found
+        if (list.length === 0) {
           const data: any = await ServiceAPI.getSubServicesAPI();
           if (data?.categoriesservices && Array.isArray(data.categoriesservices)) {
             list = data.categoriesservices as CategoryService[];
@@ -1357,7 +1361,7 @@ export default function BookingOtp() {
                             </AppText>
                             {item.durationInMinutes ? (
                               <AppText size="caption" color="textMuted">
-                                ⏱ {item.durationInMinutes} mins
+                                ⏱ Time: {item.durationInMinutes} mins
                               </AppText>
                             ) : null}
                           </View>
