@@ -90,11 +90,11 @@ export default function BookingListCard({ booking, onPress }: Props) {
                 weight="bold"
                 style={{ color: theme.colors.primary }}
               >
-                ₹{booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && booking.remainingAmount != null
+                ₹{booking.paymentStatus === 'partially_paid' && booking.remainingAmount != null && booking.remainingAmount > 0
                   ? booking.remainingAmount
                   : booking.totalPrice}
               </AppText>
-              {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (
+              {booking.paymentStatus === 'partially_paid' && booking.remainingAmount != null && booking.remainingAmount > 0 && (
                 <AppText size="caption" color="textMuted" style={{ fontSize: 10 }}>
                   Remaining Bal.
                 </AppText>

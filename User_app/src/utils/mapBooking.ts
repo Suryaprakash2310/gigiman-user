@@ -135,6 +135,10 @@ export function mapBookingToBookingItem(
     remainingAmount: booking.remainingAmount,
     rawStatus: booking.status,
     isManuallyAssigned: booking.isManuallyAssigned,
-    domainService: typeof booking.domainService === "object" ? booking.domainService?._id : booking.domainService,
+    domainService: booking.domainService
+      ? (typeof booking.domainService === "object"
+        ? (booking.domainService._id ? String(booking.domainService._id) : String(booking.domainService))
+        : String(booking.domainService))
+      : undefined,
   };
 }

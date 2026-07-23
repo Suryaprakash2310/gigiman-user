@@ -986,7 +986,7 @@ export default function BookingOtp() {
           )}
 
           {/* Remaining Balance Payment */}
-          {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 && (
+          {booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 && (
             <AppCard style={styles.balancePaymentCard}>
               <AppText weight="bold" size="h3" style={{ marginBottom: 12 }}>
                 Remaining Balance Payment
@@ -1065,7 +1065,7 @@ export default function BookingOtp() {
               ))}
 
               <View style={styles.divider} />
-              {booking.paymentType === 'ADVANCE' && booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 ? (
+              {booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 ? (
                 <>
                   <View style={styles.summaryRow}>
                     <AppText style={{ color: "#475569" }}>Total Price</AppText>
@@ -1074,7 +1074,9 @@ export default function BookingOtp() {
                     </AppText>
                   </View>
                   <View style={styles.summaryRow}>
-                    <AppText style={{ color: "#475569" }}>Advance Paid (18%)</AppText>
+                    <AppText style={{ color: "#475569" }}>
+                      {booking.paymentType === 'ADVANCE' ? 'Advance Paid (18%)' : 'Amount Paid'}
+                    </AppText>
                     <AppText style={{ color: "#0F172A" }} weight="medium">
                       -₹{booking.advanceAmount}
                     </AppText>
