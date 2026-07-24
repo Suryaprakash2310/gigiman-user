@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import AppText from '@/src/components/ui/AppText';
 import AppInput from '@/src/components/ui/AppInput';
@@ -33,9 +34,45 @@ export default function CreateTicketScreen() {
     const [description, setDescription] = useState('');
     const [showTypeDropdown, setShowTypeDropdown] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [imageUri, setImageUri] = useState<string | null>(null);
+    const [imageBase64, setImageBase64] = useState<string | null>(null);
 
     const handleBack = () => {
         navigation.goBack();
+    };
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to upload an image.');
+            return;
+        }
+
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                quality: 0.6,
+                allowsEditing: true,
+                base64: true,
+            });
+
+            if (!result.canceled && result.assets?.[0]) {
+                const asset = result.assets[0];
+                setImageUri(asset.uri);
+                if (asset.base64) {
+                    setImageBase64(`data:image/jpeg;base64,${asset.base64}`);
+                } else {
+                    setImageBase64(asset.uri);
+                }
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Error', 'Failed to pick image');
+        }
+    };
+
+    const removeImage = () => {
+        setImageUri(null);
+        setImageBase64(null);
     };
 
     const handleSubmit = async () => {
@@ -52,7 +89,8 @@ export default function CreateTicketScreen() {
                 category: mapping.category,
                 supportType: mapping.supportType,
                 bookingId: bookingId || undefined,
-                priority: 'Medium'
+                priority: 'Medium',
+                image: imageBase64 || undefined
             });
 
             if (response.success) {
@@ -158,32 +196,53 @@ export default function CreateTicketScreen() {
                     style={{ height: 120, textAlignVertical: 'top' }}
                 />
 
-                {/* Image Upload (Mock for now, but placeholder for real implementation) */}
+                {/* Image Upload */}
                 <View style={{ marginBottom: 32 }}>
                     <AppText size="body" style={{ color: theme.colors.text, marginBottom: theme.spacing.xs }}>
                         Attachment (Optional)
                     </AppText>
-                    <TouchableOpacity 
-                        style={[styles.uploadButton, { 
-                            borderColor: theme.colors.border,
-                            backgroundColor: theme.colors.surface,
-                            borderRadius: theme.radius.md
-                        }]}
-                        activeOpacity={0.7}
-                        onPress={() => Alert.alert('Coming Soon', 'Image upload will be available in the next update.')}
-                    >
-                        <View style={[styles.uploadIconContainer, { backgroundColor: theme.colors.background }]}>
-                            <Feather name="upload-cloud" size={24} color={theme.colors.primary} />
+                    {imageUri ? (
+                        <View style={[styles.previewContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: theme.radius.md }]}>
+                            <Image source={{ uri: imageUri }} style={styles.previewImage} />
+                            <View style={styles.previewDetails}>
+                                <AppText size="body" weight="medium" style={{ color: theme.colors.text, marginBottom: 4 }}>
+                                    Image Selected
+                                </AppText>
+                                <TouchableOpacity 
+                                    style={[styles.removeButton, { backgroundColor: theme.colors.danger }]}
+                                    onPress={removeImage}
+                                    activeOpacity={0.7}
+                                >
+                                    <Feather name="trash-2" size={14} color="#FFF" style={{ marginRight: 6 }} />
+                                    <AppText size="caption" weight="medium" style={{ color: '#FFF' }}>
+                                        Remove
+                                    </AppText>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <View>
-                            <AppText size="body" weight="medium" style={{ color: theme.colors.primary, marginBottom: 4 }}>
-                                Upload Image
-                            </AppText>
-                            <AppText size="caption" style={{ color: theme.colors.textMuted }}>
-                                JPG, PNG up to 5MB
-                            </AppText>
-                        </View>
-                    </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity 
+                            style={[styles.uploadButton, { 
+                                borderColor: theme.colors.border,
+                                backgroundColor: theme.colors.surface,
+                                borderRadius: theme.radius.md
+                            }]}
+                            activeOpacity={0.7}
+                            onPress={pickImage}
+                        >
+                            <View style={[styles.uploadIconContainer, { backgroundColor: theme.colors.background }]}>
+                                <Feather name="upload-cloud" size={24} color={theme.colors.primary} />
+                            </View>
+                            <View>
+                                <AppText size="body" weight="medium" style={{ color: theme.colors.primary, marginBottom: 4 }}>
+                                    Upload Image
+                                </AppText>
+                                <AppText size="caption" style={{ color: theme.colors.textMuted }}>
+                                    JPG, PNG up to 5MB
+                                </AppText>
+                            </View>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <AppButton
@@ -274,6 +333,31 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
+    },
+    previewContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderWidth: 1,
+    },
+    previewImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 8,
+        marginRight: 16,
+    },
+    previewDetails: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    removeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        marginTop: 4,
     }
 });
 

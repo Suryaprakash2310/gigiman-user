@@ -9,7 +9,8 @@ import {
     TextInput, 
     KeyboardAvoidingView, 
     Platform,
-    Alert
+    Alert,
+    Image
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -215,9 +216,16 @@ export default function TicketDetailScreen() {
                 <AppText size="body" weight="bold" style={{ color: theme.colors.text, marginBottom: 8 }}>
                     {ticket!.category}
                 </AppText>
-                <AppText size="body" style={{ color: theme.colors.text, lineHeight: 20 }}>
+                <AppText size="body" style={{ color: theme.colors.text, lineHeight: 20, marginBottom: ticket!.image ? 12 : 0 }}>
                     {ticket!.message}
                 </AppText>
+                {ticket!.image && (
+                    <Image 
+                        source={{ uri: ticket!.image }} 
+                        style={styles.ticketImage} 
+                        resizeMode="cover"
+                    />
+                )}
             </View>
             
             {ticket!.supportType === 'Chat' && <AppText size="caption" weight="bold" style={{ color: theme.colors.textMuted, marginVertical: 8, textAlign: 'center' }}>MESSAGE HISTORY</AppText>}
@@ -416,6 +424,12 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    ticketImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        marginTop: 8,
     }
 });
 
