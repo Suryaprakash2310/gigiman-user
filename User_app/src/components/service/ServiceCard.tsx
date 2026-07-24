@@ -114,7 +114,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
 
         <AppText
           size="small"
-          color={comingSoon ? "warning" : "textMuted"}
+          color={comingSoon ? "accent" : "textMuted"}
           numberOfLines={1}
           style={styles.subtitle}
         >

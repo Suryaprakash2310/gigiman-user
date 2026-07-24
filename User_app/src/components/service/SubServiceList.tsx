@@ -77,7 +77,7 @@ const SubServiceList: React.FC<SubServiceListProps> = ({
             )}
           </View>
           {comingSoon ? (
-            <AppText size="small" color="warning" weight="bold">
+            <AppText size="small" color="accent" weight="bold">
               Coming Soon
             </AppText>
           ) : (

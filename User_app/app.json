@@ -5,6 +5,10 @@
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/logogigi.png",
+    "notification": {
+      "icon": "./assets/images/logogigi.png",
+      "color": "#033921"
+    },
     "scheme": "gigiman",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

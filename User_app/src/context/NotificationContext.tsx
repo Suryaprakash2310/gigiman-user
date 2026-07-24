@@ -235,24 +235,40 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
       console.log("Foreground FCM Push Notification Received:", remoteMessage);
       if (remoteMessage.notification) {
-        const notifItem: NotificationItem = {
-          _id: remoteMessage.messageId || String(Date.now()),
-          userId: user?._id || null,
-          title: remoteMessage.notification.title || "New Notification",
-          message: remoteMessage.notification.body || "",
-          isRead: false,
-          type: (remoteMessage.data?.type as any) || "SYSTEM",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          data: remoteMessage.data,
-        };
-        addLocalNotification(notifItem);
-        showToast(notifItem);
+        // Extract database notification ID sent from backend to check for duplicates
+        const notifId = remoteMessage.data?.notificationId || remoteMessage.messageId || String(Date.now());
+
+        let isDuplicate = false;
+        setNotifications((prev) => {
+          if (prev.some((n) => n._id === notifId)) {
+            isDuplicate = true;
+            return prev;
+          }
+          const notifItem: NotificationItem = {
+            _id: notifId,
+            userId: user?._id || null,
+            title: remoteMessage.notification.title || "New Notification",
+            message: remoteMessage.notification.body || "",
+            isRead: false,
+            type: (remoteMessage.data?.type as any) || "SYSTEM",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            data: remoteMessage.data,
+          };
+          
+          // Trigger toast display for new foreground messages
+          setTimeout(() => showToast(notifItem), 0);
+          return [notifItem, ...prev];
+        });
+
+        if (!isDuplicate) {
+          setUnreadCount((prev) => prev + 1);
+        }
       }
     });
 
     return unsubscribe;
-  }, [user, addLocalNotification]);
+  }, [user, showToast]);
 
   const getIconName = (type: string) => {
     switch (type) {
