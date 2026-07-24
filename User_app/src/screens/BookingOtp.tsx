@@ -147,76 +147,144 @@ export default function BookingOtp() {
     try {
       setSubmittingExtra(true);
 
-      const itemsToSubmit = selectedExtrasList.map(item => ({
-        serviceCategoryId: item.service._id,
-        serviceName: item.service.serviceCategoryName || item.service.parentServiceName || "Extra Service",
-        price: item.service.price || 0,
-        durationInMinutes: item.service.durationInMinutes || 15,
-        quantity: item.quantity,
-        status: "APPROVED"
-      }));
+      const rawBookingId = String(booking._id);
+      console.log(`[Flow Step 1] handleAddExtraServicesSubmit starting:`, {
+        bookingId: rawBookingId,
+        selectedExtras,
+        selectedExtrasList,
+      });
+
+      const itemsToSubmit = selectedExtrasList
+        .map(item => {
+          const categoryId = item.service._id || item.service.domainServiceId;
+          if (!categoryId) {
+            console.warn(`[Flow Step 1 Warn] Skipping extra service item without valid ID:`, item);
+            return null;
+          }
+          return {
+            serviceCategoryId: String(categoryId),
+            serviceName: String(item.service.serviceCategoryName || item.service.parentServiceName || "Extra Service"),
+            price: Number(item.service.price || 0),
+            durationInMinutes: Number(item.service.durationInMinutes || 15),
+            quantity: Number(item.quantity || 1),
+            status: "APPROVED"
+          };
+        })
+        .filter(Boolean) as Array<{
+          serviceCategoryId: string;
+          serviceName: string;
+          price: number;
+          durationInMinutes: number;
+          quantity: number;
+          status: string;
+        }>;
+
+      console.log(`[Flow Step 1] itemsToSubmit constructed:`, itemsToSubmit);
+
+      if (itemsToSubmit.length === 0) {
+        Alert.alert("Error", "Selected extra services are invalid or missing IDs.");
+        return;
+      }
 
       // 1. API Call to backend (/booking/extra/propose and /booking/extra/approve)
       for (const item of itemsToSubmit) {
         try {
-          const proposeRes = await api.post(`/booking/extra/propose`, {
-            bookingId: booking._id,
+          const proposePayload = {
+            bookingId: rawBookingId,
             serviceCategoryId: item.serviceCategoryId,
-          });
+          };
+          console.log(`[Flow Step 2] POST /booking/extra/propose payload:`, proposePayload);
+
+          const proposeRes = await api.post(`/booking/extra/propose`, proposePayload);
+          console.log(`[Flow Step 2] POST /booking/extra/propose res:`, proposeRes.data);
+
           const extraService = proposeRes.data?.extraService;
           if (extraService && extraService._id) {
-            await api.post(`/booking/extra/approve`, {
-              bookingId: booking._id,
-              extraServiceId: extraService._id,
+            const approvePayload = {
+              bookingId: rawBookingId,
+              extraServiceId: String(extraService._id),
               approve: true,
-            });
+            };
+            console.log(`[Flow Step 3] POST /booking/extra/approve payload:`, approvePayload);
+
+            const approveRes = await api.post(`/booking/extra/approve`, approvePayload);
+            console.log(`[Flow Step 3] POST /booking/extra/approve res:`, approveRes.data);
           }
         } catch (err: any) {
-          // Fallback call
-          await api.post(`/booking/extra-service/add`, {
-            bookingId: booking._id,
+          console.warn("[Flow Step 4 Fallback] /booking/extra propose/approve failed:", err?.response?.data || err.message);
+          const fallbackPayload = {
+            bookingId: rawBookingId,
             extraServices: [item],
-          }).catch(e => console.warn("Extra service fallback:", e.message));
+          };
+          console.log(`[Flow Step 4] POST /booking/extra-service/add payload:`, fallbackPayload);
+
+          const fallbackRes = await api.post(`/booking/extra-service/add`, fallbackPayload).catch(e => {
+            console.error("[Flow Step 4 Error] Extra service fallback failed:", e?.response?.data || e.message);
+            return null;
+          });
+          if (fallbackRes) {
+            console.log(`[Flow Step 4] POST /booking/extra-service/add res:`, fallbackRes.data);
+          }
         }
       }
 
       // 2. Emit socket event so partner and backend sync in real-time
-      socket.emit("extra-service-approve", {
-        bookingId: booking._id,
+      const socketPayload = {
+        bookingId: rawBookingId,
         extraServices: itemsToSubmit,
-        userId: user?._id,
+        userId: user?._id ? String(user._id) : undefined,
         approve: true
-      });
+      };
+      console.log(`[Flow Step 5] Socket emit 'extra-service-approve' payload:`, socketPayload);
+      socket.emit("extra-service-approve", socketPayload);
 
       // 3. Optimistic local update in BookingContext
-      const existingExtras = booking.extraServices || [];
-      const updatedExtras = [
-        ...existingExtras,
-        ...itemsToSubmit.map(it => ({
-          _id: String(it.serviceCategoryId || Date.now()),
-          serviceName: it.serviceName,
-          price: it.price * it.quantity,
-          status: "APPROVED"
-        }))
-      ];
+      const existingExtras = Array.isArray(booking.extraServices) ? booking.extraServices : [];
+      const newExtrasFormatted = itemsToSubmit.map(it => ({
+        _id: String(it.serviceCategoryId || Date.now() + Math.random()),
+        serviceName: it.serviceName,
+        price: Number(it.price) * Number(it.quantity),
+        status: "APPROVED",
+        quantity: Number(it.quantity)
+      }));
+      const updatedExtras = [...existingExtras, ...newExtrasFormatted];
 
-      const updatedPrice = (booking.totalPrice || 0) + totalExtraPrice;
-      const updatedDuration = (booking.durationInMinutes || 0) + totalExtraDuration;
+      const addedTotalPrice = itemsToSubmit.reduce((sum, it) => sum + (Number(it.price) * Number(it.quantity)), 0);
+      const addedDuration = itemsToSubmit.reduce((sum, it) => sum + (Number(it.durationInMinutes) * Number(it.quantity)), 0);
 
-      updateBookingItem(booking._id, {
+      const updatedPrice = Number(booking.totalPrice || 0) + addedTotalPrice;
+      const updatedDuration = Number(booking.durationInMinutes || 0) + addedDuration;
+
+      let updatedRemainingAmount = booking.remainingAmount;
+      if (booking.paymentStatus === 'partially_paid' || (booking.advanceAmount != null && booking.advanceAmount > 0)) {
+        const advance = Number(booking.advanceAmount || 0);
+        updatedRemainingAmount = Math.max(0, updatedPrice - advance);
+      }
+
+      console.log(`[Flow Step 8] Updating BookingContext optimistically:`, {
+        bookingId: rawBookingId,
         extraServices: updatedExtras,
         totalPrice: updatedPrice,
+        remainingAmount: updatedRemainingAmount,
+        durationInMinutes: updatedDuration
+      });
+
+      updateBookingItem(rawBookingId, {
+        extraServices: updatedExtras,
+        totalPrice: updatedPrice,
+        remainingAmount: updatedRemainingAmount,
         durationInMinutes: updatedDuration,
       });
 
       // 4. Refetch booking details from server
+      console.log(`[Flow Step 6] Calling GET /booking/${rawBookingId}`);
       await fetchBooking();
 
       setShowAddExtraModal(false);
       setSelectedExtras({});
       Alert.alert("Success", "Extra service added to your ongoing booking!");
     } catch (error: any) {
-      console.error("Error adding extra service:", error);
+      console.error("[Flow Error] Error adding extra service:", error);
       Alert.alert("Error", error?.message || "Failed to add extra service. Please try again.");
     } finally {
       setSubmittingExtra(false);
@@ -438,17 +506,37 @@ export default function BookingOtp() {
   // Fetch full booking from API to ensure technician name is available
   const fetchBooking = async () => {
     try {
+      console.log(`[Flow Step 6] API GET /booking/${bookingId}`);
       const res = await api.get(`/booking/${bookingId}`);
-      if (res.data?.booking) {
-        const mapped = mapBookingToBookingItem(res.data.booking);
+      console.log(`[Flow Step 6] GET /booking/${bookingId} raw response:`, res.data);
+
+      const rawBooking = res.data?.booking || res.data?.data || res.data;
+      if (rawBooking && (rawBooking._id || rawBooking.id)) {
+        console.log(`[Flow Step 7] Validating backend booking data fields:`, {
+          extraServices: rawBooking.extraServices,
+          cartItems: rawBooking.cartItems,
+          totalPrice: rawBooking.totalPrice,
+          remainingAmount: rawBooking.remainingAmount,
+          durationInMinutes: rawBooking.durationInMinutes,
+          paymentStatus: rawBooking.paymentStatus,
+          paymentType: rawBooking.paymentType,
+          status: rawBooking.status,
+          domainService: rawBooking.domainService,
+        });
+
+        const mapped = mapBookingToBookingItem(rawBooking);
+        console.log(`[Flow Step 7] Mapped booking item:`, mapped);
+
         const currentBooking = bookingRef.current;
         upsertBooking({
           ...mapped,
           otp: mapped.otp ?? currentBooking?.otp   // 🔑 PRESERVE OTP
         });
+      } else {
+        console.warn(`[Flow Step 6 Warn] Unexpected backend response shape:`, res.data);
       }
-    } catch (err) {
-      console.warn("Failed to fetch booking details:", err);
+    } catch (err: any) {
+      console.warn("Failed to fetch booking details:", err?.message || err);
     }
   };
 
@@ -459,23 +547,26 @@ export default function BookingOtp() {
 
   useEffect(() => {
     const onExtraResponse = (data: any) => {
-      if (data.bookingId !== bookingId) return;
+      console.log("[Socket Event] extra-service-response received:", data);
+      if (!data || String(data.bookingId) !== String(bookingId)) return;
 
       const currentBooking = bookingRef.current;
       if (!currentBooking) return;
 
-      if (data.status === "APPROVED") {
-        upsertBooking({
-          ...currentBooking,
+      if (data.status === "APPROVED" || data.status === "approved") {
+        const updatedPrice = data.totalPrice != null ? Number(data.totalPrice) : currentBooking.totalPrice;
+        const updatedDuration = data.durationInMinutes != null ? Number(data.durationInMinutes) : currentBooking.durationInMinutes;
+        
+        updateBookingItem(String(bookingId), {
           pendingServiceProposal: null,
-          totalPrice: data.totalPrice,
+          totalPrice: updatedPrice,
+          durationInMinutes: updatedDuration,
         });
         fetchBooking();
       }
 
-      if (data.status === "REJECTED") {
-        upsertBooking({
-          ...currentBooking,
+      if (data.status === "REJECTED" || data.status === "rejected") {
+        updateBookingItem(String(bookingId), {
           pendingServiceProposal: null,
         });
       }
@@ -487,16 +578,18 @@ export default function BookingOtp() {
       socket.off("extra-service-response", onExtraResponse);
     };
   }, [bookingId]);
+
   useEffect(() => {
     const onExtraServiceProposed = (data: any) => {
-      if (data.bookingId !== bookingId) return;
+      console.log("[Socket Event] extra-service-proposed received:", data);
+      if (!data || String(data.bookingId) !== String(bookingId)) return;
 
       const currentBooking = bookingRef.current;
       if (!currentBooking) return;
 
       upsertBooking({
         ...currentBooking,
-        pendingServiceProposal: data.extraService,
+        pendingServiceProposal: data.extraService || data.proposal || null,
       });
     };
 
@@ -1059,11 +1152,11 @@ export default function BookingOtp() {
                 </View>
               )}
 
-              {booking.extraServices?.filter(s => s.status === "APPROVED").map((extra, index) => (
+              {(Array.isArray(booking.extraServices) ? booking.extraServices : []).filter(s => s && String(s.status).toUpperCase() === "APPROVED").map((extra, index) => (
                 <View key={`${extra._id || index}-${index}`} style={styles.summaryRow}>
-                  <AppText style={{ color: "#475569" }}>+ {extra.serviceName}</AppText>
+                  <AppText style={{ color: "#475569" }}>+ {extra.serviceName || "Extra Service"}</AppText>
                   <AppText style={{ color: "#0F172A" }}>
-                    ₹{extra.price}
+                    ₹{extra.price ?? 0}
                   </AppText>
                 </View>
               ))}

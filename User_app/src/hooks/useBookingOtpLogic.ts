@@ -115,24 +115,25 @@ export function useBookingOtpLogic() {
 
   useEffect(() => {
     const onExtraResponse = (data: any) => {
-      if (data.bookingId !== bookingId) return;
-      if (data.status === "APPROVED") {
-        updateBookingItem(bookingId, {
+      if (!data || String(data.bookingId) !== String(bookingId)) return;
+      if (data.status === "APPROVED" || data.status === "approved") {
+        updateBookingItem(String(bookingId), {
           pendingServiceProposal: null,
-          totalPrice: data.totalPrice,
-          durationInMinutes: data.durationInMinutes ?? booking?.durationInMinutes,
+          totalPrice: data.totalPrice != null ? Number(data.totalPrice) : booking?.totalPrice,
+          durationInMinutes: data.durationInMinutes != null ? Number(data.durationInMinutes) : booking?.durationInMinutes,
         });
 
         // Refetch booking fully to populate updated `extraServices` arrays
         api.get(`/booking/${bookingId}`).then(res => {
-          if (res.data?.booking) {
-            upsertBooking(mapBookingToBookingItem(res.data.booking));
+          const rawBooking = res.data?.booking || res.data?.data || res.data;
+          if (rawBooking && (rawBooking._id || rawBooking.id)) {
+            upsertBooking(mapBookingToBookingItem(rawBooking));
           }
         }).catch(err => console.warn(err));
 
       }
-      if (data.status === "REJECTED") {
-        updateBookingItem(bookingId, {
+      if (data.status === "REJECTED" || data.status === "rejected") {
+        updateBookingItem(String(bookingId), {
           pendingServiceProposal: null,
         });
       }
@@ -145,9 +146,9 @@ export function useBookingOtpLogic() {
 
   useEffect(() => {
     const onExtraServiceProposed = (data: any) => {
-      if (data.bookingId !== bookingId) return;
-      updateBookingItem(bookingId, {
-        pendingServiceProposal: data.extraService,
+      if (!data || String(data.bookingId) !== String(bookingId)) return;
+      updateBookingItem(String(bookingId), {
+        pendingServiceProposal: data.extraService || data.proposal || null,
       });
     };
     socket.on("extra-service-proposed", onExtraServiceProposed);

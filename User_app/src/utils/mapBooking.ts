@@ -51,7 +51,7 @@ function normalizeStatus(booking: any): BookingStatus {
 
 export function mapBookingToBookingItem(
   booking: any,
-  otp?: number
+  otp?: number | string
 ): BookingItem {
   if (!booking || !booking._id) {
     throw new Error("Invalid booking object received in mapper");
@@ -85,21 +85,99 @@ export function mapBookingToBookingItem(
     booking.image ||
     undefined;
 
-  const price = booking.totalPrice ?? booking.cost ?? booking.amount;
+  const rawPrice = booking.totalPrice ?? booking.cost ?? booking.amount;
+  const totalPrice = rawPrice != null ? Number(rawPrice) : 0;
+
+  const rawCartItems = Array.isArray(booking.cartItems)
+    ? booking.cartItems.map((item: any) => {
+        if (!item) return null;
+        const catName =
+          item.serviceCategoryName ||
+          item.serviceName ||
+          item.name ||
+          (typeof item.serviceCategoryId === "object"
+            ? item.serviceCategoryId?.serviceCategoryName || item.serviceCategoryId?.name
+            : "") ||
+          "Service";
+        return {
+          _id: item._id ? String(item._id) : undefined,
+          serviceCategoryId:
+            typeof item.serviceCategoryId === "object"
+              ? String(item.serviceCategoryId?._id || "")
+              : String(item.serviceCategoryId || ""),
+          serviceCategoryName: String(catName),
+          price: Number(item.price ?? item.cost ?? item.amount ?? 0),
+          durationInMinutes:
+            item.durationInMinutes != null ? Number(item.durationInMinutes) : undefined,
+          employeeCount:
+            item.employeeCount != null ? Number(item.employeeCount) : undefined,
+          quantity: Number(item.quantity ?? 1),
+        };
+      }).filter(Boolean)
+    : [];
+
+  const rawExtraServices = Array.isArray(booking.extraServices)
+    ? booking.extraServices.map((extra: any) => {
+        if (!extra) return null;
+        const name =
+          extra.serviceName ||
+          extra.serviceCategoryName ||
+          extra.name ||
+          (typeof extra.serviceCategoryId === "object"
+            ? extra.serviceCategoryId?.serviceCategoryName || extra.serviceCategoryId?.name
+            : "") ||
+          "Extra Service";
+        const p = extra.price ?? extra.cost ?? extra.amount ?? 0;
+        return {
+          _id: extra._id ? String(extra._id) : String(extra.serviceCategoryId || Math.random()),
+          serviceName: String(name),
+          price: Number(p),
+          status: extra.status ? String(extra.status).toUpperCase() : "APPROVED",
+          quantity: extra.quantity != null ? Number(extra.quantity) : 1,
+        };
+      }).filter(Boolean)
+    : [];
+
+  let serviceCatName = "";
+  if (booking.serviceCategoryName) {
+    if (Array.isArray(booking.serviceCategoryName)) {
+      serviceCatName = booking.serviceCategoryName.join(", ");
+    } else if (typeof booking.serviceCategoryName === "object") {
+      serviceCatName =
+        booking.serviceCategoryName.serviceCategoryName ||
+        booking.serviceCategoryName.name ||
+        "";
+    } else {
+      serviceCatName = String(booking.serviceCategoryName);
+    }
+  } else if (booking.serviceCategory) {
+    if (Array.isArray(booking.serviceCategory)) {
+      serviceCatName = booking.serviceCategory.join(", ");
+    } else if (typeof booking.serviceCategory === "object") {
+      serviceCatName =
+        booking.serviceCategory.serviceCategoryName ||
+        booking.serviceCategory.name ||
+        "";
+    } else {
+      serviceCatName = String(booking.serviceCategory);
+    }
+  } else if (rawCartItems.length > 0) {
+    serviceCatName = rawCartItems
+      .map((c: any) => c.serviceCategoryName)
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (!serviceCatName) {
+    serviceCatName = "Home Service";
+  }
+
+  const rawOtp = otp ?? booking.StartWorkOTP ?? booking.otp;
 
   return {
-    _id: booking._id,
+    _id: String(booking._id),
 
-    serviceCategoryName: booking.serviceCategoryName
-      ? (Array.isArray(booking.serviceCategoryName)
-        ? booking.serviceCategoryName.join(", ")
-        : String(booking.serviceCategoryName))
-      : booking.serviceCategory
-      ? (Array.isArray(booking.serviceCategory)
-        ? booking.serviceCategory.join(", ")
-        : String(booking.serviceCategory))
-      : "",
-    totalPrice: price,
+    serviceCategoryName: serviceCatName,
+    totalPrice: totalPrice,
 
     dateLabel: booking.scheduleDateTime
       ? new Date(booking.scheduleDateTime).toLocaleDateString()
@@ -109,36 +187,46 @@ export function mapBookingToBookingItem(
       ? new Date(booking.scheduleDateTime).toLocaleTimeString()
       : booking.timeLabel || "",
 
-    address: booking.address,
+    address: booking.address || "",
 
     status: normalizeStatus(booking),
 
-    otp: otp ?? booking.StartWorkOTP ?? booking.otp,
+    otp: rawOtp != null ? String(rawOtp) : undefined,
 
-    name: techName,
-    rating: techRating,
-    reviews: techReviews,
-    image: techImage,
-    phone: booking.technician?.phoneNo || booking.primaryEmployee?.phoneNo || booking.primaryEmployee?.phoneno || booking.externalTechnicianPhone || undefined,
+    name: techName ? String(techName) : undefined,
+    rating: techRating != null ? Number(techRating) : undefined,
+    reviews: techReviews != null ? Number(techReviews) : 0,
+    image: techImage ? String(techImage) : undefined,
+    phone:
+      booking.technician?.phoneNo ||
+      booking.primaryEmployee?.phoneNo ||
+      booking.primaryEmployee?.phoneno ||
+      booking.externalTechnicianPhone ||
+      undefined,
     eta: booking.eta || booking.location?.eta || undefined,
-    cartItems: booking.cartItems || [],
+    cartItems: rawCartItems,
 
-    extraServices: booking.extraServices || [],
+    extraServices: rawExtraServices,
 
-    isScheduled: booking.isScheduled,
+    isScheduled: Boolean(booking.isScheduled),
     scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,
-    durationInMinutes: booking.durationInMinutes,
-    paymentStatus: booking.paymentStatus,
-    assignmentStatus: booking.assignmentStatus ? String(booking.assignmentStatus).toUpperCase() : undefined,
-    paymentType: booking.paymentType,
-    advanceAmount: booking.advanceAmount,
-    remainingAmount: booking.remainingAmount,
+    durationInMinutes:
+      booking.durationInMinutes != null ? Number(booking.durationInMinutes) : 0,
+    paymentStatus: booking.paymentStatus ? String(booking.paymentStatus).toLowerCase() : undefined,
+    assignmentStatus: booking.assignmentStatus
+      ? String(booking.assignmentStatus).toUpperCase()
+      : undefined,
+    paymentType: booking.paymentType ? String(booking.paymentType).toUpperCase() : undefined,
+    advanceAmount: booking.advanceAmount != null ? Number(booking.advanceAmount) : 0,
+    remainingAmount: booking.remainingAmount != null ? Number(booking.remainingAmount) : 0,
     rawStatus: booking.status,
-    isManuallyAssigned: booking.isManuallyAssigned,
+    isManuallyAssigned: Boolean(booking.isManuallyAssigned),
     domainService: booking.domainService
-      ? (typeof booking.domainService === "object"
-        ? (booking.domainService._id ? String(booking.domainService._id) : String(booking.domainService))
-        : String(booking.domainService))
+      ? typeof booking.domainService === "object"
+        ? booking.domainService._id
+          ? String(booking.domainService._id)
+          : String(booking.domainService)
+        : String(booking.domainService)
       : undefined,
   };
 }

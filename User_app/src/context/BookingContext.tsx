@@ -228,25 +228,66 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
 
   const upsertBooking = React.useCallback((booking: BookingItem) => {
+    if (!booking || !booking._id) return;
+    const targetId = String(booking._id);
     setRawBookings(prev => {
       if (!prev.length) return [booking];
 
-      const exists = prev.find(b => b._id === booking._id);
+      const exists = prev.find(b => String(b._id) === targetId);
 
       if (exists) {
-        return prev.map(b =>
-          b._id === booking._id
-            ? {
-              ...b,
-              ...booking,
-              otp: booking.otp ?? b.otp,
-              pendingServiceProposal:
-                booking.pendingServiceProposal !== undefined
-                  ? booking.pendingServiceProposal
-                  : b.pendingServiceProposal
-            }
-            : b
-        );
+        return prev.map(b => {
+          if (String(b._id) !== targetId) return b;
+
+          const mergedExtraServices =
+            booking.extraServices !== undefined && Array.isArray(booking.extraServices)
+              ? booking.extraServices.length > 0 || !Array.isArray(b.extraServices)
+                ? booking.extraServices
+                : b.extraServices
+              : b.extraServices;
+
+          const mergedCartItems =
+            booking.cartItems !== undefined && Array.isArray(booking.cartItems)
+              ? booking.cartItems.length > 0 || !Array.isArray(b.cartItems)
+                ? booking.cartItems
+                : b.cartItems
+              : b.cartItems;
+
+          return {
+            ...b,
+            ...booking,
+            extraServices: mergedExtraServices,
+            cartItems: mergedCartItems,
+            serviceCategoryName: booking.serviceCategoryName || b.serviceCategoryName,
+            address: booking.address || b.address,
+            totalPrice:
+              booking.totalPrice !== undefined && booking.totalPrice !== 0
+                ? booking.totalPrice
+                : (b.totalPrice ?? booking.totalPrice),
+            remainingAmount:
+              booking.remainingAmount !== undefined
+                ? booking.remainingAmount
+                : b.remainingAmount,
+            advanceAmount:
+              booking.advanceAmount !== undefined
+                ? booking.advanceAmount
+                : b.advanceAmount,
+            durationInMinutes:
+              booking.durationInMinutes !== undefined && booking.durationInMinutes !== 0
+                ? booking.durationInMinutes
+                : (b.durationInMinutes ?? booking.durationInMinutes),
+            otp: booking.otp ?? b.otp,
+            name: booking.name || b.name,
+            phone: booking.phone || b.phone,
+            image: booking.image || b.image,
+            rating: booking.rating ?? b.rating,
+            reviews: booking.reviews ?? b.reviews,
+            pendingServiceProposal:
+              booking.pendingServiceProposal !== undefined
+                ? booking.pendingServiceProposal
+                : b.pendingServiceProposal,
+          };
+        });
       }
 
       return [booking, ...prev];
@@ -256,10 +297,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onServiceProposed = ({ bookingId, proposal }: any) => {
-
+      if (!bookingId) return;
       setRawBookings(prev =>
         prev.map(b =>
-          b._id === bookingId
+          String(b._id) === String(bookingId)
             ? { ...b, pendingServiceProposal: proposal }
             : b
         )
@@ -274,14 +315,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const onServiceApproved = ({ bookingId, totalPrice, service }: any) => {
+      if (!bookingId) return;
       setRawBookings(prev =>
         prev.map(b =>
-          b._id === bookingId
+          String(b._id) === String(bookingId)
             ? {
               ...b,
               pendingServiceProposal: null,
-              totalPrice,
-              serviceCategoryName: service,
+              totalPrice: totalPrice ?? b.totalPrice,
+              serviceCategoryName: service || b.serviceCategoryName,
               status: "assigned",
             }
             : b
@@ -334,8 +376,41 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
 
   const updateBookingItem = (id: string, updates: Partial<BookingItem>) => {
+    if (!id) return;
+    const targetId = String(id);
     setRawBookings(prev =>
-      prev.map(b => (b._id === id ? { ...b, ...updates } : b))
+      prev.map(b => {
+        if (String(b._id) !== targetId) return b;
+
+        const mergedExtraServices =
+          updates.extraServices !== undefined
+            ? Array.isArray(updates.extraServices)
+              ? updates.extraServices
+              : b.extraServices
+            : b.extraServices;
+
+        const mergedCartItems =
+          updates.cartItems !== undefined
+            ? Array.isArray(updates.cartItems)
+              ? updates.cartItems
+              : b.cartItems
+            : b.cartItems;
+
+        return {
+          ...b,
+          ...updates,
+          extraServices: mergedExtraServices,
+          cartItems: mergedCartItems,
+          totalPrice: updates.totalPrice !== undefined ? updates.totalPrice : b.totalPrice,
+          remainingAmount:
+            updates.remainingAmount !== undefined ? updates.remainingAmount : b.remainingAmount,
+          advanceAmount:
+            updates.advanceAmount !== undefined ? updates.advanceAmount : b.advanceAmount,
+          durationInMinutes:
+            updates.durationInMinutes !== undefined ? updates.durationInMinutes : b.durationInMinutes,
+          otp: updates.otp ?? b.otp,
+        };
+      })
     );
   };
 
@@ -347,8 +422,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     updateStatus(id, "cancelled");
   };
 
-  const getBookingById = (id: string) =>
-    bookings.find(b => b._id === id) ?? null;
+  const getBookingById = (id: string) => {
+    if (!id) return null;
+    const targetId = String(id);
+    return bookings.find(b => String(b._id) === targetId) ?? null;
+  };
 
   const resetBookings = () => {
     setRawBookings([]);
