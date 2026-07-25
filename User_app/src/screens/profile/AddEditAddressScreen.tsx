@@ -11,6 +11,7 @@ import {
 
 import axios from "axios";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import AppHeader from "@/src/components/ui/AppHeader";
 import AppButton from "@/src/components/ui/AppButton";
@@ -128,41 +129,62 @@ export default function AddEditAddressScreen() {
   */
 
   const saveAddress = async () => {
-
     if (!selectedLocation) {
       Alert.alert("Select Address", "Please select address first");
       return;
     }
 
     try {
+      const finalAddressObj = {
+        id: addressId || 'local-' + Date.now(),
+        title: addressType,
+        line1: selectedLocation.address,
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+        isDefault: false
+      };
 
+      // 1. Optimistic local storage update
+      try {
+        const STORAGE_KEY = 'gigiman_saved_addresses';
+        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+        let list = cached ? JSON.parse(cached) : [];
+        if (isEdit) {
+          list = list.map((a: any) => (a.id === addressId ? { ...a, ...finalAddressObj } : a));
+        } else {
+          if (list.length === 0) {
+            finalAddressObj.isDefault = true;
+          }
+          list.push(finalAddressObj);
+        }
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      } catch (storageErr) {
+        console.log("Failed to sync new address to AsyncStorage:", storageErr);
+      }
+
+      // 2. Server API call
       if (isEdit) {
-
         await updateAddressAPI(addressId, {
           title: addressType,
           address: selectedLocation.address,
           latitude: selectedLocation.latitude,
           longitude: selectedLocation.longitude
         });
-
       } else {
-
         await addAddressAPI({
           title: addressType,
           address: selectedLocation.address,
           latitude: selectedLocation.latitude,
           longitude: selectedLocation.longitude
         });
-
       }
 
-      //navigation.goBack();
       navigation.navigate("SavedAddressesScreen");
-
     } catch (err) {
       console.log("Save address error", err);
+      // Navigate anyway so the user sees the local optimistic addition
+      navigation.navigate("SavedAddressesScreen");
     }
-
   };
 
   return (

@@ -58,8 +58,15 @@ export default function PersonalDetailsPage() {
             }
         })();
     };
-    const [profile, setProfile] = useState<any>(null);
-    const [avatar, setAvatar] = useState<string | null>(null);
+    const [profile, setProfile] = useState<any>(user);
+    const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
+
+    useEffect(() => {
+        if (user) {
+            setProfile(user);
+            setAvatar(user.avatar || null);
+        }
+    }, [user]);
 
     useEffect(() => {
         const load = async () => {
@@ -68,6 +75,17 @@ export default function PersonalDetailsPage() {
                 if (res.user) {
                     setProfile(res.user);
                     setAvatar(res.user.avatar || null);
+
+                    // Sync backend updates to local storage / context
+                    const updatedUser = {
+                        ...user,
+                        fullName: res.user.fullName || res.user.name,
+                        email: res.user.email,
+                        phone: res.user.phoneNo || user?.phone || '',
+                        avatar: res.user.avatar || undefined,
+                    } as any;
+                    setUser(updatedUser);
+                    await AsyncStorage.setItem('gg_user', JSON.stringify(updatedUser));
                 }
             } catch (err) {
                 console.warn('Failed to load profile', err);
@@ -109,7 +127,7 @@ export default function PersonalDetailsPage() {
                         initialValues={{
                             fullName: profile.name || profile.fullName || '',
                             email: profile.email || '',
-                            phoneNo: profile.phoneNo ? String(profile.phoneNo) : '',
+                            phoneNo: String(profile.phoneNo || profile.phone || '').replace(/^\+91/, '').trim(),
                         }}
                         onSubmit={handleSubmit}
                     />

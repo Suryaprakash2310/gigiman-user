@@ -1,11 +1,6 @@
-// firebase_integration.ts
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-
-// These values are required for the Firebase JS SDK to work in Expo
-// IMPORTANT: Copy these from your Firebase Console (Web App settings)
+// Firebase JS SDK initialization is commented out because the app uses the native @react-native-firebase SDK.
+// Keep firebaseConfig for reference if needed.
+/*
 const firebaseConfig = {
   apiKey: "AIzaSyAj9D6Yi0Y0_eMA1bQ-E4IQSObJlqSVGq8",
   authDomain: "gigiman-serviers.firebaseapp.com",
@@ -24,6 +19,7 @@ export const auth = getAuth(app);
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
+*/
 
 import messaging from '@react-native-firebase/messaging';
 import axios from 'axios';
@@ -41,8 +37,8 @@ export const registerUserFcmToken = async (userAuthToken: string, API_BASE_URL: 
       console.log("User FCM Token:", fcmToken);
       // 3. Register FCM token with backend
       const endpoint = API_BASE_URL.endsWith('/api')
-        ? `${API_BASE_URL}/notification/user/fcm-token`
-        : `${API_BASE_URL}/api/notification/user/fcm-token`;
+        ? `${API_BASE_URL}/notifications/user/fcm-token`
+        : `${API_BASE_URL}/api/notifications/user/fcm-token`;
       await axios.post(
         endpoint,
         { fcmToken },

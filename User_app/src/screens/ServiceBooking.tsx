@@ -25,6 +25,7 @@ import * as Linking from 'expo-linking';
 import { WebView } from 'react-native-webview';
 import { razorpayHTML } from '@/src/utils/razorpayTemplate';
 import { injectRazorpayData } from '@/src/utils/razorpayInjector';
+import { socket } from '@/src/socket/socket';
 
 import apiClient from '@/src/api/client';
 import AppButton from '@/src/components/ui/AppButton';
@@ -40,6 +41,7 @@ import { useCartContext } from '@/src/context/CartContext';
 import { useBooking } from '@/src/context/BookingContext';
 import { useTheme } from '@/src/theme/useTheme';
 import { BOOKING_TYPE } from '@/src/utils/enums/BookingType';
+import { FEES } from '@/src/utils/enums/Fees';
 import { getCurrentLocation, getAddressFromCoords } from '@/src/utils/location';
 
 import BookingModeSelector from '@/src/components/booking/BookingModeSelector';
@@ -87,6 +89,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { upsertBooking } = useBooking();
+  const convenienceFee = FEES.CONVENIENCE_FEE;
 
   const { cartItems, totalPrice: cartTotalPrice, clearCart, removeFromCart } = useCartContext();
   const isCartCheckout = serviceCategoryId === 'cart';
@@ -132,6 +135,32 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   // Payment Option & Simulation States
   const [paymentType, setPaymentType] = useState<'FULL' | 'ADVANCE'>('FULL');
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+
+  const handleClosePaymentSheet = () => {
+    if (paying) return;
+
+    Alert.alert(
+      "Cancel Booking?",
+      "Closing the payment screen will cancel your booking request. Are you sure you want to cancel?",
+      [
+        { text: "No, Continue Payment", style: "cancel" },
+        {
+          text: "Yes, Cancel Booking",
+          style: "destructive",
+          onPress: () => {
+            if (currentBookingId && socket && socket.connected) {
+              socket.emit("user-cancel-booking", {
+                bookingId: currentBookingId,
+                cancelReason: "Payment cancelled by user",
+              });
+            }
+            setShowPaymentSheet(false);
+            resetPaymentSheetFields();
+          }
+        }
+      ]
+    );
+  };
   const [currentBookingId, setCurrentBookingId] = useState<string | null>(null);
   const [paymentMethodType, setPaymentMethodType] = useState<'CARD' | 'UPI'>('CARD');
   const [cardNumber, setCardNumber] = useState('');
@@ -337,18 +366,30 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       if (successRes.data?.success) {
         // 2. Perform booking success local state updates
         const bookingPrice = isCartCheckout ? filteredCartTotalPrice : ((category?.price || 0) * quantity);
-        const finalPrice = bookingPrice - discountAmount;
+        const finalPriceWithoutFee = bookingPrice - discountAmount;
+        const finalPrice = finalPriceWithoutFee + convenienceFee;
+        const isScheduled = bookingMode === 'schedule';
+        const scheduleDateTime = isScheduled && selectedDate && selectedTime
+          ? new Date(
+              selectedDate.getFullYear(),
+              selectedDate.getMonth(),
+              selectedDate.getDate(),
+              selectedTime.getHours(),
+              selectedTime.getMinutes()
+            )
+          : null;
 
         upsertBooking({
           _id: currentBookingId!,
           serviceCategoryName: category?.serviceCategoryName || "Cart Checkout",
           address: selectedAddress?.line1 || "Current Location",
-          status: 'searching',
+          status: isScheduled ? 'scheduled' : 'searching',
           totalPrice: finalPrice,
-          isScheduled: false,
+          isScheduled: isScheduled,
+          ...(isScheduled && scheduleDateTime ? { scheduleDateTime: scheduleDateTime.toISOString() } : {}),
           paymentType,
-          advanceAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.18) : finalPrice,
-          remainingAmount: paymentType === 'ADVANCE' ? Math.round(finalPrice * 0.82) : 0,
+          advanceAmount: paymentType === 'ADVANCE' ? Math.round(finalPriceWithoutFee * 0.18) + convenienceFee : finalPrice,
+          remainingAmount: paymentType === 'ADVANCE' ? Math.round(finalPriceWithoutFee * 0.82) : 0,
         });
 
         if (isCartCheckout) {
@@ -366,10 +407,17 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         setShowPaymentSheet(false);
         resetPaymentSheetFields();
 
-        navigation.navigate('BookingTab', {
-          screen: 'Searching',
-          params: { bookingId: currentBookingId },
-        } as any);
+        if (isScheduled) {
+          navigation.navigate("BookingTab", {
+            screen: "BookingsMain",
+            params: { activeTab: "upcoming" }
+          } as any);
+        } else {
+          navigation.navigate('BookingTab', {
+            screen: 'Searching',
+            params: { bookingId: currentBookingId },
+          } as any);
+        }
       } else {
         throw new Error(successRes.data?.message || "Failed to confirm payment on backend");
       }
@@ -477,6 +525,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         address: addressText,
         coordinates: coordinates,
         paymentType: paymentType,
+        convenienceFee: convenienceFee,
       };
 
       if (!isCartCheckout) {
@@ -512,36 +561,9 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
       const bookingPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
 
-      if (scheduleDateTime) {
-        upsertBooking({
-          _id: bookingId,
-          serviceCategoryName: category.serviceCategoryName,
-          address: payload.address,
-          totalPrice: bookingPrice,
-          status: "scheduled",
-          isScheduled: true,
-          scheduleDateTime: scheduleDateTime.toISOString(),
-        });
-
-        if (isCartCheckout) {
-          if (domainServiceId) {
-            await Promise.all(
-              filteredCartItems.map(item => removeFromCart(item.serviceCategoryId, true))
-            ).catch(err => console.log('Error removing items from cart:', err));
-          } else {
-            clearCart();
-          }
-        }
-
-        navigation.navigate("BookingTab", {
-          screen: "BookingsMain",
-          params: { activeTab: "upcoming" }
-        } as any);
-      } else {
-        // Open simulated payment sheet
-        setCurrentBookingId(bookingId);
-        setShowPaymentSheet(true);
-      }
+      // Open simulated payment sheet
+      setCurrentBookingId(bookingId);
+      setShowPaymentSheet(true);
     } catch (err: any) {
       console.error('Booking error:', err);
       let errorMsg = 'Please try again';
@@ -565,8 +587,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
   const handleBack = useCallback(() => {
     if (fromMain) {
-      // If reached directly from Home, navigate to the Service list
-      navigation.navigate('MainServiceScreen');
+      // If reached directly from Home, navigate back to the Home screen
+      navigation.navigate('HomeTab');
     } else {
       navigation.goBack();
     }
@@ -763,51 +785,78 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         )}
 
         {/* Payment Options Section */}
-        {bookingMode === 'now' && (
-          <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.paymentOptionsCard}>
-            <AppText weight="bold" style={{ marginBottom: 12 }}>Payment Options</AppText>
+        <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.paymentOptionsCard}>
+          <AppText weight="bold" style={{ marginBottom: 12 }}>Payment Options</AppText>
 
-            <TouchableOpacity
-              style={[
-                styles.paymentOptionRow,
-                paymentType === 'FULL' && styles.paymentOptionActive,
-              ]}
-              onPress={() => setPaymentType('FULL')}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={paymentType === 'FULL' ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={paymentType === 'FULL' ? theme.colors.primary : theme.colors.textMuted}
-              />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <AppText weight="bold">Pay Full Amount</AppText>
-                <AppText size="small" color="textMuted">Pay ₹{totalPrice - discountAmount} online now</AppText>
-              </View>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.paymentOptionRow,
+              paymentType === 'FULL' && styles.paymentOptionActive,
+            ]}
+            onPress={() => setPaymentType('FULL')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={paymentType === 'FULL' ? 'radio-button-on' : 'radio-button-off'}
+              size={20}
+              color={paymentType === 'FULL' ? theme.colors.primary : theme.colors.textMuted}
+            />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <AppText weight="bold">Pay Full Amount</AppText>
+              <AppText size="small" color="textMuted">Pay ₹{totalPrice - discountAmount + convenienceFee} online now</AppText>
+            </View>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.paymentOptionRow,
-                paymentType === 'ADVANCE' && styles.paymentOptionActive,
-              ]}
-              onPress={() => setPaymentType('ADVANCE')}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={paymentType === 'ADVANCE' ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={paymentType === 'ADVANCE' ? theme.colors.primary : theme.colors.textMuted}
-              />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <AppText weight="bold">Pay 18% Advance Amount</AppText>
-                <AppText size="small" color="textMuted">
-                  Pay ₹{Math.round((totalPrice - discountAmount) * 0.18)} now, remaining ₹{Math.round((totalPrice - discountAmount) * 0.82)} collected after completion
-                </AppText>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+          <TouchableOpacity
+            style={[
+              styles.paymentOptionRow,
+              paymentType === 'ADVANCE' && styles.paymentOptionActive,
+            ]}
+            onPress={() => setPaymentType('ADVANCE')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={paymentType === 'ADVANCE' ? 'radio-button-on' : 'radio-button-off'}
+              size={20}
+              color={paymentType === 'ADVANCE' ? theme.colors.primary : theme.colors.textMuted}
+            />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <AppText weight="bold">Pay 18% Advance Amount</AppText>
+              <AppText size="small" color="textMuted">
+                Pay ₹{Math.round((totalPrice - discountAmount) * 0.18) + convenienceFee} now, remaining ₹{Math.round((totalPrice - discountAmount) * 0.82)} collected after completion
+              </AppText>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Bill Details Card */}
+        <Animated.View entering={FadeInDown.delay(550).duration(400)} style={styles.billDetailsCard}>
+          <AppText weight="bold" style={{ marginBottom: 12 }}>Bill Details</AppText>
+          
+          <View style={styles.billRow}>
+            <AppText color="textMuted">Item Total</AppText>
+            <AppText weight="semibold">₹{totalPrice}</AppText>
+          </View>
+
+          {discountAmount > 0 && (
+            <View style={styles.billRow}>
+              <AppText style={{ color: theme.colors.success }}>Discount</AppText>
+              <AppText weight="semibold" style={{ color: theme.colors.success }}>-₹{discountAmount}</AppText>
+            </View>
+          )}
+
+          <View style={styles.billRow}>
+            <AppText color="textMuted">Convenience Fee</AppText>
+            <AppText weight="semibold">₹{convenienceFee}</AppText>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 12 }} />
+
+          <View style={styles.billRow}>
+            <AppText weight="bold">Total Price</AppText>
+            <AppText weight="bold" size="body">₹{totalPrice - discountAmount + convenienceFee}</AppText>
+          </View>
+        </Animated.View>
 
         {/* Spacer */}
         <View style={styles.spacer} />
@@ -861,7 +910,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
         <View style={styles.priceDisplay}>
           <AppText size="body" color="textMuted">
-            {paymentType === 'ADVANCE' && bookingMode === 'now' ? 'Advance to Pay:' : 'Total:'}
+            {paymentType === 'ADVANCE' ? 'Advance to Pay:' : 'Total:'}
           </AppText>
           <View style={{ alignItems: 'flex-end' }}>
             {discountAmount > 0 ? (
@@ -877,7 +926,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               size="h2"
               style={{ color: theme.colors.primary }}
             >
-              ₹{paymentType === 'ADVANCE' && bookingMode === 'now' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}
+              ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) + convenienceFee : (totalPrice - discountAmount) + convenienceFee}
             </AppText>
           </View>
         </View>
@@ -889,7 +938,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               : booking
                 ? 'Booking...'
                 : bookingMode === 'schedule'
-                  ? 'Schedule Service'
+                  ? (paymentType === 'ADVANCE' ? 'Pay Advance & Schedule' : 'Pay Full & Schedule')
                   : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
           }
           disabled={isComingSoon(category?.status) || booking || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
@@ -924,12 +973,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         visible={showPaymentSheet}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => {
-          if (!paying) {
-            setShowPaymentSheet(false);
-            resetPaymentSheetFields();
-          }
-        }}
+        onRequestClose={handleClosePaymentSheet}
       >
         <View style={styles.paymentSheetOverlay}>
           <View style={[styles.paymentSheetContent, { backgroundColor: theme.colors.surface }]}>
@@ -938,10 +982,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               <AppText weight="bold" size="h3">Checkout Payment</AppText>
               {!paying && (
                 <TouchableOpacity
-                  onPress={() => {
-                    setShowPaymentSheet(false);
-                    resetPaymentSheetFields();
-                  }}
+                  onPress={handleClosePaymentSheet}
                   style={{ padding: 4 }}
                 >
                   <Ionicons name="close" size={24} color={theme.colors.text} />
@@ -953,7 +994,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             <View style={[styles.paymentSheetPriceBox, { backgroundColor: theme.colors.background }]}>
               <AppText size="small" color="textMuted">Amount to Pay Now</AppText>
               <AppText weight="bold" size="h1" style={{ color: theme.colors.primary }}>
-                ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}
+                ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) + convenienceFee : (totalPrice - discountAmount) + convenienceFee}
               </AppText>
               {paymentType === 'ADVANCE' && (
                 <AppText size="caption" color="textMuted" style={{ marginTop: 2 }}>
@@ -976,7 +1017,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             {/* Action Buttons */}
             <View style={{ marginTop: 24, paddingBottom: Platform.OS === 'ios' ? 24 : 12 }}>
               <AppButton
-                title={paying ? "Processing Secure Payment..." : `Pay ₹${paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}`}
+                title={paying ? "Processing Secure Payment..." : `Pay ₹${paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) + convenienceFee : (totalPrice - discountAmount) + convenienceFee}`}
                 onPress={handleSimulatedPayment}
                 loading={paying}
                 disabled={paying}
@@ -998,18 +1039,18 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           setPaying(false);
         }}
       >
-        <View style={{ flex: 1, backgroundColor: "#0f172a" }}>
+        <View style={{ flex: 1, backgroundColor: "#ffffff" }}>
           <View style={{
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
             paddingHorizontal: 16,
             paddingVertical: 12,
-            backgroundColor: '#1e293b',
+            backgroundColor: '#ffffff',
             borderBottomWidth: 1,
-            borderBottomColor: '#334155'
+            borderBottomColor: '#e2e8f0'
           }}>
-            <AppText weight="bold" size="body" style={{ color: '#f8fafc' }}>Secure Razorpay Checkout</AppText>
+            <AppText weight="bold" size="body" style={{ color: '#0F172A' }}>Secure Razorpay Checkout</AppText>
             <TouchableOpacity
               onPress={() => {
                 setShowWebViewModal(false);
@@ -1018,7 +1059,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               }}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color="#f1f5f9" />
+              <Ionicons name="close" size={24} color="#0F172A" />
             </TouchableOpacity>
           </View>
           {paymentHtml && (
@@ -1030,7 +1071,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               onMessage={handleWebViewMessage}
               startInLoadingState
               renderLoading={() => (
-                <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#0f172a' }}>
+                <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#ffffff' }}>
                   <ActivityIndicator size="large" color="#f97316" />
                 </View>
               )}
@@ -1265,6 +1306,20 @@ const createStyles = (theme: any) =>
       paddingVertical: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.border,
+    },
+    billDetailsCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      marginHorizontal: 16,
+      marginTop: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    billRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginVertical: 4,
     },
   });
 

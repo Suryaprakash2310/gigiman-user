@@ -7,8 +7,8 @@ export const razorpayHTML = `
     <style>
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background-color: #0f172a;
-        color: #f1f5f9;
+        background-color: #f8fafc;
+        color: #0f172a;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -18,17 +18,18 @@ export const razorpayHTML = `
         box-sizing: border-box;
       }
       .card {
-        background: #1e293b;
+        background: #ffffff;
         border-radius: 16px;
         padding: 32px;
         text-align: center;
         max-width: 400px;
         width: 100%;
-        border: 1px solid #334155;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
       }
-      h2 { color: #f8fafc; margin-top: 0; font-size: 20px; }
+      h2 { color: #0f172a; margin-top: 0; font-size: 20px; }
       .price { font-size: 32px; font-weight: 800; color: #f97316; margin: 16px 0; }
-      p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+      p { color: #475569; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
       button {
         background-color: #f97316;
         color: white;
@@ -44,7 +45,7 @@ export const razorpayHTML = `
       }
       button:hover { background-color: #ea580c; }
       .loader {
-        border: 3px solid #334155;
+        border: 3px solid #e2e8f0;
         border-top: 3px solid #f97316;
         border-radius: 50%;
         width: 24px;

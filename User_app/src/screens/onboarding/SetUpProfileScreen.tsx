@@ -212,6 +212,9 @@ export default function CompleteProfileScreen() {
   const [nameFocused, setNameFocused] = useState(false);
   const [nameError, setNameError] = useState("");
 
+  const [referralCode, setReferralCode] = useState("");
+  const [referralCodeFocused, setReferralCodeFocused] = useState(false);
+
   const [coords, setCoords] = useState<Coords | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
   const [locationError, setLocationError] = useState("");
@@ -307,18 +310,42 @@ export default function CompleteProfileScreen() {
         fullName: fullName.trim(),
         latitude: coords.latitude,
         longitude: coords.longitude,
+        referralCode: referralCode.trim() || undefined,
       });
 
-      // ✅ Preserve exact auth logic — RootNavigator auto-switches
-      await login({
-        user: {
-          ...res.data.user,
-          profileCompleted: true,
-          isVerified: true,
-        },
-        accessToken: res.data.token,
-        refreshToken: res.data.token,
-      });
+  
+      if (res.data.couponCode) {
+        Alert.alert(
+          "Referral Applied!",
+          `Congratulations! You've received a 5% discount coupon for your first booking: ${res.data.couponCode}`,
+          [
+            {
+              text: "OK",
+              onPress: async () => {
+                await login({
+                  user: {
+                    ...res.data.user,
+                    profileCompleted: true,
+                    isVerified: true,
+                  },
+                  accessToken: res.data.token,
+                  refreshToken: res.data.token,
+                });
+              },
+            },
+          ]
+        );
+      } else {
+        await login({
+          user: {
+            ...res.data.user,
+            profileCompleted: true,
+            isVerified: true,
+          },
+          accessToken: res.data.token,
+          refreshToken: res.data.token,
+        });
+      }
     } catch (err: any) {
       Alert.alert(
         "Something went wrong",
@@ -490,7 +517,38 @@ export default function CompleteProfileScreen() {
           )}
         </View>
 
-        {/* ── Card 3 – Info ── */}
+        {/* ── Card 3 – Referral Code (Optional) ── */}
+        <View
+          style={[
+            s.card,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: referralCodeFocused ? PRIMARY : theme.colors.border,
+              borderWidth: referralCodeFocused ? 1.5 : 1,
+            },
+          ]}
+        >
+          <Text style={[s.cardLabel, { color: theme.colors.textMuted }]}>
+            Referral Code (Optional)
+          </Text>
+          <View style={s.inputRow}>
+          
+            <TextInput
+              value={referralCode}
+              onChangeText={(t) => setReferralCode(t)}
+              placeholder="Enter referral code"
+              placeholderTextColor={theme.colors.textMuted}
+              onFocus={() => setReferralCodeFocused(true)}
+              onBlur={() => setReferralCodeFocused(false)}
+              style={[s.textInput, { color: theme.colors.text }]}
+              returnKeyType="done"
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+
+        {/* ── Card 4 – Info ── */}
         <View
           style={[
             s.infoBox,

@@ -24,26 +24,67 @@ export default function SavedAddressesScreen() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const formatAddresses = (rawList: any[]): Address[] => {
+    if (!Array.isArray(rawList)) return [];
+    return rawList.map((a: any) => ({
+      id: a._id || a.id,
+      title: a.title || '',
+      line1: a.address || a.line1 || '',
+      latitude: a.location?.coordinates?.[1] ?? a.latitude,
+      longitude: a.location?.coordinates?.[0] ?? a.longitude,
+      isDefault: a.isDefault || a.is_default || false,
+    }));
+  };
+
+  const MOCK_ADDRESS: Address = {
+    id: "mock-home-1",
+    title: "home",
+    line1: "Nawab Garden Street 15a, 620003 Tiruchirappalli, India",
+    latitude: 10.805,
+    longitude: 78.6856,
+    isDefault: true,
+  };
+
   // Load from local cache
   const loadAddresses = async () => {
-  try {
+    let cachedList: Address[] = [];
+    try {
+      const cached = await AsyncStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        cachedList = JSON.parse(cached);
+      }
+    } catch (cacheErr) {
+      console.log("Failed to load cached addresses", cacheErr);
+    }
 
-    const res = await getAddressesAPI();
-    const formatted = res.data.addresses.map((a: any) => ({
-      id: a._id,
-      title: a.title,
-      line1: a.address,
-      latitude: a.location?.coordinates?.[1],
-      longitude: a.location?.coordinates?.[0]
-    }));
-    setAddresses(formatted);
-
-  } catch (err) {
-    console.log("Failed to load addresses", err);
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      const res = await getAddressesAPI();
+      const formatted = formatAddresses(res.data.addresses);
+      if (formatted.length > 0) {
+        setAddresses(formatted);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+      } else {
+        if (cachedList.length > 0) {
+          setAddresses(cachedList);
+        } else {
+          const defaultList = [MOCK_ADDRESS];
+          setAddresses(defaultList);
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultList));
+        }
+      }
+    } catch (err) {
+      console.log("Failed to load addresses", err);
+      if (cachedList.length > 0) {
+        setAddresses(cachedList);
+      } else {
+        const defaultList = [MOCK_ADDRESS];
+        setAddresses(defaultList);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultList));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const saveAddresses = async (list: Address[]) => {
     setAddresses(list);
@@ -54,10 +95,6 @@ export default function SavedAddressesScreen() {
     }
   };
 
-  
-
-
-
   useFocusEffect(
     useCallback(() => {
       loadAddresses();
@@ -65,17 +102,15 @@ export default function SavedAddressesScreen() {
   );
 
   const handleSelectAddress = (address: Address) => {
+    if (!selectMode) return;
 
-  if (!selectMode) return;
-
-  navigation.navigate("ServiceTab", {
-    screen: "Booking",
-    params: {
-      selectedAddress: address
-    }
-  });
-
-};
+    navigation.navigate("ServiceTab", {
+      screen: "Booking",
+      params: {
+        selectedAddress: address
+      }
+    });
+  };
 
   const handleAddAddress = () => {
     navigation.navigate('AddEditAddress'); // Screen you’ll create
@@ -86,17 +121,16 @@ export default function SavedAddressesScreen() {
   };
 
   const handleDeleteAddress = async (addressId: string) => {
+    try {
+      const res = await deleteAddressAPI(addressId);
+      const formatted = formatAddresses(res.data.addresses);
+      setAddresses(formatted);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+    } catch (err) {
+      console.log("Delete failed", err);
+    }
+  };
 
-  try {
-
-    const res = await deleteAddressAPI(addressId);
-    setAddresses(res.data.addresses);
-
-  } catch (err) {
-    console.log("Delete failed", err);
-  }
-
-};
   const handleSetDefault = (addressId: string) => {
     const updated = addresses.map(a => ({
       ...a,

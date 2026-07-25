@@ -88,6 +88,7 @@ export default function HelpCenterPage() {
                             title="Call Us"
                             subtitle="Speak with our team directly."
                             icon="phone"
+                            onPress={() => navigation.navigate('CreateTicketScreen')}
                         />
                         <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
                         <HelpCenterPageCard
@@ -95,6 +96,7 @@ export default function HelpCenterPage() {
                             title="Email Us"
                             subtitle="Get a response within 24 hours."
                             icon="mail"
+                            onPress={() => navigation.navigate('CreateTicketScreen')}
                         />
                     </View>
                 </View>
@@ -112,7 +114,7 @@ export default function HelpCenterPage() {
                         title="Submit a New Ticket"
                         onPress={() => navigation.navigate('CreateTicketScreen')}
                         style={{ backgroundColor: theme.colors.primaryDark, width: '100%', marginBottom: 12 }}
-                        textStyle={{ color: theme.colors.text }}
+                        textStyle={{ color: '#fff' }}
                     />
 
                     <AppButton

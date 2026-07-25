@@ -67,6 +67,13 @@ export default function BookingListCard({ booking, onPress }: Props) {
           color: "#166534",
         };
 
+      case "cancelled":
+        return {
+          label: "Cancelled",
+          bg: "#FEE2E2",
+          color: "#991B1B",
+        };
+
       default:
         return null;
     }
@@ -150,7 +157,25 @@ export default function BookingListCard({ booking, onPress }: Props) {
         </View>
 
         {/* 4 Process Stepper */}
-        <BookingProcessTracker booking={booking} compact={true} />
+        {booking.status !== "cancelled" && booking.status !== "completed" && (
+          <BookingProcessTracker booking={booking} compact={true} />
+        )}
+
+        {booking.status === "cancelled" && booking.cancelReason && (
+          <AppText
+            size="small"
+            style={{
+              color: "#991B1B",
+              marginTop: 10,
+              paddingTop: 8,
+              borderTopWidth: 1,
+              borderTopColor: "#E2E8F0",
+            }}
+            numberOfLines={2}
+          >
+            Reason: {booking.cancelReason}
+          </AppText>
+        )}
       </AppCard>
     </TouchableOpacity>
   );

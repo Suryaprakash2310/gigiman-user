@@ -43,6 +43,7 @@ import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 import api from "../api/client";
 import AppHeader from "../components/ui/AppHeader";
 import { useAuth } from "../hook/useAuth";
+import CancellationModal from "@/src/components/CancellationModal";
 import { socket } from "../socket/socket";
 
 
@@ -56,6 +57,21 @@ export default function BookingOtp() {
   const { getBookingById, upsertBooking, cancelBooking, updateBookingItem } = useBooking();
 
   const booking = getBookingById(bookingId);
+  
+  const paymentAmount = booking
+    ? booking.remainingAmount && booking.remainingAmount > 0
+      ? booking.remainingAmount
+      : (booking.totalPrice ?? 0)
+    : 0;
+
+  const paymentLabel = booking
+    ? booking.paymentStatus === 'partially_paid'
+      ? 'Remaining Balance'
+      : 'Total Amount'
+    : '';
+
+  const isScheduledBooking = !!(booking && (booking.isScheduled || booking.status === 'scheduled' || booking.scheduleDateTime));
+
   const serviceProposal = booking?.pendingServiceProposal;
   const proposalScale = useSharedValue(0);
   const bookingRef = React.useRef(booking);
@@ -80,6 +96,7 @@ export default function BookingOtp() {
   const [selectedExtras, setSelectedExtras] = useState<Record<string, { service: CategoryService; quantity: number }>>({});
   const [submittingExtra, setSubmittingExtra] = useState(false);
   const [extraSearchQuery, setExtraSearchQuery] = useState("");
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
 
   const handleOpenAddExtraModal = async () => {
     setShowAddExtraModal(true);
@@ -97,13 +114,23 @@ export default function BookingOtp() {
           }
         }
         
-        // Fallback to all subservices if the domain specific query was empty or not found
+        // Fallback: Fetch all domain services and combine their subcategories to avoid 404 endpoint
         if (list.length === 0) {
-          const data: any = await ServiceAPI.getSubServicesAPI();
-          if (data?.categoriesservices && Array.isArray(data.categoriesservices)) {
-            list = data.categoriesservices as CategoryService[];
-          } else if (data?.services && Array.isArray(data.services)) {
-            list = data.services.flatMap((s: any) => s.serviceCategory || []);
+          try {
+            const domainData = await ServiceAPI.getServicesAPI();
+            if (domainData?.services && Array.isArray(domainData.services)) {
+              for (const dom of domainData.services) {
+                if (dom._id) {
+                  const subRes = await ServiceAPI.getSubServicesByDomainId(dom._id);
+                  if (subRes?.services && Array.isArray(subRes.services)) {
+                    const subList = subRes.services.flatMap((s: any) => s.serviceCategory || []);
+                    list = [...list, ...subList];
+                  }
+                }
+              }
+            }
+          } catch (fallbackErr) {
+            console.warn("Fallback to all subservices failed:", fallbackErr);
           }
         }
         setAvailableExtras(list);
@@ -188,55 +215,30 @@ export default function BookingOtp() {
 
       // 1. API Call to backend (/booking/extra/propose and /booking/extra/approve)
       for (const item of itemsToSubmit) {
-        try {
-          const proposePayload = {
+        const proposePayload = {
+          bookingId: rawBookingId,
+          serviceCategoryId: item.serviceCategoryId,
+        };
+        console.log(`[Flow Step 2] POST /booking/extra/propose payload:`, proposePayload);
+
+        const proposeRes = await api.post(`/booking/extra/propose`, proposePayload);
+        console.log(`[Flow Step 2] POST /booking/extra/propose res:`, proposeRes.data);
+
+        const extraService = proposeRes.data?.extraService;
+        if (extraService && extraService._id) {
+          const approvePayload = {
             bookingId: rawBookingId,
-            serviceCategoryId: item.serviceCategoryId,
+            extraServiceId: String(extraService._id),
+            approve: true,
           };
-          console.log(`[Flow Step 2] POST /booking/extra/propose payload:`, proposePayload);
+          console.log(`[Flow Step 3] POST /booking/extra/approve payload:`, approvePayload);
 
-          const proposeRes = await api.post(`/booking/extra/propose`, proposePayload);
-          console.log(`[Flow Step 2] POST /booking/extra/propose res:`, proposeRes.data);
-
-          const extraService = proposeRes.data?.extraService;
-          if (extraService && extraService._id) {
-            const approvePayload = {
-              bookingId: rawBookingId,
-              extraServiceId: String(extraService._id),
-              approve: true,
-            };
-            console.log(`[Flow Step 3] POST /booking/extra/approve payload:`, approvePayload);
-
-            const approveRes = await api.post(`/booking/extra/approve`, approvePayload);
-            console.log(`[Flow Step 3] POST /booking/extra/approve res:`, approveRes.data);
-          }
-        } catch (err: any) {
-          console.warn("[Flow Step 4 Fallback] /booking/extra propose/approve failed:", err?.response?.data || err.message);
-          const fallbackPayload = {
-            bookingId: rawBookingId,
-            extraServices: [item],
-          };
-          console.log(`[Flow Step 4] POST /booking/extra-service/add payload:`, fallbackPayload);
-
-          const fallbackRes = await api.post(`/booking/extra-service/add`, fallbackPayload).catch(e => {
-            console.error("[Flow Step 4 Error] Extra service fallback failed:", e?.response?.data || e.message);
-            return null;
-          });
-          if (fallbackRes) {
-            console.log(`[Flow Step 4] POST /booking/extra-service/add res:`, fallbackRes.data);
-          }
+          const approveRes = await api.post(`/booking/extra/approve`, approvePayload);
+          console.log(`[Flow Step 3] POST /booking/extra/approve res:`, approveRes.data);
         }
       }
 
-      // 2. Emit socket event so partner and backend sync in real-time
-      const socketPayload = {
-        bookingId: rawBookingId,
-        extraServices: itemsToSubmit,
-        userId: user?._id ? String(user._id) : undefined,
-        approve: true
-      };
-      console.log(`[Flow Step 5] Socket emit 'extra-service-approve' payload:`, socketPayload);
-      socket.emit("extra-service-approve", socketPayload);
+
 
       // 3. Optimistic local update in BookingContext
       const existingExtras = Array.isArray(booking.extraServices) ? booking.extraServices : [];
@@ -389,7 +391,8 @@ export default function BookingOtp() {
       setPaying(true);
 
       // Create order via backend
-      const response = await api.post(`/booking/createorder/${bookingId}`, { paymentType: "BALANCE" });
+      const payType = booking && booking.paymentStatus === 'partially_paid' ? 'BALANCE' : 'FULL';
+      const response = await api.post(`/booking/createorder/${bookingId}`, { paymentType: payType });
       const { keyId, orderId, amount } = response.data;
 
       // Inject details into local HTML
@@ -448,26 +451,33 @@ export default function BookingOtp() {
     }
   };
 
-  const confirmCancelBooking = () => {
-    Alert.alert(
-      "Confirm Cancellation",
-      "Are you sure you want to cancel this booking? This action cannot be undone.",
-      [
-        { text: "No, keep it", style: "cancel" },
-        {
-          text: "Yes, Cancel",
-          style: "destructive",
-          onPress: () => {
+  const handleCancelPress = () => {
+    if (!booking) return;
 
-            socket.emit("user-cancel-booking", { bookingId });
+    const scheduleTimeStr = booking.scheduleDateTime;
 
-            // 🟡 Optimistic UI Update & Navigation
-            cancelBooking(bookingId);
-            navigation.navigate("BookingsMain", { activeTab: "ongoing" });
-          }
-        }
-      ]
-    );
+    if (isScheduledBooking && scheduleTimeStr) {
+      const scheduledTime = new Date(scheduleTimeStr).getTime();
+      const currentTime = Date.now();
+      const oneDayInMs = 24 * 60 * 60 * 1000;
+      if (scheduledTime - currentTime < oneDayInMs) {
+        Alert.alert(
+          "Cannot Cancel Booking",
+          "Scheduled bookings can only be cancelled at least 24 hours (1 day) before the scheduled time.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+    }
+
+    setCancelModalVisible(true);
+  };
+
+  const handleCancelConfirm = (reason: string) => {
+    socket.emit("user-cancel-booking", { bookingId, cancelReason: reason });
+    cancelBooking(bookingId, reason);
+    setCancelModalVisible(false);
+    navigation.navigate("BookingsMain", { activeTab: "history" });
   };
 
 
@@ -789,6 +799,12 @@ export default function BookingOtp() {
         <AppHeader
           showBack={true}
           onBackPress={handleBack}
+          rightIcon={
+            booking && !['completed', 'cancelled', 'in_progress'].includes(booking.status)
+              ? 'information-circle-outline'
+              : undefined
+          }
+          onRightPress={handleCancelPress}
         />
 
         {PendingRequest && !Array.isArray(PendingRequest.parts) && (
@@ -800,11 +816,15 @@ export default function BookingOtp() {
             style={[
               styles.checkCircle,
               {
-                backgroundColor: ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                  ? theme.colors.primary + '30'
-                  : ['pending', 'confirmed', 'searching'].includes(booking.status)
-                    ? theme.colors.primary + '30'
-                    : brightCyan
+                backgroundColor: booking.status === 'cancelled'
+                  ? '#FEE2E2'
+                  : booking.status === 'scheduled'
+                    ? '#E0E7FF'
+                    : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
+                      ? theme.colors.primary + '30'
+                      : ['pending', 'confirmed', 'searching'].includes(booking.status)
+                        ? theme.colors.primary + '30'
+                        : brightCyan
               },
               animatedCircleStyle,
             ]}
@@ -813,39 +833,123 @@ export default function BookingOtp() {
               name={
                 booking.status === 'completed'
                   ? 'checkmark-done-outline'
-                  : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                    ? 'alert-circle-outline'
-                    : ['pending', 'confirmed', 'searching'].includes(booking.status)
-                      ? 'search-outline'
-                      : 'person-outline'
+                  : booking.status === 'cancelled'
+                    ? 'close-circle-outline'
+                    : booking.status === 'scheduled'
+                      ? 'calendar-outline'
+                      : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
+                        ? 'alert-circle-outline'
+                        : ['pending', 'confirmed', 'searching'].includes(booking.status)
+                          ? 'search-outline'
+                          : 'person-outline'
               }
               size={32}
               color={
-                ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                  ? theme.colors.primary
-                  : ['pending', 'confirmed', 'searching'].includes(booking.status)
-                    ? theme.colors.primary
-                    : "#0F172A"
+                booking.status === 'cancelled'
+                  ? '#DC2626'
+                  : booking.status === 'scheduled'
+                    ? '#3730A3'
+                    : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
+                      ? theme.colors.primary
+                      : ['pending', 'confirmed', 'searching'].includes(booking.status)
+                        ? theme.colors.primary
+                        : "#0F172A"
               }
             />
           </Animated.View>
           <AppText size="h3" weight="bold" style={styles.headerTitle}>
             {booking.status === 'completed'
               ? 'Service Completed!'
-              : booking.status === 'in_progress'
-                ? 'Service in Progress'
-                : (booking.status === 'assigned' || booking.status === 'otp')
-                  ? 'Technician Assigned!'
-                  : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                    ? 'Awaiting Manual Assignment'
-                    : 'Searching Technician...'}
+              : booking.status === 'cancelled'
+                ? 'Booking Cancelled'
+                : booking.status === 'scheduled'
+                  ? 'Upcoming Service'
+                  : booking.status === 'in_progress'
+                    ? 'Service in Progress'
+                    : (booking.status === 'assigned' || booking.status === 'otp')
+                      ? 'Technician Assigned!'
+                      : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
+                        ? 'Awaiting Manual Assignment'
+                        : 'Searching Technician...'}
           </AppText>
         </View>
 
         <Animated.View style={animatedContentStyle}>
 
+          {/* Cancelled Banner */}
+          {booking.status === 'cancelled' && (
+            <AppCard style={styles.cancelledCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2', width: 44, height: 44, borderRadius: 22, marginRight: 0 }]}>
+                  <Ionicons name="close-circle" size={26} color="#DC2626" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText weight="bold" size="body" style={{ color: "#991B1B", fontWeight: '700' }}>
+                    Booking Cancelled
+                  </AppText>
+                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                    This service request has been cancelled.
+                  </AppText>
+                </View>
+              </View>
+              {booking.cancelReason && (
+                <View style={[styles.cancelReasonBox, { backgroundColor: theme.colors.background }]}>
+                  <AppText weight="semibold" size="small" style={{ color: "#7F1D1D", marginBottom: 4 }}>
+                    Cancellation Reason:
+                  </AppText>
+                  <AppText style={{ color: "#B91C1C", fontSize: 13, lineHeight: 18 }}>
+                    {booking.cancelReason}
+                  </AppText>
+                </View>
+              )}
+            </AppCard>
+          )}
+
+
+
           {/* 4 Process Booking Tracker */}
-          <BookingProcessTracker booking={booking} />
+          {booking.status !== 'cancelled' && (booking.paymentType === 'CASH' || (booking.paymentStatus !== 'pending' && booking.paymentStatus !== 'unpaid')) && (
+            <BookingProcessTracker booking={booking} />
+          )}
+
+          {/* Remaining Balance / Unpaid Payment */}
+          {booking && !['paid', 'completed'].includes(booking.paymentStatus || '') && paymentAmount > 0 && (
+            <AppCard style={styles.balancePaymentCard}>
+              <AppText weight="bold" size="h3" style={{ marginBottom: 12 }}>
+                {paymentLabel} Payment
+              </AppText>
+              <View style={[styles.priceBox, { backgroundColor: theme.colors.background }]}>
+                <View style={styles.priceRow}>
+                  <AppText color="textMuted">{paymentLabel}</AppText>
+                  <AppText weight="bold" style={{ color: theme.colors.text }}>
+                    ₹{paymentAmount}
+                  </AppText>
+                </View>
+              </View>
+
+              <View style={styles.balanceActionRow}>
+                <TouchableOpacity
+                  style={[styles.balanceBtn, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
+                  onPress={handleBalancePaymentCash}
+                  disabled={paying}
+                >
+                  <AppText weight="semibold" style={{ color: theme.colors.text }}>
+                    Pay via Cash
+                  </AppText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.balanceBtn, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => setShowPaymentSheet(true)}
+                  disabled={paying}
+                >
+                  <AppText weight="semibold" style={{ color: '#fff' }}>
+                    Pay Online
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </AppCard>
+          )}
 
           {/* Technician Card */}
           {booking.name && (['assigned', 'otp', 'in_progress', 'completed'].includes(booking.status) || booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && (
@@ -1082,166 +1186,164 @@ export default function BookingOtp() {
             </AppCard>
           )}
 
-          {/* Remaining Balance Payment */}
-          {booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 && (
-            <AppCard style={styles.balancePaymentCard}>
-              <AppText weight="bold" size="h3" style={{ marginBottom: 12 }}>
-                Remaining Balance Payment
-              </AppText>
-              <View style={[styles.priceBox, { backgroundColor: theme.colors.background }]}>
-                <View style={styles.priceRow}>
-                  <AppText color="textMuted">Remaining Amount</AppText>
-                  <AppText weight="bold" style={{ color: theme.colors.text }}>
-                    ₹{booking.remainingAmount}
-                  </AppText>
+
+
+          {/* Summary */}
+          {booking.status !== 'cancelled' && (
+            <AppCard style={styles.arrivalCard}>
+              <View style={styles.summaryContainer}>
+                <AppText
+                  weight="bold"
+                  size="h3"
+                  style={[styles.summaryTitle, { marginTop: 20 }]}
+                >
+                  Booking Summary
+                </AppText>
+
+                {booking.cartItems && booking.cartItems.length > 0 ? (
+                  booking.cartItems.map((item, index) => (
+                    <View key={`${item._id || item.serviceCategoryId || index}-${index}`} style={styles.summaryRow}>
+                      <AppText style={{ color: "#475569" }}>
+                        {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ""}
+                      </AppText>
+                      <AppText style={{ color: "#0F172A" }}>
+                        ₹{item.price * (item.quantity || 1)}
+                      </AppText>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.summaryRow}>
+                    <AppText style={{ color: "#475569" }}>Service</AppText>
+                    <AppText style={{ color: "#0F172A" }}>
+                      {booking.serviceCategoryName}
+                    </AppText>
+                  </View>
+                )}
+
+                {(Array.isArray(booking.extraServices) ? booking.extraServices : []).filter(s => s && String(s.status).toUpperCase() === "APPROVED").map((extra, index) => (
+                  <View key={`${extra._id || index}-${index}`} style={styles.summaryRow}>
+                    <AppText style={{ color: "#475569" }}>+ {extra.serviceName || "Extra Service"}</AppText>
+                    <AppText style={{ color: "#0F172A" }}>
+                      ₹{extra.price ?? 0}
+                    </AppText>
+                  </View>
+                ))}
+
+                <View style={styles.divider} />
+                {booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 ? (
+                  <>
+                    <View style={styles.summaryRow}>
+                      <AppText style={{ color: "#475569" }}>Total Price</AppText>
+                      <AppText style={{ color: "#0F172A" }}>
+                        ₹{booking.totalPrice}
+                      </AppText>
+                    </View>
+                    <View style={styles.summaryRow}>
+                      <AppText style={{ color: "#475569" }}>
+                        {booking.paymentType === 'ADVANCE' ? 'Advance Paid (18%)' : 'Amount Paid'}
+                      </AppText>
+                      <AppText style={{ color: "#0F172A" }} weight="medium">
+                        -₹{booking.advanceAmount}
+                      </AppText>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.summaryRow}>
+                      <AppText style={{ color: "#0F172A" }} weight="bold">Remaining Balance</AppText>
+                      <AppText style={{ color: "#0F172A" }} weight="bold" size="h3">
+                        ₹{booking.remainingAmount}
+                      </AppText>
+                    </View>
+                    <View style={[styles.summaryRow, { marginTop: 6, alignItems: "center" }]}>
+                      <AppText style={{ color: "#475569" }} weight="medium">Payment Status</AppText>
+                      <View style={{ backgroundColor: "#E0F2FE", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                        <AppText size="small" weight="bold" style={{ color: "#0369A1" }}>
+                          Partially Paid ℹ️
+                        </AppText>
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.summaryRow}>
+                      <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
+                      <AppText style={{ color: "#0F172A" }} weight="bold">
+                        ₹{booking.totalPrice}
+                      </AppText>
+                    </View>
+                    <View style={[styles.summaryRow, { marginTop: 6, alignItems: "center" }]}>
+                      <AppText style={{ color: "#475569" }} weight="medium">Payment Status</AppText>
+                      {booking.paymentStatus === 'paid' || booking.paymentStatus === 'completed' ? (
+                        <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                          <AppText size="small" weight="bold" style={{ color: "#166534" }}>
+                            Full Payment Paid ✅
+                          </AppText>
+                        </View>
+                      ) : (
+                        <View style={{ backgroundColor: "#FEF3C7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                          <AppText size="small" weight="bold" style={{ color: "#B45309" }}>
+                            Pending / Unpaid ⏳
+                          </AppText>
+                        </View>
+                      )}
+                    </View>
+                  </>
+                )}
+
+                <View style={styles.divider} />
+
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={20}
+                    color={primaryTeal}
+                    style={styles.detailIcon}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <AppText color="textMuted" size="small">
+                      Address
+                    </AppText>
+                    <AppText weight="medium" style={styles.detailText}>
+                      {booking.address}
+                    </AppText>
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.balanceActionRow}>
-                <TouchableOpacity
-                  style={[styles.balanceBtn, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
-                  onPress={handleBalancePaymentCash}
-                  disabled={paying}
-                >
-                  <AppText weight="semibold" style={{ color: theme.colors.text }}>
-                    Pay via Cash
-                  </AppText>
-                </TouchableOpacity>
+                <View style={styles.detailRow}>
+                  <Ionicons
+                    name="time-outline"
+                    size={20}
+                    color={primaryTeal}
+                    style={styles.detailIcon}
+                  />
+                  <View>
+                    <AppText color="textMuted" size="small">
+                      Duration
+                    </AppText>
+                    <AppText weight="medium" style={styles.detailText}>
+                      {booking.durationInMinutes != null ? `${booking.durationInMinutes} mins` : "N/A"}
+                    </AppText>
+                  </View>
+                </View>
 
-                <TouchableOpacity
-                  style={[styles.balanceBtn, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => setShowPaymentSheet(true)}
-                  disabled={paying}
-                >
-                  <AppText weight="semibold" style={{ color: '#fff' }}>
-                    Pay Online
-                  </AppText>
-                </TouchableOpacity>
+                {isScheduledBooking && (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                      <Ionicons name="information-circle-outline" size={20} color="#0F766E" />
+                      <AppText weight="bold" style={{ color: "#0F766E", fontSize: 14 }}>
+                        Cancellation Policy
+                      </AppText>
+                    </View>
+                    <AppText size="small" color="textMuted" style={{ marginTop: 6, lineHeight: 18 }}>
+                      Scheduled bookings can only be cancelled at least 24 hours (1 day) before the service time.
+                    </AppText>
+                  </>
+                )}
               </View>
             </AppCard>
           )}
 
-          {/* Summary */}
-          <AppCard style={styles.arrivalCard}>
-            <View style={styles.summaryContainer}>
-              <AppText
-                weight="bold"
-                size="h3"
-                style={[styles.summaryTitle, { marginTop: 20 }]}
-              >
-                Booking Summary
-              </AppText>
 
-              {booking.cartItems && booking.cartItems.length > 0 ? (
-                booking.cartItems.map((item, index) => (
-                  <View key={`${item._id || item.serviceCategoryId || index}-${index}`} style={styles.summaryRow}>
-                    <AppText style={{ color: "#475569" }}>
-                      {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ""}
-                    </AppText>
-                    <AppText style={{ color: "#0F172A" }}>
-                      ₹{item.price * (item.quantity || 1)}
-                    </AppText>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.summaryRow}>
-                  <AppText style={{ color: "#475569" }}>Service</AppText>
-                  <AppText style={{ color: "#0F172A" }}>
-                    {booking.serviceCategoryName}
-                  </AppText>
-                </View>
-              )}
-
-              {(Array.isArray(booking.extraServices) ? booking.extraServices : []).filter(s => s && String(s.status).toUpperCase() === "APPROVED").map((extra, index) => (
-                <View key={`${extra._id || index}-${index}`} style={styles.summaryRow}>
-                  <AppText style={{ color: "#475569" }}>+ {extra.serviceName || "Extra Service"}</AppText>
-                  <AppText style={{ color: "#0F172A" }}>
-                    ₹{extra.price ?? 0}
-                  </AppText>
-                </View>
-              ))}
-
-              <View style={styles.divider} />
-              {booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 ? (
-                <>
-                  <View style={styles.summaryRow}>
-                    <AppText style={{ color: "#475569" }}>Total Price</AppText>
-                    <AppText style={{ color: "#0F172A" }}>
-                      ₹{booking.totalPrice}
-                    </AppText>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <AppText style={{ color: "#475569" }}>
-                      {booking.paymentType === 'ADVANCE' ? 'Advance Paid (18%)' : 'Amount Paid'}
-                    </AppText>
-                    <AppText style={{ color: "#0F172A" }} weight="medium">
-                      -₹{booking.advanceAmount}
-                    </AppText>
-                  </View>
-                  <View style={styles.divider} />
-                  <View style={styles.summaryRow}>
-                    <AppText style={{ color: "#0F172A" }} weight="bold">Remaining Balance</AppText>
-                    <AppText style={{ color: "#0F172A" }} weight="bold" size="h3">
-                      ₹{booking.remainingAmount}
-                    </AppText>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View style={styles.summaryRow}>
-                    <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
-                    <AppText style={{ color: "#0F172A" }} weight="bold">
-                      ₹{booking.totalPrice}
-                    </AppText>
-                  </View>
-                  <View style={[styles.summaryRow, { marginTop: 6, alignItems: "center" }]}>
-                    <AppText style={{ color: "#475569" }} weight="medium">Payment Status</AppText>
-                    <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                      <AppText size="small" weight="bold" style={{ color: "#166534" }}>
-                        Full Payment Paid ✅
-                      </AppText>
-                    </View>
-                  </View>
-                </>
-              )}
-
-              <View style={styles.divider} />
-
-              <View style={styles.detailRow}>
-                <Ionicons
-                  name="location-outline"
-                  size={20}
-                  color={primaryTeal}
-                  style={styles.detailIcon}
-                />
-                <View style={{ flex: 1 }}>
-                  <AppText color="textMuted" size="small">
-                    Address
-                  </AppText>
-                  <AppText weight="medium" style={styles.detailText}>
-                    {booking.address}
-                  </AppText>
-                </View>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Ionicons
-                  name="time-outline"
-                  size={20}
-                  color={primaryTeal}
-                  style={styles.detailIcon}
-                />
-                <View>
-                  <AppText color="textMuted" size="small">
-                    Duration
-                  </AppText>
-                  <AppText weight="medium" style={styles.detailText}>
-                    {booking.durationInMinutes != null ? `${booking.durationInMinutes} mins` : "N/A"}
-                  </AppText>
-                </View>
-              </View>
-            </View>
-          </AppCard>
 
         </Animated.View>
       </ScrollView>
@@ -1264,7 +1366,7 @@ export default function BookingOtp() {
           <View style={[styles.paymentSheetContent, { backgroundColor: theme.colors.surface }]}>
             {/* Header */}
             <View style={styles.paymentSheetHeader}>
-              <AppText weight="bold" size="h3">Remaining Balance Checkout</AppText>
+              <AppText weight="bold" size="h3">{paymentLabel} Checkout</AppText>
               {!paying && (
                 <TouchableOpacity
                   onPress={() => {
@@ -1282,10 +1384,10 @@ export default function BookingOtp() {
             <View style={[styles.paymentSheetPriceBox, { backgroundColor: theme.colors.background }]}>
               <AppText size="small" color="textMuted">Amount to Pay Now</AppText>
               <AppText weight="bold" size="h1" style={{ color: theme.colors.primary }}>
-                ₹{booking.remainingAmount}
+                ₹{paymentAmount}
               </AppText>
               <AppText size="caption" color="textMuted" style={{ marginTop: 2 }}>
-                Remaining 82% balance amount
+                {booking && booking.paymentStatus === 'partially_paid' ? 'Remaining 82% balance amount' : 'Full payment amount'}
               </AppText>
             </View>
 
@@ -1303,7 +1405,7 @@ export default function BookingOtp() {
             {/* Action Buttons */}
             <View style={{ marginTop: 24, paddingBottom: Platform.OS === 'ios' ? 24 : 12 }}>
               <AppButton
-                title={paying ? "Processing Secure Payment..." : `Pay Balance ₹${booking.remainingAmount}`}
+                title={paying ? "Processing Secure Payment..." : `Pay ${paymentLabel} ₹${paymentAmount}`}
                 onPress={handleBalancePaymentOnline}
                 loading={paying}
                 disabled={paying}
@@ -1325,18 +1427,18 @@ export default function BookingOtp() {
           setPaying(false);
         }}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
           <View style={{
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
             paddingHorizontal: 16,
             paddingVertical: 12,
-            backgroundColor: '#1e293b',
+            backgroundColor: '#ffffff',
             borderBottomWidth: 1,
-            borderBottomColor: '#334155'
+            borderBottomColor: '#e2e8f0'
           }}>
-            <AppText weight="bold" size="body" style={{ color: '#f8fafc' }}>Payment Checkout</AppText>
+            <AppText weight="bold" size="body" style={{ color: '#0F172A' }}>Payment Checkout</AppText>
             <TouchableOpacity
               onPress={() => {
                 setShowWebViewModal(false);
@@ -1345,7 +1447,7 @@ export default function BookingOtp() {
               }}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color="#f1f5f9" />
+              <Ionicons name="close" size={24} color="#0F172A" />
             </TouchableOpacity>
           </View>
           {paymentHtml && (
@@ -1357,7 +1459,7 @@ export default function BookingOtp() {
               onMessage={handleWebViewMessage}
               startInLoadingState
               renderLoading={() => (
-                <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#0f172a' }}>
+                <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#ffffff' }}>
                   <ActivityIndicator size="large" color="#f97316" />
                 </View>
               )}
@@ -1443,11 +1545,9 @@ export default function BookingOtp() {
                           <AppText weight="semibold" size="body" style={{ color: "#0F172A" }}>
                             {item.serviceCategoryName || item.parentServiceName}
                           </AppText>
-                          {item.description ? (
-                            <AppText size="caption" color="textMuted" numberOfLines={2} style={{ marginTop: 2 }}>
-                              {item.description}
-                            </AppText>
-                          ) : null}
+                          <AppText size="caption" color="textMuted" style={{ marginTop: 2 }}>
+                            Staff: {item.employeeCount || 1} {(item.employeeCount || 1) === 1 ? 'pro' : 'pros'}
+                          </AppText>
                           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 12 }}>
                             <AppText weight="bold" style={{ color: theme.colors.primary }}>
                               ₹{price}
@@ -1528,6 +1628,13 @@ export default function BookingOtp() {
           </View>
         </View>
       </Modal>
+
+      <CancellationModal
+        visible={cancelModalVisible}
+        isScheduled={booking.isScheduled}
+        onConfirm={handleCancelConfirm}
+        onCancel={() => setCancelModalVisible(false)}
+      />
     </View>
   );
 }
@@ -1990,5 +2097,40 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-
+  policyCard: {
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E0F2FE",
+    backgroundColor: "#F0F9FF",
+    marginHorizontal: 4,
+  },
+  cancelBookingButton: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+    backgroundColor: '#FFF5F5',
+    marginHorizontal: 4,
+  },
+  cancelledCard: {
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
+    marginHorizontal: 4,
+  },
+  cancelReasonBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+  },
 });

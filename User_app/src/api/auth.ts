@@ -5,6 +5,7 @@ export const completeProfileAPI = (data: {
   latitude?: number;
   longitude?: number;
   avatar?: string;
+  referralCode?: string;
 }) => {
   return api.post('/user/register', data);
 };

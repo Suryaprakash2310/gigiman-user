@@ -70,7 +70,7 @@ export default function ProfileScreen() {
       >
         {/* USER INFO */}
         <View style={styles.profileSection}>
-          <AvatarUpload size={90} initialUri={user?.avatar || profile?.avatar} />
+          <AvatarUpload size={90} initialUri={user?.avatar || profile?.avatar} readOnly={true} />
 
           <AppText weight="bold" size="h2" style={{ marginTop: 12 }}>
             {user?.fullName || profile?.fullName || ''}

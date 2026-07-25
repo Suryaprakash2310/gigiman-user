@@ -72,6 +72,7 @@ export type BookingItem = {
     employeeCount?: number;
     quantity: number;
   }[];
+  cancelReason?: string;
 };
 
 export type ServiceProposal = {
@@ -98,7 +99,7 @@ type BookingContextType = {
   upsertBooking: (booking: BookingItem) => void;
   updateBookingItem: (id: string, updates: Partial<BookingItem>) => void;
   updateStatus: (id: string, status: BookingStatus) => void;
-  cancelBooking: (id: string) => void;
+  cancelBooking: (id: string, reason?: string) => void;
   getBookingById: (id: string) => BookingItem | null;
 
   getLatestActiveBooking: () => BookingItem | null;
@@ -418,8 +419,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     updateBookingItem(id, { status });
   };
 
-  const cancelBooking = (id: string) => {
-    updateStatus(id, "cancelled");
+  const cancelBooking = (id: string, reason?: string) => {
+    updateBookingItem(id, { status: "cancelled", cancelReason: reason });
   };
 
   const getBookingById = (id: string) => {

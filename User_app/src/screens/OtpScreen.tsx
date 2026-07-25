@@ -9,7 +9,7 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
+import { getAuth, signInWithPhoneNumber, signOut, onAuthStateChanged } from '@react-native-firebase/auth';
 import { verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
@@ -46,7 +46,7 @@ const OtpScreen: React.FC = () => {
 
   // ⚡ Auto-verification listener
   useEffect(() => {
-    const unsubscribe = getAuth().onAuthStateChanged(async (user) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
       if (user && (user.phoneNumber === `+91${phone}` || user.phoneNumber?.replace(/\s+/g, '') === `+91${phone}`)) {
         console.log("onAuthStateChanged: user auto-verified in background! Completing login flow.");
         if (isConfirming.current) return;

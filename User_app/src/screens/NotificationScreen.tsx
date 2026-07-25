@@ -115,11 +115,11 @@ export default function NotificationScreen() {
         return "gift";
       case "ALERT":
       case "FAILED_BOOKING":
-        return "alert-circle";
+        return "notifications";
       case "BLOCK":
         return "ban";
       default:
-        return "information-circle";
+        return "notifications";
     }
   };
 
@@ -130,12 +130,12 @@ export default function NotificationScreen() {
       case "PROMO":
         return "#c02bff";
       case "FAILED_BOOKING":
-        return theme.colors.primary;
       case "ALERT":
+        return "#007AFF"; // Blue color
       case "BLOCK":
         return theme.colors.danger;
       default:
-        return theme.colors.primary;
+        return "#007AFF"; // Blue color
     }
   };
 

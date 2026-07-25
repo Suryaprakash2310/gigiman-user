@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
   TouchableOpacity,
   PanResponder,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -158,6 +159,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [accessToken, user]);
 
+  // Suppress system push notification banners when user is inside the app (foreground)
+  useEffect(() => {
+    if (messaging && typeof messaging().setForegroundNotificationsPresentationOptions === 'function') {
+      messaging()
+        .setForegroundNotificationsPresentationOptions({
+          alert: false,
+          badge: true,
+          sound: false,
+        })
+        .catch((err: any) => {
+          console.log("Failed to set foreground notification options", err);
+        });
+    }
+  }, []);
+
   // Toast animations
   const showToast = (notification: NotificationItem) => {
     // Clear any active timeout
@@ -278,11 +294,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return "gift-outline";
       case "ALERT":
       case "FAILED_BOOKING":
-        return "alert-circle-outline";
+        return "notifications-outline";
       case "BLOCK":
         return "ban-outline";
       default:
-        return "information-circle-outline";
+        return "notifications-outline";
     }
   };
 
@@ -293,12 +309,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       case "PROMO":
         return "#c02bff";
       case "FAILED_BOOKING":
-        return theme.colors.primary;
       case "ALERT":
+        return "#007AFF"; // Blue color
       case "BLOCK":
         return theme.colors.danger;
       default:
-        return theme.colors.primary;
+        return "#007AFF"; // Blue color
     }
   };
 
@@ -341,19 +357,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             onPress={dismissToast}
             activeOpacity={0.9}
           >
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: theme.colors.background },
-              ]}
-            >
-              <Ionicons
-                name={getIconName(toastMessage.type)}
-                size={22}
-                color={getIconColor(toastMessage.type)}
+            {/* Left Side: Brand Logo */}
+            <View style={styles.logoContainerLeft}>
+              <Image
+                source={require('../../assets/images/gigiman-logo.png')}
+                style={{ width: 28, height: 28, borderRadius: 6 }}
+                resizeMode="contain"
               />
             </View>
 
+            {/* Middle Content */}
             <View style={styles.textContainer}>
               <AppText weight="bold" size="body" numberOfLines={1}>
                 {toastMessage.title}
@@ -363,9 +376,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               </AppText>
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={dismissToast}>
-              <Ionicons name="close" size={18} color={theme.colors.textMuted} />
-            </TouchableOpacity>
+            {/* Right Side: Category Icon & Close Button */}
+            <View style={styles.rightSideContainer}>
+              <View
+                style={[
+                  styles.iconContainerRight,
+                  { backgroundColor: theme.colors.background },
+                ]}
+              >
+                <Ionicons
+                  name={getIconName(toastMessage.type)}
+                  size={14}
+                  color={getIconColor(toastMessage.type)}
+                />
+              </View>
+              <TouchableOpacity style={styles.closeBtn} onPress={dismissToast}>
+                <Ionicons name="close" size={18} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -395,17 +423,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  iconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  logoContainerLeft: {
+    marginRight: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
   },
   textContainer: {
     flex: 1,
     paddingRight: 8,
+  },
+  rightSideContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconContainerRight: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: "center",
+    alignItems: "center",
   },
   closeBtn: {
     padding: 4,

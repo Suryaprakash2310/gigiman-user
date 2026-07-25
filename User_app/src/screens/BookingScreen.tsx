@@ -1,5 +1,6 @@
 import AppText from "@/src/components/ui/AppText";
 import { BookingItem, useBooking } from "@/src/context/BookingContext";
+import { mapBookingToBookingItem } from "../utils/mapBooking";
 import { useTheme } from "@/src/theme/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
@@ -70,22 +71,7 @@ export default function BookingScreen() {
     setHistoryLoading(true);
     try {
       const bookings = await BookingAPI.getUserBookings();
-      const mapped: BookingItem[] = (bookings || []).map((b: any) => ({
-        _id: b._id,
-        serviceCategoryName: b.serviceCategoryName || "",
-        address: b.address || "",
-        status: "completed" as const,
-        totalPrice: b.totalPrice ?? b.cost,
-        name: b.primaryEmployee?.fullname || b.name || "",
-        rating: b.primaryEmployee?.rating,
-        durationInMinutes: b.durationInMinutes,
-        dateLabel: b.createdAt
-          ? new Date(b.createdAt).toLocaleDateString()
-          : "",
-        timeLabel: b.createdAt
-          ? new Date(b.createdAt).toLocaleTimeString()
-          : "",
-      }));
+      const mapped: BookingItem[] = (bookings || []).map((b: any) => mapBookingToBookingItem(b));
 
       // De-duplicate history bookings by _id
       const uniqueMapped = Array.from(
@@ -130,6 +116,11 @@ export default function BookingScreen() {
   const empty = data.length === 0;
 
   const handleCardPress = (booking: BookingItem) => {
+    if (booking.status === "cancelled") {
+      navigation.navigate("BookingDetails", { bookingId: booking._id });
+      return;
+    }
+
     if (booking.assignmentStatus === "FAILED" || booking.status === "manual_assign") {
       navigation.navigate("BookingDetails", { bookingId: booking._id });
       return;
@@ -155,7 +146,7 @@ export default function BookingScreen() {
     }
 
     if (booking.status === "scheduled") {
-      // still waiting for time
+      navigation.navigate("BookingDetails", { bookingId: booking._id });
       return;
     }
   };

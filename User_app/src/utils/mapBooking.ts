@@ -181,11 +181,15 @@ export function mapBookingToBookingItem(
 
     dateLabel: booking.scheduleDateTime
       ? new Date(booking.scheduleDateTime).toLocaleDateString()
-      : booking.dateLabel || "",
+      : booking.createdAt
+        ? new Date(booking.createdAt).toLocaleDateString()
+        : booking.dateLabel || "",
 
     timeLabel: booking.scheduleDateTime
       ? new Date(booking.scheduleDateTime).toLocaleTimeString()
-      : booking.timeLabel || "",
+      : booking.createdAt
+        ? new Date(booking.createdAt).toLocaleTimeString()
+        : booking.timeLabel || "",
 
     address: booking.address || "",
 
@@ -221,12 +225,13 @@ export function mapBookingToBookingItem(
     remainingAmount: booking.remainingAmount != null ? Number(booking.remainingAmount) : 0,
     rawStatus: booking.status,
     isManuallyAssigned: Boolean(booking.isManuallyAssigned),
-    domainService: booking.domainService
-      ? typeof booking.domainService === "object"
-        ? booking.domainService._id
-          ? String(booking.domainService._id)
-          : String(booking.domainService)
-        : String(booking.domainService)
+    domainService: booking.domainServiceId || booking.domainService
+      ? typeof (booking.domainServiceId || booking.domainService) === "object"
+        ? (booking.domainServiceId || booking.domainService)._id
+          ? String((booking.domainServiceId || booking.domainService)._id)
+          : String(booking.domainServiceId || booking.domainService)
+        : String(booking.domainServiceId || booking.domainService)
       : undefined,
+    cancelReason: booking.cancelReason || booking.cancellationReason || undefined,
   };
 }

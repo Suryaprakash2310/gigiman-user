@@ -25,6 +25,16 @@ export const ProfileAPI = {
 
     return res.data; // { success, user }
   },
+
+  getReferralStatsAPI: async (): Promise<{
+    success: boolean;
+    referralCode: string;
+    referralCount: number;
+    rewardsEarned: number;
+  }> => {
+    const res = await api.get("/user/referral-stats");
+    return res.data;
+  },
 };
 
 export const updateProfile = (data: {

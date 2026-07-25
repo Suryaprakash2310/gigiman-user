@@ -30,6 +30,10 @@ export default function PersonalDetailsCard({
     const [editingField, setEditingField] = useState<keyof PersonalDetails | null>(null);
     const [errors, setErrors] = useState<Partial<Record<keyof PersonalDetails, string>>>({});
 
+    React.useEffect(() => {
+        setValues(initialValues);
+    }, [initialValues.fullName, initialValues.email, initialValues.phoneNo]);
+
     const editableFields: Array<keyof PersonalDetails> = ['fullName', 'email'];
 
     const validate = (field: keyof PersonalDetails, value: string): string | undefined => {

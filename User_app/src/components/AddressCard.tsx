@@ -16,6 +16,8 @@ export interface Address {
   city?: string;
   pincode?: string;
   isDefault?: boolean;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface Props {

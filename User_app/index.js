@@ -1,11 +1,11 @@
+globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
 import { registerRootComponent } from 'expo';
 import messaging from '@react-native-firebase/messaging';
 import App from './App';
 
-// Background push notification listener
-messaging().setBackgroundMessageHandler(async remoteMessage => {
-  console.log('Background Push Notification Received:', remoteMessage);
+// Register background handler
+messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+  console.log('Message handled in the background!', remoteMessage);
 });
 
 registerRootComponent(App);
-

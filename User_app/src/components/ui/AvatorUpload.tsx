@@ -8,9 +8,10 @@ interface Props {
   size?: number;
   onChange?: (uri: string | null) => void;
   initialUri?: string | null;
+  readOnly?: boolean;
 }
 
-export default function AvatarUpload({ size = 110, onChange, initialUri = null }: Props) {
+export default function AvatarUpload({ size = 110, onChange, initialUri = null, readOnly = false }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme, size);
 
@@ -50,8 +51,9 @@ export default function AvatarUpload({ size = 110, onChange, initialUri = null }
     <View style={styles.wrapper}>
       <TouchableOpacity
         style={styles.avatarContainer}
-        onPress={pickImage}
-        activeOpacity={0.8}
+        onPress={readOnly ? undefined : pickImage}
+        activeOpacity={readOnly ? 1 : 0.8}
+        disabled={readOnly}
       >
         {image ? (
           <Image source={{ uri: image }} style={styles.avatar} />
@@ -61,16 +63,18 @@ export default function AvatarUpload({ size = 110, onChange, initialUri = null }
       </TouchableOpacity>
 
       {/* Remove Image */}
-      {image && (
+      {!readOnly && image && (
         <TouchableOpacity style={styles.removeBtn} onPress={removeImage}>
           <Feather name="x" size={16} color="#fff" />
         </TouchableOpacity>
       )}
 
       {/* Edit Button */}
-      <TouchableOpacity style={styles.editBtn} onPress={pickImage}>
-        <Feather name="camera" size={16} color="#fff" />
-      </TouchableOpacity>
+      {!readOnly && (
+        <TouchableOpacity style={styles.editBtn} onPress={pickImage}>
+          <Feather name="camera" size={16} color="#fff" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

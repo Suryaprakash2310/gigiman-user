@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Linking, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import AppText from '@/src/components/ui/AppText';
 import AppButton from '@/src/components/ui/AppButton';
 import { useTheme } from '@/src/theme/useTheme';
+import { ProfileAPI } from '@/src/api/profile.api';
 
 export default function InviteReferralScreen() {
     const { theme } = useTheme();
@@ -15,7 +16,28 @@ export default function InviteReferralScreen() {
     const navigation = useNavigation();
 
     const [copied, setCopied] = useState(false);
-    const referralCode = 'SURYA847';
+    const [referralCode, setReferralCode] = useState('GIGI');
+    const [friendsJoined, setFriendsJoined] = useState(0);
+    const [rewardsEarned, setRewardsEarned] = useState(0);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchReferralStats = async () => {
+            try {
+                const res = await ProfileAPI.getReferralStatsAPI();
+                if (res && res.success) {
+                    setReferralCode(res.referralCode || 'GIGI');
+                    setFriendsJoined(res.referralCount || 0);
+                    setRewardsEarned(res.rewardsEarned || 0);
+                }
+            } catch (error) {
+                console.error('Error fetching referral stats:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchReferralStats();
+    }, []);
 
     const handleBack = () => {
         navigation.goBack();
@@ -23,10 +45,12 @@ export default function InviteReferralScreen() {
 
     const handleShare = async () => {
         try {
-            const message = `Book trusted home services with Gigiman.\n\nUse my referral code ${referralCode}\nand get 5% OFF on your first booking.\n\nDownload Gigiman now.`;
-            await Share.share({
-                message,
-            });
+            const message = `Book trusted home services with Gigiman.\n\nUse my referral code ${referralCode}\nand get 5% OFF on your first booking.\n\nDownload Gigiman now: https://play.google.com/store/apps/details?id=com.suryaprakash23.gigiuser`;
+            const content: any = { message };
+            if (Platform.OS === 'ios') {
+                content.url = 'https://play.google.com/store/apps/details?id=com.suryaprakash23.gigiuser';
+            }
+            await Share.share(content);
         } catch (error: any) {
             console.log('Error sharing:', error);
         }
@@ -35,13 +59,19 @@ export default function InviteReferralScreen() {
     const handleCopy = async () => {
         await Clipboard.setStringAsync(referralCode);
         setCopied(true);
-        // Show success toast
-        // alert("Referral code copied");
         
         setTimeout(() => {
             setCopied(false);
         }, 2000);
     };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
+    }
 
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
@@ -93,6 +123,15 @@ export default function InviteReferralScreen() {
                         </AppText>
                     )}
 
+                    <TouchableOpacity 
+                        onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.suryaprakash23.gigiuser')}
+                        activeOpacity={0.7}
+                    >
+                        <AppText size="caption" style={{ color: theme.colors.primary, textAlign: 'center', marginTop: 12, textDecorationLine: 'underline' }}>
+                            https://play.google.com/store/apps/details?id=com.suryaprakash23.gigiuser
+                        </AppText>
+                    </TouchableOpacity>
+
                     <View style={styles.buttonRow}>
                         <AppButton
                             title="Copy Code"
@@ -119,7 +158,7 @@ export default function InviteReferralScreen() {
                         <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                             <Feather name="users" size={24} color={theme.colors.primary} style={{ marginBottom: 8 }} />
                             <AppText size="h3" weight="bold" style={{ color: theme.colors.text }}>
-                                0
+                                {friendsJoined}
                             </AppText>
                             <AppText size="caption" style={{ color: theme.colors.textMuted }}>
                                 Friends Joined
@@ -131,7 +170,7 @@ export default function InviteReferralScreen() {
                         <View style={[styles.statBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                             <Feather name="award" size={24} color={theme.colors.accent || theme.colors.primary} style={{ marginBottom: 8 }} />
                             <AppText size="h3" weight="bold" style={{ color: theme.colors.text }}>
-                                ₹0
+                                ₹{rewardsEarned}
                             </AppText>
                             <AppText size="caption" style={{ color: theme.colors.textMuted }}>
                                 Rewards Earned

@@ -20,6 +20,7 @@ import { socket } from "@/src/socket/socket";
 import { useTheme } from "@/src/theme/useTheme";
 import api from "../api/client";
 import { mapBookingToBookingItem } from "../utils/mapBooking";
+import CancellationModal from "@/src/components/CancellationModal";
 
 type Route = RouteProp<BookingParamList, "Searching">;
 
@@ -130,6 +131,7 @@ export default function BookingSearchScreen() {
   const { theme } = useTheme();
   const [searchMessage, setSearchMessage] = useState("Scanning nearby area...");
   const redirectedRef = useRef(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
 
 
 
@@ -144,6 +146,11 @@ export default function BookingSearchScreen() {
         if (res.data?.booking) {
           const mapped = mapBookingToBookingItem(res.data.booking);
           upsertBooking(mapped);
+
+          const isOnlineUnpaid = mapped.paymentType !== 'CASH' && (mapped.paymentStatus === 'pending' || mapped.paymentStatus === 'unpaid');
+          if (isOnlineUnpaid) {
+            setSearchMessage("Waiting for payment...");
+          }
         }
       } catch {
         console.log("Waiting for booking to be assigned...");
@@ -158,6 +165,12 @@ export default function BookingSearchScreen() {
     if (redirectedRef.current) return;
     const booking = bookings.find(b => String(b._id) === String(bookingId));
     if (!booking) return;
+
+    const isOnlineUnpaid = booking.paymentType !== 'CASH' && (booking.paymentStatus === 'pending' || booking.paymentStatus === 'unpaid');
+    if (isOnlineUnpaid) {
+      setSearchMessage("Waiting for payment...");
+      return;
+    }
 
     if (
       booking.status === "otp" ||
@@ -232,25 +245,11 @@ export default function BookingSearchScreen() {
     };
   }, []);
 
-  const confirmCancelBooking = () => {
-    Alert.alert(
-      "Confirm Cancellation",
-      "Are you sure you want to cancel this booking search? This action cannot be undone.",
-      [
-        { text: "No, keep waiting", style: "cancel" },
-        {
-          text: "Yes, Cancel",
-          style: "destructive",
-          onPress: () => {
-            socket.emit("user-cancel-booking", { bookingId });
-
-            // 🟡 Optimistic UI Update & Navigation
-            cancelBooking(bookingId);
-            navigation.navigate("BookingsMain", { activeTab: "ongoing" });
-          }
-        }
-      ]
-    );
+  const handleCancelConfirm = (reason: string) => {
+    socket.emit("user-cancel-booking", { bookingId, cancelReason: reason });
+    cancelBooking(bookingId, reason);
+    setCancelModalVisible(false);
+    navigation.navigate("BookingsMain", { activeTab: "history" });
   };
 
   const handleShowInfo = () => {
@@ -262,7 +261,28 @@ export default function BookingSearchScreen() {
         {
           text: "Cancel Booking",
           style: "destructive",
-          onPress: () => confirmCancelBooking()
+          onPress: () => {
+            const currentBooking = bookings.find((b) => b._id === bookingId);
+            if (currentBooking) {
+              const isScheduledBooking = currentBooking.isScheduled || currentBooking.status === 'scheduled';
+              const scheduleTimeStr = currentBooking.scheduleDateTime;
+
+              if (isScheduledBooking && scheduleTimeStr) {
+                const scheduledTime = new Date(scheduleTimeStr).getTime();
+                const currentTime = Date.now();
+                const oneDayInMs = 24 * 60 * 60 * 1000;
+                if (scheduledTime - currentTime < oneDayInMs) {
+                  Alert.alert(
+                    "Cannot Cancel Booking",
+                    "Scheduled bookings can only be cancelled at least 24 hours (1 day) before the scheduled time.",
+                    [{ text: "OK" }]
+                  );
+                  return;
+                }
+              }
+            }
+            setCancelModalVisible(true);
+          }
         }
       ]
     );
@@ -334,6 +354,11 @@ export default function BookingSearchScreen() {
           Please wait while we connect you to GigiMan network
         </AppText>
       </View>
+      <CancellationModal
+        visible={cancelModalVisible}
+        onConfirm={handleCancelConfirm}
+        onCancel={() => setCancelModalVisible(false)}
+      />
     </View>
   );
 }
