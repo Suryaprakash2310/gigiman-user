@@ -16,7 +16,8 @@ export interface ParsedSections {
 
 const cleanLine = (str: string) => {
   return str
-    .replace(/^[•\-\*\▪✓✔☑\s]+/, '')
+    .replace(/^[•▪◦⁃‣]\s*/, '')
+    .replace(/^[\-\*]\s+/, '')
     .replace(/^[✅❌✕]\s*/, '')
     .replace(/^service\s*includes?:?\s*/i, '')
     .replace(/^(not\s*included|service\s*not\s*included|excludes?):?\s*/i, '')
@@ -82,11 +83,11 @@ const parseDescription = (html?: string): ParsedSections => {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 
-  // Step 4: Break inline headers and bullet points into newlines if joined
+  // Step 4: Break inline headers and bullet points into newlines if joined (without splitting hyphenated words like Move-in/Move-out)
   text = text
     .replace(/([✅✔✓☑])\s*(service\s*includes?|what['’]?s\s*included|includes?)/gi, '\n$1 $2\n')
     .replace(/([❌✕])\s*(not\s*included|service\s*not\s*included|excludes?|what['’]?s\s*not\s*included)/gi, '\n$1 $2\n')
-    .replace(/(?<!^)(•|\-|\*|\▪)/g, '\n$1');
+    .replace(/([•▪◦⁃‣])|(?<=\s|^)\-(?=\s)|(?<=\s|^)\*(?=\s)/g, '\n$1');
 
   const lines = text
     .split(/\r?\n/)
