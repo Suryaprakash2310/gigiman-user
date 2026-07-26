@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +19,14 @@ import { useTheme } from '../theme/useTheme';
 import AppHeader from '../components/ui/AppHeader';
 import AppText from '../components/ui/AppText';
 import AppButton from '../components/ui/AppButton';
+import { useAuthContext } from '../context/AuthContext';
 
 export default function CartScreen({ navigation }: any) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
+  const { user } = useAuthContext();
+  const isRegionAllowed = user?.isRegionAllowed !== false && user?.regionAllowed !== false;
   const {
     cartItems,
     totalPrice,
@@ -100,6 +104,10 @@ export default function CartScreen({ navigation }: any) {
   };
 
   const handleProceed = (domainId?: string) => {
+    if (!isRegionAllowed) {
+      Alert.alert("Booking Unavailable", "Booking is not allowed in your region.");
+      return;
+    }
     if (domainId) {
       navigation.navigate('Booking', {
         serviceCategoryId: 'cart',
@@ -317,12 +325,18 @@ export default function CartScreen({ navigation }: any) {
                         <AppText size="small" color="textMuted">Subtotal ({group.items.length} items)</AppText>
                         <AppText weight="bold" size="body" color="primary">₹{groupTotalPrice}</AppText>
                       </View>
-                      <AppButton
-                        title={`Book ${group.domainName} →`}
-                        variant="secondary"
-                        onPress={() => handleProceed(group.domainId)}
-                        style={styles.groupCheckoutBtn}
-                      />
+                      {isRegionAllowed ? (
+                        <AppButton
+                          title={`Book ${group.domainName} →`}
+                          variant="secondary"
+                          onPress={() => handleProceed(group.domainId)}
+                          style={styles.groupCheckoutBtn}
+                        />
+                      ) : (
+                        <AppText size="small" color="danger" weight="semibold" style={{ textAlign: 'right', marginTop: 4 }}>
+                          Unavailable in your region
+                        </AppText>
+                      )}
                     </View>
                   )}
                 </View>
@@ -341,12 +355,21 @@ export default function CartScreen({ navigation }: any) {
               </AppText>
             </View>
 
-            <AppButton
-              title="Proceed to Checkout →"
-              variant="primary"
-              onPress={() => handleProceed()}
-              style={styles.checkoutBtn}
-            />
+            {isRegionAllowed ? (
+              <AppButton
+                title="Proceed to Checkout →"
+                variant="primary"
+                onPress={() => handleProceed()}
+                style={styles.checkoutBtn}
+              />
+            ) : (
+              <View style={styles.unavailableContainer}>
+                <Ionicons name="alert-circle-outline" size={20} color={theme.colors.danger || '#FF3B30'} />
+                <AppText size="small" color="danger" weight="semibold" style={{ marginLeft: 6 }}>
+                  Booking is unavailable in your region
+                </AppText>
+              </View>
+            )}
           </View>
 
           {/* 5. Checkout Selection Modal */}
@@ -669,5 +692,16 @@ const createStyles = (theme: any) =>
       marginVertical: 6,
       borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    unavailableContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: `${theme.colors.danger || '#FF3B30'}15`,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginTop: 8,
+      width: '100%',
     },
   });

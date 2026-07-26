@@ -18,6 +18,8 @@ export interface Address {
   isDefault?: boolean;
   latitude?: number;
   longitude?: number;
+  isRegionAllowed?: boolean;
+  regionAllowed?: boolean;
 }
 
 interface Props {

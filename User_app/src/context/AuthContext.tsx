@@ -21,6 +21,8 @@ export type AuthUser = {
   address?: string;
   isVerified?: boolean;
   profileCompleted?: boolean;
+  isRegionAllowed?: boolean;
+  regionAllowed?: boolean;
   location?: {
     type: "Point";
     coordinates: [number, number]; // [lng, lat]
@@ -99,6 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 avatar: res.user.avatar || parsedUser.avatar || undefined,
                 isVerified: true,
                 profileCompleted: true,
+                isRegionAllowed: (res.user as any).isRegionAllowed !== undefined ? (res.user as any).isRegionAllowed : (res.user as any).regionAllowed,
+                regionAllowed: (res.user as any).regionAllowed,
               };
               setUser(updatedUser);
               setAccessToken(savedAccess);

@@ -33,6 +33,8 @@ export default function SavedAddressesScreen() {
       latitude: a.location?.coordinates?.[1] ?? a.latitude,
       longitude: a.location?.coordinates?.[0] ?? a.longitude,
       isDefault: a.isDefault || a.is_default || false,
+      isRegionAllowed: a.isRegionAllowed !== undefined ? a.isRegionAllowed : a.regionAllowed,
+      regionAllowed: a.regionAllowed,
     }));
   };
 
