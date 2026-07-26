@@ -1,31 +1,27 @@
+import { socket } from '@/src/socket/socket';
+import { injectRazorpayData } from '@/src/utils/razorpayInjector';
+import { razorpayHTML } from '@/src/utils/razorpayTemplate';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import CryptoJS from 'crypto-js';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
   Image,
+  Modal,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
-  Modal,
+  View
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CryptoJS from 'crypto-js';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { WebView } from 'react-native-webview';
-import { razorpayHTML } from '@/src/utils/razorpayTemplate';
-import { injectRazorpayData } from '@/src/utils/razorpayInjector';
-import { socket } from '@/src/socket/socket';
 
 import apiClient from '@/src/api/client';
 import AppButton from '@/src/components/ui/AppButton';
@@ -34,15 +30,15 @@ import AppText from '@/src/components/ui/AppText';
 import CalendarModal from '@/src/components/ui/CalendarModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-import { ServiceAPI } from '@/src/api/service.api';
 import { CouponAPI } from '@/src/api/coupon.api';
+import { ServiceAPI } from '@/src/api/service.api';
 import { useAuthContext } from '@/src/context/AuthContext';
-import { useCartContext } from '@/src/context/CartContext';
 import { useBooking } from '@/src/context/BookingContext';
+import { useCartContext } from '@/src/context/CartContext';
 import { useTheme } from '@/src/theme/useTheme';
 import { BOOKING_TYPE } from '@/src/utils/enums/BookingType';
 import { FEES } from '@/src/utils/enums/Fees';
-import { getCurrentLocation, getAddressFromCoords } from '@/src/utils/location';
+import { getAddressFromCoords, getCurrentLocation } from '@/src/utils/location';
 
 import BookingModeSelector from '@/src/components/booking/BookingModeSelector';
 import QuantitySelector from '@/src/components/booking/QuantitySelector';
@@ -52,7 +48,7 @@ import ServiceHeader from '@/src/components/booking/ServiceHeader';
 import { AppTabsParamList } from '@/src/navigation/AppStack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getStatusBadgeConfig, isComingSoon } from '@/src/utils/serviceStatus';
+import { isComingSoon } from '@/src/utils/serviceStatus';
 
 type Nav = BottomTabNavigationProp<AppTabsParamList, 'BookingTab'>;
 
@@ -369,12 +365,12 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         const isScheduled = bookingMode === 'schedule';
         const scheduleDateTime = isScheduled && selectedDate && selectedTime
           ? new Date(
-              selectedDate.getFullYear(),
-              selectedDate.getMonth(),
-              selectedDate.getDate(),
-              selectedTime.getHours(),
-              selectedTime.getMinutes()
-            )
+            selectedDate.getFullYear(),
+            selectedDate.getMonth(),
+            selectedDate.getDate(),
+            selectedTime.getHours(),
+            selectedTime.getMinutes()
+          )
           : null;
 
         upsertBooking({
@@ -611,12 +607,9 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   }, [user, category, bookingMode, selectedDate, selectedTime, quantity, appliedCoupon, navigation, upsertBooking, paymentType, selectedAddress]);
 
   const handleBack = useCallback(() => {
-    if (fromMain) {
-      // If reached directly from Home, navigate back to the Home screen
-      navigation.navigate('HomeTab');
-    } else {
-      navigation.goBack();
-    }
+
+    navigation.goBack();
+
   }, [fromMain, navigation]);
 
   // Loading state
@@ -867,7 +860,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         {/* Bill Details Card */}
         <Animated.View entering={FadeInDown.delay(550).duration(400)} style={styles.billDetailsCard}>
           <AppText weight="bold" style={{ marginBottom: 12 }}>Bill Details</AppText>
-          
+
           <View style={styles.billRow}>
             <AppText color="textMuted">Item Total</AppText>
             <AppText weight="semibold">₹{totalPrice}</AppText>
