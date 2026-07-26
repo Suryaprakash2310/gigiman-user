@@ -1,24 +1,23 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  RefreshControl,
-  SafeAreaView,
-  Platform,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServiceAPI } from '@/src/api/service.api';
-import AppHeader from '@/src/components/ui/AppHeader';
-import AppText from '@/src/components/ui/AppText';
-import { useTheme } from '@/src/theme/useTheme';
-import { Ionicons } from '@expo/vector-icons';
 import CategoryCard from '@/src/components/service/CategoryCard';
 import CategoryCardSkeleton from '@/src/components/service/CategoryCardSkeleton';
+import AppHeader from '@/src/components/ui/AppHeader';
+import AppText from '@/src/components/ui/AppText';
 import { useCartContext } from '@/src/context/CartContext';
+import { useTheme } from '@/src/theme/useTheme';
 import { isComingSoon, sortServicesByAvailability } from '@/src/utils/serviceStatus';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface CategoryItem {
   _id: string;
@@ -43,7 +42,7 @@ export default function ServiceCategory({ route, navigation }: any) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
-  
+
   const { cartItems, addToCart, fetchCart } = useCartContext();
 
   const [state, setState] = useState<CategoryState>({
@@ -64,7 +63,7 @@ export default function ServiceCategory({ route, navigation }: any) {
       if (domainId) {
         const res = await ServiceAPI.getSubServicesByDomainId(domainId);
         const services = res?.services || [];
-        const svc = services.find((s: any) => s.serviceName === serviceName); 
+        const svc = services.find((s: any) => s.serviceName === serviceName);
         const cats = (svc?.serviceCategory || []) as CategoryItem[];
         const sortedCats = sortServicesByAvailability(cats);
         setState((prev) => ({
@@ -140,9 +139,8 @@ export default function ServiceCategory({ route, navigation }: any) {
       </AppText>
       <AppText size="small" color="textMuted" style={styles.headerSubtitle}>
         {state.items.length > 0
-          ? `${state.items.length} option${
-              state.items.length !== 1 ? 's' : ''
-            } available`
+          ? `${state.items.length} option${state.items.length !== 1 ? 's' : ''
+          } available`
           : 'Loading options...'}
       </AppText>
     </View>
@@ -201,7 +199,7 @@ export default function ServiceCategory({ route, navigation }: any) {
         { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
       ]}
     >
-      <AppHeader showBack title={serviceName} />
+      <AppHeader showBack onBackPress={() => navigation.navigate('MainServiceScreen')} title={serviceName} />
       <View style={{ flex: 1 }}>
         <FlatList
           style={{ flex: 1 }}
