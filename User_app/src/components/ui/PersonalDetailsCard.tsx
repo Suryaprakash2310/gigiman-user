@@ -177,7 +177,7 @@ export default function PersonalDetailsCard({
                 <AppButton
                     title="Save Changes"
                     onPress={handleSave}
-                    style={{ backgroundColor: theme.colors.success, width: '100%' }}
+                    style={{ backgroundColor: theme.colors.primary, width: '100%' }}
                 />
             </View>
         </View>

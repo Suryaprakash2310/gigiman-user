@@ -159,6 +159,50 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken]);
 
+  // Load cached bookings from AsyncStorage on mount / auth change
+  useEffect(() => {
+    const loadCachedBookings = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("gg_cached_bookings");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setRawBookings(parsed);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load cached bookings from AsyncStorage:", err);
+      }
+    };
+    if (accessToken) {
+      loadCachedBookings();
+    }
+  }, [accessToken]);
+
+  // Save bookings to AsyncStorage on changes
+  useEffect(() => {
+    const saveCachedBookings = async () => {
+      try {
+        if (rawBookings.length > 0) {
+          await AsyncStorage.setItem("gg_cached_bookings", JSON.stringify(rawBookings));
+        } else if (accessToken) {
+          await AsyncStorage.removeItem("gg_cached_bookings");
+        }
+      } catch (err) {
+        console.warn("Failed to cache bookings in AsyncStorage:", err);
+      }
+    };
+    saveCachedBookings();
+  }, [rawBookings, accessToken]);
+
+  // Clear cache and raw bookings on logout
+  useEffect(() => {
+    if (!accessToken) {
+      setRawBookings([]);
+      AsyncStorage.removeItem("gg_cached_bookings").catch(() => {});
+    }
+  }, [accessToken]);
+
   // Sync manual assignments on rawBookings changes (without deleting saved assignments)
   useEffect(() => {
     const updateStorage = async () => {
@@ -431,6 +475,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const resetBookings = () => {
     setRawBookings([]);
+    AsyncStorage.removeItem("gg_cached_bookings").catch(() => {});
   };
 
   /* ============================= */

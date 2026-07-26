@@ -26,7 +26,11 @@ const ScheduleBooking: React.FC<ScheduleBookingProps> = () => {
     // @ts-ignore
     const { serviceName } = route.params || { serviceName: "Service" };
 
-    const [date, setDate] = useState(new Date());
+    const [date, setDate] = useState(() => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow;
+    });
     const [time, setTime] = useState(new Date());
     const [showCalendar, setShowCalendar] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
@@ -73,6 +77,20 @@ const ScheduleBooking: React.FC<ScheduleBookingProps> = () => {
 
     const handleBook = () => {
         if (validate()) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const chosenDate = new Date(date);
+            chosenDate.setHours(0, 0, 0, 0);
+
+            if (chosenDate.getTime() <= today.getTime()) {
+                Alert.alert(
+                    "Invalid Date",
+                    "Scheduled bookings must be booked at least one day (24 hours) in advance. Please select tomorrow or a later date."
+                );
+                return;
+            }
+
             Alert.alert(
                 "Booking Confirmed",
                 `Service: ${serviceName}\nDate: ${date.toDateString()}\nTime: ${time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\nAddress: ${address}, ${city}, ${zip}`,
@@ -130,6 +148,11 @@ const ScheduleBooking: React.FC<ScheduleBookingProps> = () => {
                             onClose={() => setShowCalendar(false)}
                             onSelect={(newDate) => setDate(newDate)}
                             selectedDate={date}
+                            minDate={(() => {
+                                const d = new Date();
+                                d.setDate(d.getDate() + 1);
+                                return d;
+                            })()}
                         />
                     </View>
 

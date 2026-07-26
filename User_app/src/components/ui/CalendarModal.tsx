@@ -15,6 +15,7 @@ interface CalendarModalProps {
     onClose: () => void;
     onSelect: (date: Date) => void;
     selectedDate: Date | null;
+    minDate?: Date;
 }
 
 const months = [
@@ -24,7 +25,7 @@ const months = [
 
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function CalendarModal({ visible, onClose, onSelect, selectedDate }: CalendarModalProps) {
+export default function CalendarModal({ visible, onClose, onSelect, selectedDate, minDate }: CalendarModalProps) {
     const { theme } = useTheme();
 
     // State for the currently displayed month/year
@@ -48,10 +49,10 @@ export default function CalendarModal({ visible, onClose, onSelect, selectedDate
         const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + increment, 1);
 
         const today = new Date();
-        const minDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        const minViewDate = new Date(today.getFullYear(), today.getMonth(), 1);
         const maxDate = new Date(today.getFullYear(), today.getMonth() + 1, 1); // Next month
 
-        if (newDate < minDate || newDate > maxDate) return;
+        if (newDate < minViewDate || newDate > maxDate) return;
 
         setViewDate(newDate);
     };
@@ -78,10 +79,10 @@ export default function CalendarModal({ visible, onClose, onSelect, selectedDate
         // Days of current month
         for (let i = 1; i <= daysInMonth; i++) {
             const currentDate = new Date(year, month, i);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); // Normalize today to midnight
+            const limitDate = minDate ? new Date(minDate) : new Date();
+            limitDate.setHours(0, 0, 0, 0); // Normalize to midnight
 
-            const isPast = currentDate < today;
+            const isPast = currentDate < limitDate;
 
             const isSelected = selectedDate &&
                 selectedDate.getDate() === i &&
@@ -139,10 +140,10 @@ export default function CalendarModal({ visible, onClose, onSelect, selectedDate
 
     // Navigation constraints
     const today = new Date();
-    const minDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    const minNavDate = new Date(today.getFullYear(), today.getMonth(), 1);
     const maxDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 
-    const canGoBack = viewDate > minDate;
+    const canGoBack = viewDate > minNavDate;
     const canGoForward = viewDate < maxDate;
 
     return (

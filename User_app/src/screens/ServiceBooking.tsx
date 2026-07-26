@@ -479,12 +479,28 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       return;
     }
 
-    if (bookingMode === 'schedule' && (!selectedDate || !selectedTime)) {
-      Alert.alert(
-        'Schedule Required',
-        'Please select both date and time for scheduled booking'
-      );
-      return;
+    if (bookingMode === 'schedule') {
+      if (!selectedDate || !selectedTime) {
+        Alert.alert(
+          'Schedule Required',
+          'Please select both date and time for scheduled booking'
+        );
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const chosenDate = new Date(selectedDate);
+      chosenDate.setHours(0, 0, 0, 0);
+
+      if (chosenDate.getTime() <= today.getTime()) {
+        Alert.alert(
+          'Invalid Date',
+          'Scheduled bookings must be booked at least one day (24 hours) in advance. Please select tomorrow or a later date.'
+        );
+        return;
+      }
     }
 
     try {
@@ -955,6 +971,11 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         selectedDate={selectedDate}
         onClose={() => setShowCalendar(false)}
         onSelect={setSelectedDate}
+        minDate={(() => {
+          const d = new Date();
+          d.setDate(d.getDate() + 1);
+          return d;
+        })()}
       />
 
       {showTimePicker && (
