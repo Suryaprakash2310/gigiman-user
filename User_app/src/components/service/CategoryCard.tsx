@@ -52,7 +52,6 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  const cleanDescription = description?.replace(/<[^>]*>?/gm, '');
   const badgeConfig = getStatusBadgeConfig(status);
   const comingSoon = isComingSoon(status);
 
@@ -144,17 +143,6 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                 </View>
               )}
             </View>
-
-            {cleanDescription && (
-              <AppText
-                size="small"
-                color="textMuted"
-                numberOfLines={2}
-                style={styles.description}
-              >
-                {cleanDescription}
-              </AppText>
-            )}
           </View>
 
           <View style={styles.detailsRow}>
