@@ -117,6 +117,7 @@ const BookingContext = createContext<BookingContextType | null>(null);
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [rawBookings, setRawBookings] = useState<BookingItem[]>([]);
   const [manualAssignments, setManualAssignments] = useState<Record<string, Partial<BookingItem>>>({});
+  const cacheLoadedRef = React.useRef(false);
 
   const bookings = useMemo(() => {
     return rawBookings.map(b => {
@@ -172,15 +173,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.warn("Failed to load cached bookings from AsyncStorage:", err);
+      } finally {
+        cacheLoadedRef.current = true;
       }
     };
     if (accessToken) {
       loadCachedBookings();
+    } else {
+      cacheLoadedRef.current = true;
     }
   }, [accessToken]);
 
   // Save bookings to AsyncStorage on changes
   useEffect(() => {
+    if (!cacheLoadedRef.current) return;
+
     const saveCachedBookings = async () => {
       try {
         if (rawBookings.length > 0) {
@@ -485,11 +492,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const upcoming = useMemo(
     () =>
       bookings.filter(
-        b =>
-          b.isScheduled &&
-          b.status === "scheduled" &&
-          b.scheduleDateTime &&
-          new Date(b.scheduleDateTime) > new Date()
+        b => b.status === "scheduled"
       ),
     [bookings]
   );

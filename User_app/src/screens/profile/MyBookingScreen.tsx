@@ -49,10 +49,7 @@ export default function MyBookingsScreen() {
   }, []);
 
   const handleCardPress = (item: BookingItem) => {
-    navigation.navigate("BookingTab", {
-      screen: "BookingDetails",
-      params: { bookingId: item._id }
-    });
+    navigation.navigate("BookingDetails", { bookingId: item._id });
   };
 
   const handleBack = () => {

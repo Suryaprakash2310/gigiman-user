@@ -613,7 +613,12 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.safe}>
+      <View
+        style={[
+          styles.safe,
+          { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+        ]}
+      >
         <AppHeader showBack onBackPress={handleBack} title="Service Details" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -628,7 +633,12 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   // Error state
   if (!category) {
     return (
-      <View style={styles.safe}>
+      <View
+        style={[
+          styles.safe,
+          { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+        ]}
+      >
         <AppHeader showBack onBackPress={handleBack} title="Service Details" />
         <View style={styles.errorContainer}>
           <Ionicons

@@ -116,7 +116,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         setUnreadCount(0);
       }
     } catch (error) {
-      console.log("Error marking notifications as read:", error);
+      // Error marking notifications as read
     }
   };
 
@@ -139,7 +139,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await NotificationAPI.markSingleAsRead(id);
     } catch (error) {
-      console.log("Error marking notification as read:", error);
+      // Error marking single notification as read
     }
   };
 
@@ -168,8 +168,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           badge: true,
           sound: false,
         })
-        .catch((err: any) => {
-          console.log("Failed to set foreground notification options", err);
+        .catch(() => {
+          // Failed to set options
         });
     }
   }, []);
@@ -249,7 +249,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // FCM Push Notifications Listener in Foreground
   useEffect(() => {
     const unsubscribe = messaging().onMessage(async (remoteMessage: any) => {
-      console.log("Foreground FCM Push Notification Received:", remoteMessage);
       if (remoteMessage.notification) {
         // Extract database notification ID sent from backend to check for duplicates
         const notifId = remoteMessage.data?.notificationId || remoteMessage.messageId || String(Date.now());

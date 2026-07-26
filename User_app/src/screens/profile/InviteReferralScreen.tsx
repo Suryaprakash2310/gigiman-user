@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import AppText from '@/src/components/ui/AppText';
 import AppButton from '@/src/components/ui/AppButton';
@@ -22,13 +23,34 @@ export default function InviteReferralScreen() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const loadCachedStats = async () => {
+            try {
+                const cached = await AsyncStorage.getItem('gg_referral_stats');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    setReferralCode(parsed.referralCode || 'GIGI');
+                    setFriendsJoined(parsed.referralCount || 0);
+                    setRewardsEarned(parsed.rewardsEarned || 0);
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.warn('Failed to load cached referral stats:', err);
+            }
+        };
+
         const fetchReferralStats = async () => {
             try {
                 const res = await ProfileAPI.getReferralStatsAPI();
                 if (res && res.success) {
-                    setReferralCode(res.referralCode || 'GIGI');
-                    setFriendsJoined(res.referralCount || 0);
-                    setRewardsEarned(res.rewardsEarned || 0);
+                    const stats = {
+                        referralCode: res.referralCode || 'GIGI',
+                        referralCount: res.referralCount || 0,
+                        rewardsEarned: res.rewardsEarned || 0
+                    };
+                    setReferralCode(stats.referralCode);
+                    setFriendsJoined(stats.referralCount);
+                    setRewardsEarned(stats.rewardsEarned);
+                    await AsyncStorage.setItem('gg_referral_stats', JSON.stringify(stats));
                 }
             } catch (error) {
                 console.error('Error fetching referral stats:', error);
@@ -36,7 +58,13 @@ export default function InviteReferralScreen() {
                 setLoading(false);
             }
         };
-        fetchReferralStats();
+
+        const init = async () => {
+            await loadCachedStats();
+            await fetchReferralStats();
+        };
+
+        init();
     }, []);
 
     const handleBack = () => {
@@ -52,7 +80,7 @@ export default function InviteReferralScreen() {
             }
             await Share.share(content);
         } catch (error: any) {
-            console.log('Error sharing:', error);
+            // Error sharing
         }
     };
 

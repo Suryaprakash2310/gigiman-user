@@ -31,6 +31,16 @@ export default function AppButton({
   textStyle,
 }: Props) {
   const { theme } = useTheme();
+  const lastPressTime = React.useRef(0);
+
+  const handlePress = () => {
+    const now = Date.now();
+    if (now - lastPressTime.current < 600) {
+      return; // Ignore rapid double-taps
+    }
+    lastPressTime.current = now;
+    onPress();
+  };
 
   const background =
     variant === 'primary'
@@ -49,7 +59,7 @@ export default function AppButton({
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled || loading}
       activeOpacity={0.8}
       style={[

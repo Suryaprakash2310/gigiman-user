@@ -15,6 +15,7 @@ import CreateTicketScreen from '@/src/screens/CreateTicketScreen';
 import SupportTicketsScreen from '@/src/screens/SupportTicketsScreen';
 import TicketDetailScreen from '@/src/screens/TicketDetailScreen';
 import InviteReferralScreen from '@/src/screens/profile/InviteReferralScreen';
+import BookingOtp from '@/src/screens/BookingOtp';
 
 // Placeholder
 
@@ -41,6 +42,7 @@ export default function ProfileStack() {
       <Stack.Screen name="SupportTicketsScreen" component={SupportTicketsScreen} />
       <Stack.Screen name="TicketDetailScreen" component={TicketDetailScreen} />
       <Stack.Screen name="InviteReferralScreen" component={InviteReferralScreen} />
+      <Stack.Screen name="BookingDetails" component={BookingOtp} />
     </Stack.Navigator>
   );
 }

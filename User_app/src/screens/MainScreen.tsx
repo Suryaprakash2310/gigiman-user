@@ -83,7 +83,7 @@ export default function HomeScreen() {
         setPopularServices(popularRes);
         setBanners(bannersRes);
       } catch (e) {
-        console.log("data load error", e);
+        // data load error
       } finally {
         setLoadingPopular(false);
         setLoadingBanners(false);

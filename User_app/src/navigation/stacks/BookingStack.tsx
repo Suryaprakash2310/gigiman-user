@@ -10,7 +10,7 @@ import ReviewScreen from "@/src/screens/ReviewScreen";
 export type BookingParamList = {
   BookingsMain: { activeTab?: string };
   Searching: { bookingId: string };
-  BookingDetails: { bookingId: string };
+  BookingDetails: { bookingId: string; activeTab?: string };
   Review: { bookingId: string };
   //LiveTracking: { bookingId: string };
 };

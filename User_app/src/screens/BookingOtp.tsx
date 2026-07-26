@@ -53,9 +53,10 @@ export default function BookingOtp() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const route = useRoute<DetailsRoute>();
-  const { bookingId } = route.params;
+  const { bookingId, activeTab } = route.params;
   const { getBookingById, upsertBooking, cancelBooking, updateBookingItem } = useBooking();
 
+  const [loading, setLoading] = useState(true);
   const booking = getBookingById(bookingId);
   
   const paymentAmount = booking
@@ -100,7 +101,6 @@ export default function BookingOtp() {
 
   const handleOpenAddExtraModal = async () => {
     setShowAddExtraModal(true);
-    console.log("DEBUG: handleOpenAddExtraModal booking = ", JSON.stringify(booking));
     if (availableExtras.length === 0) {
       try {
         setLoadingExtras(true);
@@ -175,11 +175,6 @@ export default function BookingOtp() {
       setSubmittingExtra(true);
 
       const rawBookingId = String(booking._id);
-      console.log(`[Flow Step 1] handleAddExtraServicesSubmit starting:`, {
-        bookingId: rawBookingId,
-        selectedExtras,
-        selectedExtrasList,
-      });
 
       const itemsToSubmit = selectedExtrasList
         .map(item => {
@@ -206,23 +201,14 @@ export default function BookingOtp() {
           status: string;
         }>;
 
-      console.log(`[Flow Step 1] itemsToSubmit constructed:`, itemsToSubmit);
-
-      if (itemsToSubmit.length === 0) {
-        Alert.alert("Error", "Selected extra services are invalid or missing IDs.");
-        return;
-      }
-
       // 1. API Call to backend (/booking/extra/propose and /booking/extra/approve)
       for (const item of itemsToSubmit) {
         const proposePayload = {
           bookingId: rawBookingId,
           serviceCategoryId: item.serviceCategoryId,
         };
-        console.log(`[Flow Step 2] POST /booking/extra/propose payload:`, proposePayload);
 
         const proposeRes = await api.post(`/booking/extra/propose`, proposePayload);
-        console.log(`[Flow Step 2] POST /booking/extra/propose res:`, proposeRes.data);
 
         const extraService = proposeRes.data?.extraService;
         if (extraService && extraService._id) {
@@ -231,10 +217,8 @@ export default function BookingOtp() {
             extraServiceId: String(extraService._id),
             approve: true,
           };
-          console.log(`[Flow Step 3] POST /booking/extra/approve payload:`, approvePayload);
 
           const approveRes = await api.post(`/booking/extra/approve`, approvePayload);
-          console.log(`[Flow Step 3] POST /booking/extra/approve res:`, approveRes.data);
         }
       }
 
@@ -263,14 +247,6 @@ export default function BookingOtp() {
         updatedRemainingAmount = Math.max(0, updatedPrice - advance);
       }
 
-      console.log(`[Flow Step 8] Updating BookingContext optimistically:`, {
-        bookingId: rawBookingId,
-        extraServices: updatedExtras,
-        totalPrice: updatedPrice,
-        remainingAmount: updatedRemainingAmount,
-        durationInMinutes: updatedDuration
-      });
-
       updateBookingItem(rawBookingId, {
         extraServices: updatedExtras,
         totalPrice: updatedPrice,
@@ -279,7 +255,6 @@ export default function BookingOtp() {
       });
 
       // 4. Refetch booking details from server
-      console.log(`[Flow Step 6] Calling GET /booking/${rawBookingId}`);
       await fetchBooking();
 
       setShowAddExtraModal(false);
@@ -516,26 +491,12 @@ export default function BookingOtp() {
   // Fetch full booking from API to ensure technician name is available
   const fetchBooking = async () => {
     try {
-      console.log(`[Flow Step 6] API GET /booking/${bookingId}`);
+      setLoading(true);
       const res = await api.get(`/booking/${bookingId}`);
-      console.log(`[Flow Step 6] GET /booking/${bookingId} raw response:`, res.data);
 
       const rawBooking = res.data?.booking || res.data?.data || res.data;
       if (rawBooking && (rawBooking._id || rawBooking.id)) {
-        console.log(`[Flow Step 7] Validating backend booking data fields:`, {
-          extraServices: rawBooking.extraServices,
-          cartItems: rawBooking.cartItems,
-          totalPrice: rawBooking.totalPrice,
-          remainingAmount: rawBooking.remainingAmount,
-          durationInMinutes: rawBooking.durationInMinutes,
-          paymentStatus: rawBooking.paymentStatus,
-          paymentType: rawBooking.paymentType,
-          status: rawBooking.status,
-          domainService: rawBooking.domainService,
-        });
-
         const mapped = mapBookingToBookingItem(rawBooking);
-        console.log(`[Flow Step 7] Mapped booking item:`, mapped);
 
         const currentBooking = bookingRef.current;
         upsertBooking({
@@ -547,6 +508,8 @@ export default function BookingOtp() {
       }
     } catch (err: any) {
       console.warn("Failed to fetch booking details:", err?.message || err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -557,7 +520,6 @@ export default function BookingOtp() {
 
   useEffect(() => {
     const onExtraResponse = (data: any) => {
-      console.log("[Socket Event] extra-service-response received:", data);
       if (!data || String(data.bookingId) !== String(bookingId)) return;
 
       const currentBooking = bookingRef.current;
@@ -591,7 +553,6 @@ export default function BookingOtp() {
 
   useEffect(() => {
     const onExtraServiceProposed = (data: any) => {
-      console.log("[Socket Event] extra-service-proposed received:", data);
       if (!data || String(data.bookingId) !== String(bookingId)) return;
 
       const currentBooking = bookingRef.current;
@@ -646,7 +607,13 @@ export default function BookingOtp() {
 
   useEffect(() => {
     const onBackPress = () => {
-      navigation.navigate("BookingsMain", { activeTab: "ongoing" });
+      if (activeTab) {
+        navigation.navigate("BookingsMain", { activeTab });
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("BookingsMain", { activeTab: "ongoing" });
+      }
       return true;
     };
 
@@ -656,7 +623,7 @@ export default function BookingOtp() {
     );
 
     return () => subscription.remove();
-  }, [navigation]);
+  }, [navigation, activeTab]);
 
 
 
@@ -772,6 +739,15 @@ export default function BookingOtp() {
   const primaryTeal = "#0D9488";
 
 
+  if (!booking && loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <AppText style={{ marginTop: 12 }}>Loading booking details...</AppText>
+      </View>
+    );
+  }
+
   if (!booking) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -787,7 +763,13 @@ export default function BookingOtp() {
 
 
   const handleBack = () => {
-    navigation.navigate("BookingsMain", { activeTab: "ongoing" });
+    if (activeTab) {
+      navigation.navigate("BookingsMain", { activeTab });
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("BookingsMain", { activeTab: "ongoing" });
+    }
   };
 
   return (

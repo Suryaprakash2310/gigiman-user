@@ -48,7 +48,6 @@ const OtpScreen: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
       if (user && (user.phoneNumber === `+91${phone}` || user.phoneNumber?.replace(/\s+/g, '') === `+91${phone}`)) {
-        console.log("onAuthStateChanged: user auto-verified in background! Completing login flow.");
         if (isConfirming.current) return;
         isConfirming.current = true;
         try {
@@ -87,7 +86,6 @@ const OtpScreen: React.FC = () => {
             accessToken: data.token,
           });
         } catch (err: any) {
-          console.log("Background auto-login verification error:", err);
           let friendlyMessage = "Background verification failed. Please try manually.";
           if (err.message) {
             friendlyMessage = err.message.replace(/\[auth\/.*?\]\s*/g, '');
@@ -120,7 +118,6 @@ const OtpScreen: React.FC = () => {
       const currentUser = getAuth().currentUser;
 
       if (currentUser && (currentUser.phoneNumber === `+91${phone}` || currentUser.phoneNumber?.replace(/\s+/g, '') === `+91${phone}`)) {
-        console.log("User already verified via auto-verification. Retrieving token directly.");
         userCredential = { user: currentUser };
       } else {
         userCredential = await activeConfirmation.confirm(otp);
@@ -159,7 +156,6 @@ const OtpScreen: React.FC = () => {
       });
 
     } catch (err: any) {
-      console.log("OTP Verification error:", err);
       let friendlyMessage = "Invalid OTP. Please check and try again.";
       if (err.code === 'auth/session-expired' || err.code === 'auth/code-expired') {
         friendlyMessage = "The verification code has expired. Please tap 'Resend' to get a new code.";
@@ -192,7 +188,6 @@ const OtpScreen: React.FC = () => {
       setConfirmationResult(newConfirmation);
       otpRef.current?.reset();
     } catch (err: any) {
-      console.log("OTP Resend error:", err);
       let friendlyMessage = "Failed to resend OTP. Please try again.";
       if (err.code === 'auth/too-many-requests') {
         friendlyMessage = "Too many attempts. Please try again later.";

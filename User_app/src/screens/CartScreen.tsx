@@ -119,7 +119,12 @@ export default function CartScreen({ navigation }: any) {
 
   if (isLoading && cartItems.length === 0) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView
+        style={[
+          styles.safe,
+          { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+        ]}
+      >
         <AppHeader showBack onBackPress={handleBack} title="My Cart" />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />

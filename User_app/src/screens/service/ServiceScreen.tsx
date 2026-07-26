@@ -166,7 +166,12 @@ export default function ServicesScreen({ navigation }: any) {
 
   if (serviceState.loading) {
     return (
-      <View style={styles.safe}>
+      <View
+        style={[
+          styles.safe,
+          { paddingTop: Platform.OS === "android" ? insets.top : 0 },
+        ]}
+      >
         <AppHeader title="Services" showBack />
         <View style={styles.loadingContainer}>
           <AppLoader visible={true} text="Loading services..." />

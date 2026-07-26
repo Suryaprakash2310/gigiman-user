@@ -80,7 +80,7 @@ export default function BookingScreen() {
 
       setHistoryBookings(uniqueMapped);
     } catch (err) {
-      console.log("History fetch error:", err);
+      // History fetch error
     } finally {
       setHistoryLoading(false);
     }
@@ -117,12 +117,12 @@ export default function BookingScreen() {
 
   const handleCardPress = (booking: BookingItem) => {
     if (booking.status === "cancelled") {
-      navigation.navigate("BookingDetails", { bookingId: booking._id });
+      navigation.navigate("BookingDetails", { bookingId: booking._id, activeTab });
       return;
     }
 
     if (booking.assignmentStatus === "FAILED" || booking.status === "manual_assign") {
-      navigation.navigate("BookingDetails", { bookingId: booking._id });
+      navigation.navigate("BookingDetails", { bookingId: booking._id, activeTab });
       return;
     }
 
@@ -136,7 +136,7 @@ export default function BookingScreen() {
       booking.status === "in_progress" ||
       booking.status === "assigned"
     ) {
-      navigation.navigate("BookingDetails", { bookingId: booking._id });
+      navigation.navigate("BookingDetails", { bookingId: booking._id, activeTab });
       return;
     }
 
@@ -146,7 +146,7 @@ export default function BookingScreen() {
     }
 
     if (booking.status === "scheduled") {
-      navigation.navigate("BookingDetails", { bookingId: booking._id });
+      navigation.navigate("BookingDetails", { bookingId: booking._id, activeTab });
       return;
     }
   };
@@ -187,7 +187,13 @@ export default function BookingScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* HEADER */}
       <View style={styles.headerRow}>
-        <AppHeader title="Your Bookings" />
+        <AppHeader
+          title="Your Bookings"
+          showBack={true}
+          onBackPress={() => {
+            navigation.navigate("HomeTab");
+          }}
+        />
       </View>
 
       {/* TABS */}

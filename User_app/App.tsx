@@ -23,10 +23,10 @@ export default function App() {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
           );
-          console.log('Android POST_NOTIFICATIONS status:', granted);
+          // console.log('Android POST_NOTIFICATIONS status:', granted);
         } else {
           const authStatus = await messaging().requestPermission();
-          console.log('FCM Notification permission status:', authStatus);
+          // console.log('FCM Notification permission status:', authStatus);
         }
       } catch (err) {
         console.error('Failed to request notification permission:', err);
@@ -35,7 +35,7 @@ export default function App() {
       try {
         // 2. Request Location Permission
         const { status } = await Location.requestForegroundPermissionsAsync();
-        console.log('Location permission status:', status);
+        // console.log('Location permission status:', status);
         
         if (status === 'granted') {
           // Trigger the native GPS/Location Accuracy enabler popup immediately on startup

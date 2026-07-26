@@ -38,6 +38,14 @@ api.interceptors.response.use(
         // If we can't read the stored user, don't force logout.
       }
     }
+    if (
+      !error.response ||
+      error.message === 'Network Error' ||
+      error.code === 'ERR_NETWORK' ||
+      error?.response?.status >= 500
+    ) {
+      DeviceEventEmitter.emit('SERVER_ERROR_500');
+    }
     return Promise.reject(error);
   }
 );

@@ -34,7 +34,7 @@ export const registerUserFcmToken = async (userAuthToken: string, API_BASE_URL: 
     if (enabled) {
       // 2. Get FCM Device Token
       const fcmToken = await messaging().getToken();
-      console.log("User FCM Token:", fcmToken);
+      // console.log("User FCM Token:", fcmToken);
       // 3. Register FCM token with backend
       const endpoint = API_BASE_URL.endsWith('/api')
         ? `${API_BASE_URL}/notifications/user/fcm-token`

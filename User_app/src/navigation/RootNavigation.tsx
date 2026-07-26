@@ -1,34 +1,33 @@
 // src/navigation/RootNavigator.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View } from 'react-native';
+import { DeviceEventEmitter } from 'react-native';
+import { SplashScreen } from '../screens/SplashScreen';
 
 import { useAuth } from '../hook/useAuth';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
 import GlobalBookingListener from '../socket/GlobalBookingListener';
+import ServerErrorOverlay from '../components/ServerErrorOverlay';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
   const navigationRef = useNavigationContainerRef();
   const { user, isLoading } = useAuth();
+  const [hasServerError, setServerError] = useState(false);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('SERVER_ERROR_500', () => {
+      setServerError(true);
+    });
+    return () => sub.remove();
+  }, []);
 
   // 🔄 Splash / restore
   if (isLoading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#fff',
-        }}
-      >
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <SplashScreen />;
   }
 
   /**
@@ -50,7 +49,13 @@ export default function RootNavigator() {
           <Stack.Screen name="AuthStack" component={AuthStack} />
         )}
       </Stack.Navigator>
-      
+      <ServerErrorOverlay
+        visible={hasServerError}
+        onDismiss={() => {
+          setServerError(false);
+          (navigationRef.current as any)?.navigate("AppStack", { screen: "HomeTab" });
+        }}
+      />
     </NavigationContainer>
   );
 }

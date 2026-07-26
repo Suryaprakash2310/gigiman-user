@@ -44,7 +44,7 @@ export default function ProfileScreen() {
           await AsyncStorage.setItem('gg_user', JSON.stringify(updatedUser));
         }
       } catch (error) {
-        console.log('Error fetching profile:', error);
+        // Error fetching profile
       }
     };
     fetchProfile();
