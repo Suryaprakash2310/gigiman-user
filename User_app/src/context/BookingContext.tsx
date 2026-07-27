@@ -391,18 +391,35 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchInitialBookings = React.useCallback(async () => {
-    try {
-      const [active, scheduled] = await Promise.all([
-        BookingAPI.getActiveBookings(),
-        BookingAPI.getScheduledBookings()
-      ]);
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 5000; // 5s between retries (handles Render cold start)
 
-      const activeMapped = (active || []).map((b: any) => mapBookingToBookingItem(b));
-      const scheduledMapped = (scheduled || []).map((b: any) => mapBookingToBookingItem(b));
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const [active, scheduled] = await Promise.all([
+          BookingAPI.getActiveBookings(),
+          BookingAPI.getScheduledBookings()
+        ]);
 
-      setRawBookings([...activeMapped, ...scheduledMapped]);
-    } catch (err) {
-      console.warn("Booking fetch failed:", err);
+        const activeMapped = (active || []).map((b: any) => mapBookingToBookingItem(b));
+        const scheduledMapped = (scheduled || []).map((b: any) => mapBookingToBookingItem(b));
+
+        setRawBookings([...activeMapped, ...scheduledMapped]);
+        return; // ✅ Success — stop retrying
+      } catch (err: any) {
+        const isNetworkError =
+          !err?.response ||
+          err?.message === 'Network Error' ||
+          err?.code === 'ERR_NETWORK';
+
+        if (isNetworkError && attempt < MAX_RETRIES) {
+          console.warn(`Booking fetch failed (attempt ${attempt}/${MAX_RETRIES}), retrying in ${RETRY_DELAY_MS / 1000}s...`);
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+        } else {
+          console.warn("Booking fetch failed:", err);
+          return; // Give up after max retries or non-network error
+        }
+      }
     }
   }, []);
 

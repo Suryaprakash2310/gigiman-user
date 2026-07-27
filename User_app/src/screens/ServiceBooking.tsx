@@ -430,8 +430,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     try {
       setPaying(true);
 
-      // Create order via backend
-      const response = await apiClient.post(`/booking/createorder/${currentBookingId}`, { paymentType });
+      // Create order via backend (include convenienceFee so the Razorpay order amount matches the UI)
+      const response = await apiClient.post(`/booking/createorder/${currentBookingId}`, { paymentType, convenienceFee });
       const { keyId, orderId, amount } = response.data;
 
       // Inject details into local HTML
