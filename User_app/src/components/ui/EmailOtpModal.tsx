@@ -7,7 +7,6 @@ import {
   Platform,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { sendEmailOtpAPI, verifyEmailOtpAPI } from '@/src/api/email.api';
@@ -90,82 +89,86 @@ export default function EmailOtpModal({ visible, email, onVerified, onDismiss }:
       onRequestClose={handleDismiss}
       statusBarTranslucent
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.overlay}>
-          {/* Tap outside the sheet to dismiss */}
-          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleDismiss} />
+      {/* Full-screen container */}
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
+        {/* Tap outside to dismiss keyboard & modal */}
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={() => {
+            Keyboard.dismiss();
+            handleDismiss();
+          }}
+        />
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.sheetWrapper}
+        {/* Bottom sheet */}
+        <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
+          {/* Handle bar */}
+          <View style={[styles.handleBar, { backgroundColor: theme.colors.border }]} />
+
+          {/* Close button */}
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={handleDismiss}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <View
-              style={[
-                styles.sheet,
-                { backgroundColor: theme.colors.surface },
-              ]}
+            <AppText style={{ color: theme.colors.textMuted, fontSize: 22 }}>✕</AppText>
+          </TouchableOpacity>
+
+          {/* Header */}
+          <AppText size="h3" weight="bold" style={[styles.title, { color: theme.colors.text }]}>
+            Verify your email
+          </AppText>
+
+          <AppText size="body" style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+            We've sent a 6-digit code to{' '}
+            <AppText size="body" weight="semibold" style={{ color: theme.colors.primary }}>
+              {email}
+            </AppText>
+          </AppText>
+
+          {/* OTP Input — auto-verifies when all 6 digits are entered */}
+          <View style={styles.otpWrapper}>
+            <OtpInput
+              ref={otpRef}
+              otpLength={6}
+              resendTime={60}
+              onResend={handleResend}
+              onOtpComplete={(otp) => handleVerify(otp)}
+              onOtpChange={() => {
+                if (error) setError(null);
+              }}
+            />
+          </View>
+
+          {/* Error message */}
+          {error && (
+            <AppText
+              size="body"
+              style={[styles.errorText, { color: theme.colors.danger ?? '#E53E3E' }]}
             >
-              {/* Handle bar */}
-              <View style={[styles.handleBar, { backgroundColor: theme.colors.border }]} />
+              {error}
+            </AppText>
+          )}
 
-              {/* Close button */}
-              <TouchableOpacity style={styles.closeBtn} onPress={handleDismiss} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <AppText style={{ color: theme.colors.textMuted, fontSize: 22 }}>✕</AppText>
-              </TouchableOpacity>
-
-              {/* Header */}
-              <AppText size="h3" weight="bold" style={[styles.title, { color: theme.colors.text }]}>
-                Verify your email
-              </AppText>
-
-              <AppText size="body" style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                We've sent a 6-digit code to
-              </AppText>
-
-              <AppText size="body" weight="semibold" style={[styles.emailText, { color: theme.colors.primary }]}>
-                {email}
-              </AppText>
-
-              {/* OTP Input — auto-verifies when all 6 digits are entered */}
-              <View style={styles.otpWrapper}>
-                <OtpInput
-                  ref={otpRef}
-                  otpLength={6}
-                  resendTime={60}
-                  onResend={handleResend}
-                  onOtpComplete={(otp) => handleVerify(otp)}
-                  onOtpChange={() => {
-                    if (error) setError(null);
-                  }}
-                />
-              </View>
-
-              {/* Error message */}
-              {error && (
-                <AppText
-                  size="body"
-                  style={[styles.errorText, { color: theme.colors.danger ?? '#E53E3E' }]}
-                >
-                  {error}
-                </AppText>
-              )}
-
-              {/* Verify button */}
-              <View style={styles.btnWrapper}>
-                {loading ? (
-                  <ActivityIndicator color={theme.colors.primary} size="large" />
-                ) : (
-                  <AppButton
-                    title="Verify & Save"
-                    onPress={handleVerify}
-                    style={{ backgroundColor: theme.colors.primary, width: '100%' }}
-                  />
-                )}
-              </View>
-            </View>
-          </KeyboardAvoidingView>
+          {/* Verify button */}
+          <View style={styles.btnWrapper}>
+            {loading ? (
+              <ActivityIndicator color={theme.colors.primary} size="large" />
+            ) : (
+              <AppButton
+                title="Verify & Save"
+                onPress={handleVerify}
+                style={{ backgroundColor: theme.colors.primary, width: '100%' }}
+              />
+            )}
+          </View>
         </View>
-      </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -211,10 +214,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   subtitle: {
-    marginBottom: 4,
-  },
-  emailText: {
     marginBottom: 8,
+    flexWrap: 'wrap',
   },
   otpWrapper: {
     marginTop: 8,
