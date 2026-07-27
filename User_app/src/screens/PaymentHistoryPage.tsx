@@ -42,7 +42,7 @@ const TRANSACTIONS = [
         time: '09:00 AM',
         amount: '₹500',
         status: 'Paid' as const,
-        paymentInfo: 'Cash',
+        paymentInfo: 'UPI',
     },
     {
         id: '5',

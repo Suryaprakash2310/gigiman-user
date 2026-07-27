@@ -7,10 +7,11 @@ export const injectRazorpayData = (params: {
   prefillEmail?: string;
   prefillContact?: string;
 }) => {
-  const amountRupees = Math.round(params.amountPaise / 100).toString();
+  const amountPaise = Math.round(params.amountPaise);
+  const amountRupees = (amountPaise / 100).toFixed(2);
   return params.htmlTemplate
     .replace("__KEY__", params.keyId)
-    .replace("__AMOUNT__", String(params.amountPaise))
+    .replace("__AMOUNT__", String(amountPaise))
     .replace("__AMOUNT_RUPEES__", amountRupees)
     .replace("__ORDER_ID__", params.orderId)
     .replace("__PREFILL_NAME__", params.prefillName || "")

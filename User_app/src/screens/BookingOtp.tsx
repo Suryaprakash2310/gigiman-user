@@ -45,6 +45,7 @@ import AppHeader from "../components/ui/AppHeader";
 import { useAuth } from "../hook/useAuth";
 import CancellationModal from "@/src/components/CancellationModal";
 import { socket } from "../socket/socket";
+import { FEES } from "@/src/utils/enums/Fees";
 
 
 type DetailsRoute = RouteProp<BookingParamList, "BookingDetails">;
@@ -59,10 +60,12 @@ export default function BookingOtp() {
   const [loading, setLoading] = useState(true);
   const booking = getBookingById(bookingId);
   
+  const fee = booking?.convenienceFee ?? FEES.CONVENIENCE_FEE;
+  
   const paymentAmount = booking
-    ? booking.remainingAmount && booking.remainingAmount > 0
+    ? booking.paymentStatus === 'partially_paid' && booking.remainingAmount && booking.remainingAmount > 0
       ? booking.remainingAmount
-      : (booking.totalPrice ?? 0)
+      : ((booking.totalPrice ?? 0) + fee)
     : 0;
 
   const paymentLabel = booking
@@ -287,38 +290,6 @@ export default function BookingOtp() {
     setUpiId('');
   };
 
-  const handleBalancePaymentCash = async () => {
-    Alert.alert(
-      "Confirm Cash Collection",
-      "Are you sure you want to record Cash payment for the remaining balance?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm",
-          onPress: async () => {
-            try {
-              setPaying(true);
-              const res = await api.post('/booking/payment/success', {
-                bookingId: bookingId,
-                paymentMethod: 'CASH'
-              });
-              if (res.data && res.data.success) {
-                Alert.alert("Success", "Cash payment recorded. Booking finalized!");
-                await fetchBooking();
-              } else {
-                throw new Error(res.data?.message || "Verification failed");
-              }
-            } catch (err: any) {
-              console.error(err);
-              Alert.alert("Error", err?.response?.data?.message || err.message || "Failed to record cash payment");
-            } finally {
-              setPaying(false);
-            }
-          }
-        }
-      ]
-    );
-  };
 
   const handleWebViewMessage = async (event: any) => {
     try {
@@ -890,7 +861,7 @@ export default function BookingOtp() {
 
 
           {/* 4 Process Booking Tracker */}
-          {booking.status !== 'cancelled' && (booking.paymentType === 'CASH' || (booking.paymentStatus !== 'pending' && booking.paymentStatus !== 'unpaid')) && (
+          {booking.status !== 'cancelled' && (booking.paymentStatus !== 'pending' && booking.paymentStatus !== 'unpaid') && (
             <BookingProcessTracker booking={booking} />
           )}
 
@@ -910,16 +881,6 @@ export default function BookingOtp() {
               </View>
 
               <View style={styles.balanceActionRow}>
-                <TouchableOpacity
-                  style={[styles.balanceBtn, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
-                  onPress={handleBalancePaymentCash}
-                  disabled={paying}
-                >
-                  <AppText weight="semibold" style={{ color: theme.colors.text }}>
-                    Pay via Cash
-                  </AppText>
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   style={[styles.balanceBtn, { backgroundColor: theme.colors.primary }]}
                   onPress={() => setShowPaymentSheet(true)}
@@ -1211,13 +1172,22 @@ export default function BookingOtp() {
                   </View>
                 ))}
 
+                {(booking.convenienceFee ?? FEES.CONVENIENCE_FEE) > 0 && (
+                  <View style={styles.summaryRow}>
+                    <AppText style={{ color: "#475569" }}>Convenience Fee</AppText>
+                    <AppText style={{ color: "#0F172A" }}>
+                      ₹{booking.convenienceFee ?? FEES.CONVENIENCE_FEE}
+                    </AppText>
+                  </View>
+                )}
+
                 <View style={styles.divider} />
                 {booking.paymentStatus === 'partially_paid' && (booking.remainingAmount ?? 0) > 0 ? (
                   <>
                     <View style={styles.summaryRow}>
                       <AppText style={{ color: "#475569" }}>Total Price</AppText>
                       <AppText style={{ color: "#0F172A" }}>
-                        ₹{booking.totalPrice}
+                        ₹{(booking.totalPrice ?? 0) + (booking.convenienceFee ?? FEES.CONVENIENCE_FEE)}
                       </AppText>
                     </View>
                     <View style={styles.summaryRow}>
@@ -1249,7 +1219,7 @@ export default function BookingOtp() {
                     <View style={styles.summaryRow}>
                       <AppText style={{ color: "#0F172A" }} weight="bold">Total Price</AppText>
                       <AppText style={{ color: "#0F172A" }} weight="bold">
-                        ₹{booking.totalPrice}
+                        ₹{(booking.totalPrice ?? 0) + (booking.convenienceFee ?? FEES.CONVENIENCE_FEE)}
                       </AppText>
                     </View>
                     <View style={[styles.summaryRow, { marginTop: 6, alignItems: "center" }]}>

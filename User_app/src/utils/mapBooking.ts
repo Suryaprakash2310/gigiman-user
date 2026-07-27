@@ -233,5 +233,6 @@ export function mapBookingToBookingItem(
         : String(booking.domainServiceId || booking.domainService)
       : undefined,
     cancelReason: booking.cancelReason || booking.cancellationReason || undefined,
+    convenienceFee: booking.convenienceFee != null ? Number(booking.convenienceFee) : undefined,
   };
 }

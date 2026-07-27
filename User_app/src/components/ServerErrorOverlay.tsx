@@ -58,7 +58,7 @@ export default function ServerErrorOverlay({ visible, onDismiss }: ServerErrorOv
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.content}>
           <Image
-            source={require("../../assets/images/server_error.jpg")}
+            source={require("../../assets/images/server_error.png")}
             style={styles.image}
             resizeMode="contain"
           />

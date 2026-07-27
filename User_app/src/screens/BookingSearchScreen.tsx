@@ -147,7 +147,7 @@ export default function BookingSearchScreen() {
           const mapped = mapBookingToBookingItem(res.data.booking);
           upsertBooking(mapped);
 
-          const isOnlineUnpaid = mapped.paymentType !== 'CASH' && (mapped.paymentStatus === 'pending' || mapped.paymentStatus === 'unpaid');
+          const isOnlineUnpaid = (mapped.paymentStatus === 'pending' || mapped.paymentStatus === 'unpaid');
           if (isOnlineUnpaid) {
             setSearchMessage("Waiting for payment...");
           }
@@ -166,7 +166,7 @@ export default function BookingSearchScreen() {
     const booking = bookings.find(b => String(b._id) === String(bookingId));
     if (!booking) return;
 
-    const isOnlineUnpaid = booking.paymentType !== 'CASH' && (booking.paymentStatus === 'pending' || booking.paymentStatus === 'unpaid');
+    const isOnlineUnpaid = (booking.paymentStatus === 'pending' || booking.paymentStatus === 'unpaid');
     if (isOnlineUnpaid) {
       setSearchMessage("Waiting for payment...");
       return;

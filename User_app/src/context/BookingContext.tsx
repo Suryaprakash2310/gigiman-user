@@ -73,6 +73,7 @@ export type BookingItem = {
     quantity: number;
   }[];
   cancelReason?: string;
+  convenienceFee?: number;
 };
 
 export type ServiceProposal = {
