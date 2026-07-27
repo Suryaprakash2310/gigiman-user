@@ -1,429 +1,713 @@
-// src/screens/HomeScreen.tsx
+// src/screens/MainScreen.tsx — FLAGSHIP 2026 REDESIGN
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
   Image,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  useWindowDimensions
+  useWindowDimensions,
 } from "react-native";
-import Animated, { FadeInRight } from "react-native-reanimated";
+import AnimatedRN, {
+  FadeInLeft,
+  FadeInRight
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import AppButton from "@/src/components/ui/AppButton";
 import AppText from "@/src/components/ui/AppText";
-import { useTheme } from "@/src/theme/useTheme";
-import { getStatusBadgeConfig, isComingSoon, sortServicesByAvailability } from "@/src/utils/serviceStatus";
-import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { useNavigation } from "@react-navigation/native";
-import { AppTabsParamList } from "../navigation/AppStack";
-
 import { useAuthContext } from "@/src/context/AuthContext";
 import { useCartContext } from "@/src/context/CartContext";
 import { useNotifications } from "@/src/context/NotificationContext";
+import {
+  getStatusBadgeConfig,
+  isComingSoon,
+  sortServicesByAvailability,
+} from "@/src/utils/serviceStatus";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
 import { getBanners, getPopularServices } from "../api/dashboard.api";
+import { AppTabsParamList } from "../navigation/AppStack";
 
-const SPACING = 20;
-const CARD_RADIUS = 24;
+/* ══════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS  — 2026 Visual Language
+   Each section owns its background. No shared white surface.
+   ══════════════════════════════════════════════════════════════════════ */
+const C = {
+  // ① Hero — Ultra-deep forest green
+  h1: "#04110D",
+  h2: "#0D2A1A",
+  hAccent: "#4ade80",    // vibrant neon-green accent
 
+  // ② Categories — Soft lavender
+  catBg: "#F3EFFF",
+  catAccent: "#0D2A1A", // purple
+
+  // ③ Popular — Midnight cinema
+  popBg: "#07101C",
+  popAccent: "#4ade80",
+
+  // ④ Why — Mint / sage
+  whyBg: "#EDF9F4",
+  whyAccent: "#059669", // emerald
+
+  // ⑤ Reviews — Deep navy
+  revBg: "#0B1422",
+
+  // ⑥ Refer — Amber gold
+  refBg1: "#92400e",
+  refBg2: "#F59E0B",
+};
+
+const CURVE = 44;   // shared border-radius for section transitions
 type Nav = BottomTabNavigationProp<AppTabsParamList, "HomeTab">;
 
-const testimonials = [
-  {
-    name: 'Priya S.',
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    review: 'Great service! The booking was easy and the cleaner was very professional.',
-    rating: 5,
-  },
-  {
-    name: 'Rahul K.',
-    avatar: 'https://randomuser.me/api/portraits/men/36.jpg',
-    review: 'Quick response and excellent support. Highly recommend GigiMan!',
-    rating: 4,
-  },
-  {
-    name: 'Aisha M.',
-    avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
-    review: 'Affordable and reliable. Will use again!',
-    rating: 5,
-  },
+const TESTIMONIALS = [
+  { name: "Sebastin.", avatar: "https://randomuser.me/api/portraits/women/44.jpg", review: "I truly appreciate their hard work and would highly recommend Gigi to anyone looking for reliable and efficient house cleaning services. One of the best cleaning services I have experienced. Thank you, Gigiman Services, for the excellent work!", rating: 5, service: "Deep Cleaning" },
+  { name: "James.", avatar: "https://randomuser.me/api/portraits/men/36.jpg", review: "I recently used Gigi House Cleaning Service, and I am extremel The team was professional, punctual, and paid great attention to detail. Every area of my home was cleaned thoroughly, leaving the house fresh, spotless, and well-organized.", rating: 5, service: "Home Cleaning" },
+  { name: "Aisha M.", avatar: "https://randomuser.me/api/portraits/women/68.jpg", review: "Their dedication, friendly attitude, and high-quality service exceeded my expectations. I truly appreciate their hard work and would highly recommend Gigiman Company to anyone looking for reliable and efficient house cleaning services.", rating: 5, service: "Deep Cleaning" },
 ];
 
+/* ══════════════════════════════════════════════════════════════════════
+   ROOT SCREEN
+   ══════════════════════════════════════════════════════════════════════ */
 export default function HomeScreen() {
-  const { theme } = useTheme();
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-
-  const styles = createStyles(theme);
+  const { user } = useAuthContext();
 
   const [popularServices, setPopularServices] = useState<any[]>([]);
   const [loadingPopular, setLoadingPopular] = useState(true);
-
   const [banners, setBanners] = useState<any[]>([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
 
-  const { user } = useAuthContext();
-
   useEffect(() => {
-    const loadData = async () => {
+    (async () => {
       try {
-        const [popularRes, bannersRes] = await Promise.all([
-          getPopularServices().catch(e => {
-            return [];
-          }),
-          getBanners().catch(e => {
-            return [];
-          })
+        const [pop, ban] = await Promise.all([
+          getPopularServices().catch(() => []),
+          getBanners().catch(() => []),
         ]);
-
-        setPopularServices(popularRes);
-        setBanners(bannersRes);
-      } catch (e) {
-        // data load error
-      } finally {
+        setPopularServices(pop);
+        setBanners(ban);
+      } catch { }
+      finally {
         setLoadingPopular(false);
         setLoadingBanners(false);
       }
-    };
-
-    loadData();
+    })();
   }, []);
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background, paddingTop: insets.top },
-      ]}
-    >
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Header user={user} navigation={navigation} />
+    /* Outer shell — dark matches hero for top overscroll */
+    <View style={{ flex: 1, backgroundColor: C.h1 }}>
+      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-        <Hero navigation={navigation} />
+        {/* ① HERO — Dark Forest, curved bottom */}
+        <HeroSection user={user} navigation={navigation} insets={insets} />
 
-        <QuickActions navigation={navigation} />
+        {/* ② CATEGORIES — Lavender strip (no gap, hero curves into it) */}
+        <View style={{ backgroundColor: C.catBg }}>
+          <CategorySection navigation={navigation} />
+        </View>
 
-        <OffersCarousel banners={banners} loading={loadingBanners} />
+        {/* ③ OFFERS — on lavender, if banners exist */}
+        <View style={{ backgroundColor: C.catBg }}>
+          <OffersSection banners={banners} loading={loadingBanners} />
+        </View>
 
-        <PopularSection
-          navigation={navigation}
-          loading={loadingPopular}
-          services={popularServices}
-        />
+        {/* ④ POPULAR — Midnight, curved top sitting on lavender */}
+        <View style={{ backgroundColor: C.catBg }}>
+          <PopularSection
+            navigation={navigation}
+            loading={loadingPopular}
+            services={popularServices}
+          />
+        </View>
 
-        <SectionHeader title="What Our Users Say" />
+        {/* ⑤ WHY GIGIMAN — Mint, curved top on midnight */}
+        <View style={{ backgroundColor: C.popBg }}>
+          <WhySection />
+        </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: SPACING, paddingBottom: 16 }}
-        >
-          {testimonials.map((review, index) => (
-            <UserReviewCard
-              key={index}
-              review={review}
-              index={index}
-            />
-          ))}
-        </ScrollView>
+        {/* ⑥ REVIEWS — Dark navy, curved top on mint */}
+        <View style={{ backgroundColor: C.whyBg }}>
+          <ReviewsSection />
+        </View>
 
-        <View style={{ height: 40 }} />
+        {/* ⑦ REFER & EARN — Amber, curved top on dark navy */}
+        <View style={{ backgroundColor: C.revBg }}>
+          <ReferSection navigation={navigation} />
+        </View>
+
       </ScrollView>
     </View>
   );
 }
 
-const Header = ({ user, navigation }: any) => {
-  const { theme } = useTheme();
+/* ══════════════════════════════════════════════════════════════════════
+   ① HERO SECTION & TOP APP BAR (Native Mobile App Experience)
+   ══════════════════════════════════════════════════════════════════════ */
+function HeroSection({ user, navigation, insets }: any) {
   const { unreadCount } = useNotifications();
   const { cartItems } = useCartContext();
 
+  // Notification dot pulse
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (unreadCount > 0) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1.3, duration: 500, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 500, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [unreadCount]);
+
+  const userName = user?.fullName?.split(" ")[0] || "Guest";
+
   return (
-    <View style={headerStyles.container}>
-      <View style={{ flex: 1 }}>
-        <AppText weight="bold" size="h2" style={{ color: theme.colors.text }}>
-          Hi, {user?.fullName?.split(" ")[0] || "Guest"}! 👋
-        </AppText>
-        <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
-          Find the best services for your home
-        </AppText>
+    <View style={[hS.shell, { paddingTop: insets.top + 8 }]}>
+      {/* ── TOP APP BAR (Location & Action Icons) ── */}
+      <View style={hS.topBar}>
+        {/* Left: Location & User Greeting */}
+        <View style={hS.locationContainer}>
+          {/* <View style={hS.locationIconBg}>
+            <Ionicons name="location" size={20} color="#4ade80" />
+          </View> */}
+          <View style={{ marginLeft: 10, justifyContent: "center" }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <AppText weight="bold" style={{ color: "#ffffff", fontSize: 20 }}>
+                Hi, {userName}
+              </AppText>
+              {/* <Ionicons name="chevron-down" size={16} color="rgba(255,255,255,0.7)" style={{ marginLeft: 4 }} /> */}
+            </View>
+            {/* <AppText style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 1 }} numberOfLines={1}>
+              Hi, {userName} • Tap to set address
+            </AppText> */}
+          </View>
+        </View>
+
+        {/* Right: Cart & Notifications */}
+        <View style={hS.actionRow}>
+          <Pressable
+            onPress={() => navigation.navigate("ServiceTab", { screen: "CartScreen" } as any)}
+            style={({ pressed }) => [hS.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Ionicons name="cart-outline" size={20} color="#ffffff" />
+            {cartItems.length > 0 && (
+              <View style={hS.badge}>
+                <AppText weight="bold" style={hS.badgeText}>
+                  {cartItems.length > 9 ? "9+" : cartItems.length}
+                </AppText>
+              </View>
+            )}
+          </Pressable>
+
+          <Pressable
+            onPress={() => navigation.navigate("Notifications" as any)}
+            style={({ pressed }) => [hS.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Ionicons name="notifications-outline" size={20} color="#ffffff" />
+            {unreadCount > 0 && (
+              <Animated.View style={[hS.badge, { backgroundColor: "#ef4444", transform: [{ scale: pulse }] }]}>
+                <AppText weight="bold" style={hS.badgeText}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </AppText>
+              </Animated.View>
+            )}
+          </Pressable>
+        </View>
       </View>
 
-      <View style={headerStyles.rightSection}>
-        {/* Cart Icon Button */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate("ServiceTab", { screen: "CartScreen" } as any)}
-          style={[headerStyles.actionBtn, { backgroundColor: theme.colors.surface }]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="cart-outline" size={22} color={theme.colors.button} />
-          {cartItems.length > 0 && (
-            <View style={[headerStyles.badge, { backgroundColor: theme.colors.primary }]}>
-              <AppText
-                weight="bold"
-                style={{
-                  color: "#fff",
-                  fontSize: cartItems.length > 9 ? 8 : 10,
-                  textAlign: "center",
-                  lineHeight: 14,
-                }}
-              >
-                {cartItems.length > 9 ? "9+" : cartItems.length}
-              </AppText>
-            </View>
-          )}
-        </TouchableOpacity>
+      {/* ── NATIVE SEARCH BAR ── */}
+      <Pressable onPress={() => navigation.navigate("ServiceTab")} style={hS.searchBar}>
+        <Ionicons name="search-outline" size={19} color="#26413C" style={{ marginRight: 10 }} />
+        <AppText style={hS.searchPlaceholder}>
+          Search for "Cleaning", "AC Service"...
+        </AppText>
+        <View style={hS.filterBtn}>
+          <Ionicons name="options-outline" size={16} color="#ffffff" />
+        </View>
+      </Pressable>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Notifications" as any)}
-          style={[headerStyles.actionBtn, { backgroundColor: theme.colors.surface }]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="notifications-outline" size={22} color={theme.colors.button} />
-          {unreadCount > 0 && (
-            <View style={[headerStyles.badge, { backgroundColor: theme.colors.danger }]}>
-              <AppText
-                weight="bold"
-                style={{
-                  color: "#fff",
-                  fontSize: unreadCount > 9 ? 8 : 10,
-                  textAlign: "center",
-                  lineHeight: 14,
-                }}
-              >
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </AppText>
-            </View>
-          )}
-        </TouchableOpacity>
+      {/* ── NATIVE FEATURED PROMO HERO CARD ── */}
+      <View style={hS.promoCard}>
+        <LinearGradient
+          colors={["#16352E", "#0B201B"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Subtle geometric pattern overlay */}
+        <View style={hS.promoPattern} />
+
+        <View style={hS.promoContent}>
+          {/* <View style={hS.promoTag}>
+            <Ionicons name="flash" size={12} color="#4ade80" />
+            <AppText weight="bold" style={hS.promoTagText}>
+              GIGIMAN EXPRESS
+            </AppText>
+          </View> */}
+
+          <AppText weight="bold" style={hS.promoTitle}>
+            Quality Home Care{"\n"}At Your Doorstep
+          </AppText>
+
+          <AppText style={hS.promoSubtitle}>
+            Certified professionals • 100% Guaranteed
+          </AppText>
+
+          <Pressable
+            onPress={() => navigation.navigate("ServiceTab")}
+            style={({ pressed }) => [hS.ctaButton, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <AppText weight="bold" style={hS.ctaText}>
+              Explore Services
+            </AppText>
+            <Ionicons name="arrow-forward" size={14} color="#0D2A1A" style={{ marginLeft: 6 }} />
+          </Pressable>
+        </View>
+
+        {/* Floating Quick Benefit Chips on Right Side */}
+        <View style={hS.benefitColumn}>
+          <View style={hS.benefitChip}>
+            <Ionicons name="star" size={12} color="#f59e0b" />
+            <AppText weight="bold" style={hS.benefitText}>4.9★ Rated</AppText>
+          </View>
+          <View style={hS.benefitChip}>
+            <Ionicons name="shield-checkmark" size={12} color="#4ade80" />
+            <AppText weight="bold" style={hS.benefitText}>Verified</AppText>
+          </View>
+          <View style={hS.benefitChip}>
+            <Ionicons name="time" size={12} color="#38bdf8" />
+            <AppText weight="bold" style={hS.benefitText}>Fast Arrival</AppText>
+          </View>
+        </View>
       </View>
     </View>
   );
-};
+}
 
-const headerStyles = StyleSheet.create({
-  container: {
-    paddingHorizontal: SPACING,
+const hS = StyleSheet.create({
+  shell: {
+    backgroundColor: C.h1,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: CURVE,
+    borderBottomRightRadius: CURVE,
+
+
+  },
+  topBar: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 16,
-    marginTop: 10,
   },
-  rightSection: {
+  locationContainer: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+    marginRight: 12,
   },
-  actionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  locationIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(74, 222, 128, 0.15)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
     position: "relative",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   badge: {
     position: "absolute",
-    top: 2,
-    right: 2,
+    top: -2,
+    right: -2,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
+    backgroundColor: "#4ade80",
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: "#04110D",
+    fontSize: 9,
+    lineHeight: 12,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingLeft: 14,
+    paddingRight: 6,
+    paddingVertical: 8,
+    marginBottom: 18,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  searchPlaceholder: {
+    flex: 1,
+    color: "#64748B",
+    fontSize: 13,
+  },
+  filterBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: "#26413C",
     justifyContent: "center",
     alignItems: "center",
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  }
+  promoCard: {
+    borderRadius: 24,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    overflow: "hidden",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+      },
+      android: { elevation: 5 },
+    }),
+  },
+  promoPattern: {
+    position: "absolute",
+    top: -40,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(74, 222, 128, 0.05)",
+  },
+  promoContent: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  promoTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(74, 222, 128, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginBottom: 8,
+    gap: 4,
+  },
+  promoTagText: {
+    color: "#4ade80",
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  promoTitle: {
+    color: "#ffffff",
+    fontSize: 18,
+    lineHeight: 24,
+    marginBottom: 6,
+  },
+  promoSubtitle: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 14,
+  },
+  ctaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#4ade80",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+  },
+  ctaText: {
+    color: "#0D2A1A",
+    fontSize: 12,
+  },
+  benefitColumn: {
+    gap: 8,
+    justifyContent: "center",
+  },
+  benefitChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 5,
+  },
+  benefitText: {
+    color: "#ffffff",
+    fontSize: 10,
+  },
 });
 
-const Hero = ({ navigation }: any) => {
-  const { theme } = useTheme();
-  const styles = createStyles(theme);
-
-  // Deep indigo/navy gradient complement
-  return (
-    <LinearGradient
-      colors={[theme.colors.primary, theme.colors.primaryDark]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.hero}
-    >
-      <View style={{ flex: 1, zIndex: 1 }}>
-        <AppText size="h2" weight="bold" style={{ color: "#fff" }}>
-          Need a hand?
-        </AppText>
-
-        <AppText style={styles.heroSub}>
-          Expert home services just a tap away
-        </AppText>
-
-        <AppButton
-          title="Explore Services"
-          style={styles.heroBtn}
-          textStyle={{ color: theme.colors.primary, fontWeight: '700' }}
-          onPress={() => navigation.navigate("ServiceTab")}
-        />
-      </View>
-
-      <Ionicons name="construct" size={70} color="rgba(255,255,255,0.15)" style={styles.heroIcon} />
-    </LinearGradient>
-  );
-};
-
-const OffersCarousel = ({ banners, loading }: { banners: any[], loading: boolean }) => {
-  const styles = createStyles(useTheme().theme);
-  const { width } = useWindowDimensions();
-  const OFFER_WIDTH = width * 0.88;
-
-  if (loading) {
-    return (
-      <View style={{ height: 180, justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
-        <AppText color="textMuted">Loading interesting offers...</AppText>
-      </View>
-    );
-  }
-
-  if (!banners || banners.length === 0) {
-    return null;
-  }
+/* ══════════════════════════════════════════════════════════════════════
+   ② CATEGORY SECTION
+   Visual: Soft lavender bg. Emoji gradient pill icons. No white cards.
+   ══════════════════════════════════════════════════════════════════════ */
+function CategorySection({ navigation }: any) {
+  const CATS = [
+    { name: "Cleaning", emoji: "✨", g: ["#2F6B63", "#285B5B"] as const },
+    { name: "Home Helper", emoji: "❄️", g: ["#2F6B63", "#285B5B"] as const },
+    { name: "Electrical", emoji: "⚡", g: ["#2F6B63", "#285B5B"] as const },
+    { name: "Plumbing", emoji: "💧", g: ["#2F6B63", "#285B5B"] as const },
+  ];
 
   return (
-    <View style={{ marginBottom: 28 }}>
-      <SectionHeader title="Offers For You" />
+    <View style={{ paddingTop: 36, paddingBottom: 8 }}>
+      {/* Title row */}
+      <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.catAccent }} />
+          <AppText style={{ color: C.catAccent, fontSize: 10, fontWeight: "700", letterSpacing: 2.5, textTransform: "uppercase" }}>
+            Browse
+          </AppText>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+          <AppText weight="bold" style={{ color: "#1a1a2e", fontSize: 24 }}>
+            Our Services
+          </AppText>
+          <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.6}>
+            <AppText weight="semibold" style={{ color: C.catAccent, fontSize: 13 }}>See all →</AppText>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Pill chips — horizontal scroll, edge-to-edge */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: SPACING }}
-        snapToInterval={OFFER_WIDTH + SPACING}
-        decelerationRate="fast"
+        contentContainerStyle={{ paddingLeft: 24, paddingRight: 12, gap: 14 }}
       >
-        {banners.map((o, i) => (
-          <View key={`${o._id || i}-${i}`} style={[styles.offerCard, { width: OFFER_WIDTH }]}>
-            <Image source={{ uri: o.img }} style={styles.offerImg} resizeMode="stretch" />
-          </View>
+        {CATS.map((cat, idx) => (
+          <AnimatedRN.View key={idx} entering={FadeInRight.delay(idx * 55).springify()}>
+            <Pressable
+              onPress={() => navigation.navigate("ServiceTab")}
+              style={({ pressed }) => ({ opacity: pressed ? 0.72 : 1 })}
+            >
+              <View style={catS.item}>
+                <LinearGradient
+                  colors={cat.g}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={catS.iconBox}
+                >
+                  <AppText style={{ fontSize: 26 }}>{cat.emoji}</AppText>
+                </LinearGradient>
+                <AppText weight="semibold" style={{ color: "#1a1a2e", fontSize: 11, marginTop: 10, textAlign: "center" }}>
+                  {cat.name}
+                </AppText>
+              </View>
+            </Pressable>
+          </AnimatedRN.View>
         ))}
       </ScrollView>
     </View>
   );
-};
+}
 
-const QuickActions = ({ navigation }: any) => {
-  const { theme } = useTheme();
-
-  const categories = [
-    { name: "Cleaning", icon: "sparkles-outline", color: "#F5F3FF", iconColor: theme.colors.button },
-    { name: "AC Repair", icon: "snow-outline", color: "#F5F3FF", iconColor: theme.colors.button },
-    { name: "Electrical", icon: "flash-outline", color: "#F5F3FF", iconColor: theme.colors.button },
-    { name: "Plumbing", icon: "water-outline", color: "#F5F3FF", iconColor: theme.colors.button },
-  ];
-
-  return (
-    <View style={quickStyles.container}>
-      <View style={quickStyles.headerRow}>
-        <AppText weight="bold" size="h3">Services Category</AppText>
-        <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.6}>
-          <AppText size="small" weight="semibold" style={{ color: theme.colors.primary }}>
-            See All
-          </AppText>
-        </TouchableOpacity>
-      </View>
-      <View style={quickStyles.grid}>
-        {categories.map((cat, idx) => (
-          <TouchableOpacity
-            key={idx}
-            style={quickStyles.item}
-            onPress={() => navigation.navigate("ServiceTab")}
-            activeOpacity={0.7}
-          >
-            <View style={[quickStyles.iconCircle, { backgroundColor: cat.color }]}>
-              <Ionicons name={cat.icon as any} size={24} color={cat.iconColor} />
-            </View>
-            <AppText weight="semibold" size="small" style={{ marginTop: 8, color: theme.colors.text }}>
-              {cat.name}
-            </AppText>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
-
-const quickStyles = StyleSheet.create({
-  container: {
-    paddingHorizontal: SPACING,
-    marginBottom: 28,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  grid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  item: {
-    alignItems: "center",
-    flex: 1,
-  },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.03,
-    shadowRadius: 5,
-    elevation: 2,
+const catS = StyleSheet.create({
+  item: { alignItems: "center", width: 76 },
+  iconBox: {
+    width: 64, height: 64, borderRadius: 22,
+    justifyContent: "center", alignItems: "center",
+    ...Platform.select({
+      ios: { shadowColor: "#7c3aed", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 12 },
+      android: { elevation: 5 },
+    }),
   },
 });
 
-const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
-  service,
-  index,
-}) => {
-  const { theme } = useTheme();
+/* ══════════════════════════════════════════════════════════════════════
+   ③ OFFERS SECTION
+   Visual: Edge-to-edge banners on lavender. Animated dot indicators.
+   ══════════════════════════════════════════════════════════════════════ */
+function OffersSection({ banners, loading }: { banners: any[]; loading: boolean }) {
   const { width } = useWindowDimensions();
-  const styles = popularServiceStyles(theme, width);
-  const navigation = useNavigation<Nav>();
+  const [idx, setIdx] = useState(0);
+  const OFFER_W = width - 48;
 
-  const image =
-    service.servicecategoryImage || service.serviceImage || null;
+  if (loading || !banners?.length) return null;
 
+  return (
+    <View style={{ paddingBottom: 8 }}>
+      <View style={{ paddingHorizontal: 24, marginBottom: 16, marginTop: 8 }}>
+        <AppText weight="bold" style={{ color: "#1a1a2e", fontSize: 20 }}>
+          🎁 Exclusive Offers
+        </AppText>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingLeft: 24, paddingRight: 8, gap: 16 }}
+        snapToInterval={OFFER_W + 16}
+        decelerationRate="fast"
+        onScroll={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / (OFFER_W + 16)))}
+        scrollEventThrottle={16}
+      >
+        {banners.map((o: any, i: number) => (
+          <View key={i} style={[offS.card, { width: OFFER_W }]}>
+            <Image source={{ uri: o.img }} style={{ width: "100%", height: 200 }} resizeMode="cover" />
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* Dot indicators */}
+      {banners.length > 1 && (
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 14 }}>
+          {banners.map((_: any, i: number) => (
+            <View
+              key={i}
+              style={{
+                height: 5, borderRadius: 3,
+                width: i === idx ? 22 : 6,
+                backgroundColor: i === idx ? C.catAccent : "#c4b5fd",
+              }}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const offS = StyleSheet.create({
+  card: {
+    borderRadius: 20, overflow: "hidden",
+    height: "100%",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 14 },
+      android: { elevation: 4 },
+    }),
+  },
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   ④ POPULAR SECTION — Cinema Dark Mode
+   Visual: Midnight navy bg, curved top on lavender.
+   Cards = full-photo with gradient overlay text. NO white frames.
+   ══════════════════════════════════════════════════════════════════════ */
+function PopularSection({ navigation, loading, services }: any) {
+  const { width } = useWindowDimensions();
+  const sorted = sortServicesByAvailability(services || []);
+
+  return (
+    <View style={popS.shell}>
+      {/* Section header */}
+      <View style={{ paddingHorizontal: 24, marginBottom: 28, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
+        <View>
+          <AppText style={{ color: "rgba(255,255,255,0.38)", fontSize: 10, fontWeight: "700", letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 8 }}>
+            Trending This Week
+          </AppText>
+          <AppText weight="bold" style={{ color: "#fff", fontSize: 28 }}>
+            Popular Now
+          </AppText>
+        </View>
+        <Pressable
+          onPress={() => navigation.navigate("ServiceTab")}
+          style={popS.seeAllChip}
+        >
+          <AppText weight="semibold" style={{ color: C.popAccent, fontSize: 12 }}>
+            See All →
+          </AppText>
+        </Pressable>
+      </View>
+
+      {loading ? (
+        <AppText style={{ color: "rgba(255,255,255,0.3)", paddingLeft: 24, marginBottom: 24 }}>
+          Loading services…
+        </AppText>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: 24, paddingRight: 8, gap: 14 }}
+        >
+          {sorted.map((svc: any, i: number) => (
+            <CinemaCard key={`${svc._id || i}`} service={svc} index={i} screenW={width} navigation={navigation} />
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+const popS = StyleSheet.create({
+  shell: {
+    backgroundColor: C.popBg,
+    borderTopLeftRadius: CURVE,
+    borderTopRightRadius: CURVE,
+    paddingTop: 40,
+    paddingBottom: 44,
+  },
+  seeAllChip: {
+    backgroundColor: "rgba(74,222,128,0.1)",
+    borderWidth: 1, borderColor: "rgba(74,222,128,0.28)",
+    borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+});
+
+/* Cinema-style service card — image IS the card */
+function CinemaCard({ service, index, screenW, navigation }: any) {
+  const image = service.servicecategoryImage || service.serviceImage || null;
   const badgeConfig = getStatusBadgeConfig(service.status);
   const comingSoon = isComingSoon(service.status);
+  const CARD_W = Math.min(screenW * 0.55, 215);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1, friction: 3, useNativeDriver: true }).start();
 
   const handlePress = () => {
     if (comingSoon) {
       Alert.alert("Coming Soon", "This service is coming soon and cannot be booked yet.");
       return;
     }
-    const serviceId =
-      service._id || service.serviceId || service.domainServiceId;
-
+    const serviceId = service._id || service.serviceId || service.domainServiceId;
     navigation.navigate("ServiceTab" as any, {
       screen: "Booking",
       params: { serviceCategoryId: serviceId, fromMain: true },
@@ -431,329 +715,422 @@ const PopularServiceCard: React.FC<{ service: any; index: number }> = ({
   };
 
   return (
-    <Animated.View entering={FadeInRight.delay(index * 120).springify()}>
-      <TouchableOpacity activeOpacity={comingSoon ? 0.9 : 0.92} onPress={handlePress}>
-        <View style={styles.card}>
-          <View style={styles.imageContainer}>
-            {image ? (
-              <Image
-                source={{ uri: image }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-            ) : (
-              <LinearGradient
-                colors={[theme.colors.surface, theme.colors.border]}
-                style={styles.placeholder}
-              >
-              </LinearGradient>
-            )}
-
+    <AnimatedRN.View entering={FadeInRight.delay(index * 90).springify()}>
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Pressable onPress={handlePress} onPressIn={onPressIn} onPressOut={onPressOut}>
+          <View style={[cinS.card, { width: CARD_W }]}>
+            {/* Full-card photo */}
+            {image
+              ? <Image source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              : <LinearGradient colors={["#1a3020", "#0d2016"]} style={StyleSheet.absoluteFill} />
+            }
+            {/* Vignette overlay */}
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.94)"]}
+              style={cinS.vignette}
+            />
+            {/* Status badge */}
             {badgeConfig ? (
-              <View
-                style={[
-                  styles.badge,
-                  {
-                    backgroundColor: badgeConfig.bgColor,
-                    borderColor: badgeConfig.borderColor,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <AppText
-                  size="caption"
-                  weight="bold"
-                  style={{ color: badgeConfig.textColor }}
-                >
-                  {badgeConfig.label}
-                </AppText>
+              <View style={[cinS.topBadge, { backgroundColor: badgeConfig.bgColor, borderColor: badgeConfig.borderColor, borderWidth: 1 }]}>
+                <AppText size="caption" weight="bold" style={{ color: badgeConfig.textColor }}>{badgeConfig.label}</AppText>
               </View>
             ) : (
-              <View style={styles.badge}>
-                <AppText size="caption" weight="bold" style={{ color: "#fff" }}>
-                  BESTSELLER
-                </AppText>
+              <View style={[cinS.topBadge, { backgroundColor: "#059669" }]}>
+                <AppText size="caption" weight="bold" style={{ color: "#fff" }}>★ TOP</AppText>
               </View>
             )}
+            {/* Bottom text overlay */}
+            <View style={cinS.textOverlay}>
+              <AppText weight="bold" style={{ color: "#fff", fontSize: 14 }} numberOfLines={1}>
+                {service.serviceCategoryName || service.name || "Service"}
+              </AppText>
+              <AppText style={{ color: "rgba(255,255,255,0.52)", fontSize: 11, marginTop: 3 }} numberOfLines={1}>
+                {comingSoon ? "Coming Soon" : service.totalBookings ? `${service.totalBookings} bookings` : "Popular"}
+              </AppText>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 9 }}>
+                <AppText weight="semibold" style={{ color: C.popAccent, fontSize: 11 }}>
+                  {comingSoon ? "Notify me" : "Book now"}
+                </AppText>
+                <Ionicons name="arrow-forward" size={11} color={C.popAccent} />
+              </View>
+            </View>
           </View>
-
-          <View style={styles.content}>
-            <AppText weight="bold" numberOfLines={1} style={{ marginBottom: 4 }}>
-              {service.serviceCategoryName || service.name || service._id}
-            </AppText>
-
-            <AppText
-              size="caption"
-              color={comingSoon ? "accent" : "textMuted"}
-              numberOfLines={1}
-            >
-              {comingSoon
-                ? "Coming Soon"
-                : service.totalBookings
-                  ? `${service.totalBookings} bookings • ₹${service.totalRevenue}`
-                  : "Popular service"}
-            </AppText>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
+        </Pressable>
+      </Animated.View>
+    </AnimatedRN.View>
   );
-};
+}
 
-const PopularSection = ({ services, loading }: any) => {
-  const { theme } = useTheme();
-  const sortedServices = sortServicesByAvailability(services || []);
+const cinS = StyleSheet.create({
+  card: {
+    height: 235,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#1a2e1f",
+  },
+  vignette: {
+    position: "absolute", bottom: 0, left: 0, right: 0, height: "72%",
+  },
+  topBadge: {
+    position: "absolute", top: 12, left: 12,
+    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  textOverlay: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    padding: 14,
+  },
+});
 
-  if (loading) {
-    return (
-      <View style={{ marginBottom: 28 }}>
-        <SectionHeader title="Popular Now" />
-        <AppText style={{ paddingLeft: SPACING }}>Loading services...</AppText>
-      </View>
-    );
-  }
+/* ══════════════════════════════════════════════════════════════════════
+   ⑤ WHY SECTION — Mint / Sage Green
+   Visual: Curved top on midnight. Pure layout rows — NO white cards.
+   Ghost number + icon + text. Alternating left/right offset.
+   ══════════════════════════════════════════════════════════════════════ */
+function WhySection() {
+  const FEATURES = [
+    { num: "01", title: "Verified Professionals", desc: "Background-checked, certified experts every time.", icon: "shield-checkmark-outline" as const, color: "#059669" },
+    { num: "02", title: "Always On Time", desc: "We respect your schedule. Guaranteed.", icon: "time-outline" as const, color: "#059669" },
+    { num: "03", title: "Safe Payments", desc: "100 % encrypted by razorpay. Zero hidden charges.", icon: "lock-closed-outline" as const, color: "#059669" },
+    { num: "04", title: "Satisfaction First", desc: "Not happy? We'll make it right — no questions.", icon: "heart-outline" as const, color: "#059669" },
+  ];
 
   return (
-    <View style={{ marginBottom: 28 }}>
-      <SectionHeader title="Popular Now" />
+    <View style={whyS.shell}>
+      {/* Section headline */}
+      <View style={{ paddingHorizontal: 24, marginBottom: 36 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <View style={{ width: 30, height: 3, borderRadius: 2, backgroundColor: C.whyAccent }} />
+          <AppText style={{ color: C.whyAccent, fontSize: 10, fontWeight: "700", letterSpacing: 2.5, textTransform: "uppercase" }}>
+            Our Promise
+          </AppText>
+        </View>
+        <AppText weight="bold" style={{ color: "#052014", fontSize: 30, lineHeight: 40 }}>
+          Why Millions{"\n"}Choose GigiMan
+        </AppText>
+      </View>
 
+      {/* Feature list — alternating offset, NO cards */}
+      <View style={{ paddingHorizontal: 24 }}>
+        {FEATURES.map((f, i) => (
+          <AnimatedRN.View key={i} entering={FadeInLeft.delay(80 + i * 90).springify()}>
+            <View style={[whyS.row, i % 2 === 1 && whyS.rowShifted]}>
+              {/* Ghost number behind */}
+              <AppText weight="bold" style={[whyS.ghost, { color: f.color }]}>{f.num}</AppText>
+              {/* Icon */}
+              <View style={[whyS.iconBox, { backgroundColor: f.color + "1A" }]}>
+                <Ionicons name={f.icon} size={24} color={f.color} />
+              </View>
+              {/* Text */}
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <AppText weight="bold" style={{ color: "#052014", fontSize: 15, marginBottom: 4 }}>
+                  {f.title}
+                </AppText>
+                <AppText style={{ color: "#3d7055", fontSize: 12, lineHeight: 18 }}>
+                  {f.desc}
+                </AppText>
+              </View>
+              {/* Right accent bar */}
+              <View style={[whyS.accentBar, { backgroundColor: f.color }]} />
+            </View>
+            {i < FEATURES.length - 1 && (
+              <View style={{ height: 1, backgroundColor: "#c8e8d8", marginVertical: 6, marginLeft: i % 2 === 1 ? 40 : 0 }} />
+            )}
+          </AnimatedRN.View>
+        ))}
+      </View>
+
+      {/* Bottom trust strip */}
+      <View style={whyS.trustStrip}>
+        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+        <AppText weight="bold" style={{ color: "#fff", fontSize: 14, marginLeft: 10, flex: 1 }}>
+          Trusted by 500+ happy customers
+        </AppText>
+        <View style={{ flexDirection: "row" }}>
+          {[1, 2, 3, 4, 5].map(k => <Ionicons key={k} name="star" size={12} color="#fbbf24" />)}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const whyS = StyleSheet.create({
+  shell: {
+    backgroundColor: C.whyBg,
+    borderTopLeftRadius: CURVE,
+    borderTopRightRadius: CURVE,
+    paddingTop: 44, paddingBottom: 0,
+  },
+  row: {
+    flexDirection: "row", alignItems: "center",
+    paddingVertical: 14,
+    position: "relative",
+  },
+  rowShifted: {
+    paddingLeft: 20,   // asymmetric offset for alternating rows
+  },
+  ghost: {
+    position: "absolute", left: -4, top: 4,
+    fontSize: 52, opacity: 0.07, lineHeight: 52,
+    fontWeight: "900",
+  },
+  iconBox: {
+    width: 52, height: 52, borderRadius: 18,
+    justifyContent: "center", alignItems: "center",
+    flexShrink: 0,
+  },
+  accentBar: {
+    width: 3, height: 36, borderRadius: 2,
+    marginLeft: 12, flexShrink: 0,
+  },
+  trustStrip: {
+    backgroundColor: C.whyAccent,
+    marginTop: 36,
+    paddingHorizontal: 24, paddingVertical: 20,
+    flexDirection: "row", alignItems: "center",
+  },
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   ⑥ REVIEWS SECTION — Dark Navy Editorial
+   Visual: Curved top on mint. Giant ghost quote mark. No card borders —
+   just translucent frosted panels on deep navy canvas.
+   ══════════════════════════════════════════════════════════════════════ */
+function ReviewsSection() {
+  const { width } = useWindowDimensions();
+
+  return (
+    <View style={revS.shell}>
+      {/* Ghost quote mark — editorial flavour */}
+      <View style={{ paddingHorizontal: 24 }}>
+        <AppText weight="bold" style={{ color: "rgba(255,255,255,0.06)", fontSize: 130, lineHeight: 96 }}>
+          "
+        </AppText>
+      </View>
+
+      {/* Label + headline */}
+      <View style={{ paddingHorizontal: 24, marginTop: -20, marginBottom: 28 }}>
+        <AppText style={{ color: "rgba(255,255,255,0.38)", fontSize: 10, fontWeight: "700", letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 10 }}>
+          Testimonials
+        </AppText>
+        <AppText weight="bold" style={{ color: "#fff", fontSize: 28, lineHeight: 36 }}>
+          Our Users{"\n"}Love Us ❤️
+        </AppText>
+      </View>
+
+      {/* Horizontal frosted review panels */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingLeft: SPACING }}
+        contentContainerStyle={{ paddingLeft: 24, paddingRight: 8, gap: 14 }}
       >
-        {sortedServices.map((service: any, index: number) => (
-          <PopularServiceCard
-            key={`${service._id || index}-${index}`}
-            service={service}
-            index={index}
-          />
+        {TESTIMONIALS.map((r, i) => (
+          <AnimatedRN.View key={i} entering={FadeInRight.delay(i * 110).springify()}>
+            <View style={[revS.panel, { width: Math.min(width * 0.75, 300) }]}>
+              {/* Star rating */}
+              <View style={{ flexDirection: "row", gap: 3, marginBottom: 14 }}>
+                {[...Array(5)].map((_, si) => (
+                  <Ionicons key={si} name={si < r.rating ? "star" : "star-outline"} size={14}
+                    color={si < r.rating ? "#fbbf24" : "rgba(255,255,255,0.2)"} />
+                ))}
+              </View>
+              {/* Review text */}
+              <AppText style={{ color: "rgba(255,255,255,0.82)", fontSize: 14, lineHeight: 22, fontStyle: "italic", marginBottom: 20 }}>
+                "{r.review}"
+              </AppText>
+              <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginBottom: 16 }} />
+              {/* User row */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                {/* <Image source={{ uri: r.avatar }} style={revS.avatar} /> */}
+                <View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <AppText weight="bold" style={{ color: "#fff", fontSize: 13 }}>{r.name}</AppText>
+                    <Ionicons name="checkmark-circle" size={14} color={C.hAccent} />
+                  </View>
+                  <AppText style={{ color: "rgba(255,255,255,0.38)", fontSize: 11 }}>{r.service}</AppText>
+                </View>
+              </View>
+            </View>
+          </AnimatedRN.View>
         ))}
       </ScrollView>
+
+      <View style={{ height: 44 }} />
     </View>
   );
-};
+}
 
-const UserReviewCard = ({ review, index }: any) => {
-  const { theme } = useTheme();
-  const { width } = useWindowDimensions();
-  const styles = reviewStyles(theme, width);
+const revS = StyleSheet.create({
+  shell: {
+    backgroundColor: C.revBg,
+    borderTopLeftRadius: CURVE,
+    borderTopRightRadius: CURVE,
+    paddingTop: 40,
+  },
+  panel: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 24, padding: 22,
+  },
+  avatar: {
+    width: 42, height: 42, borderRadius: 21,
+    borderWidth: 2, borderColor: C.hAccent,
+  },
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   ⑦ REFER & EARN SECTION — Amber Gold
+   Visual: Curved top on dark navy. Full-bleed amber gradient.
+   Animated bouncing gift icon. Frosted steps row.
+   ══════════════════════════════════════════════════════════════════════ */
+function ReferSection({ navigation }: any) {
+  // Bouncing gift
+  const bounce = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(bounce, { toValue: -14, duration: 700, useNativeDriver: true }),
+      Animated.timing(bounce, { toValue: 4, duration: 400, useNativeDriver: true }),
+      Animated.timing(bounce, { toValue: 0, duration: 250, useNativeDriver: true }),
+      Animated.timing(bounce, { toValue: 0, duration: 900, useNativeDriver: true }), // pause
+    ])).start();
+  }, []);
+
+  // Button pulse
+  const btnScale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(btnScale, { toValue: 1.04, duration: 700, useNativeDriver: true }),
+      Animated.timing(btnScale, { toValue: 1, duration: 700, useNativeDriver: true }),
+    ])).start();
+  }, []);
+
+  const STEPS = [
+    { icon: "share-social-outline" as const, label: "Share\nyour code" },
+    { icon: "person-add-outline" as const, label: "Friend\nsigns up" },
+    { icon: "wallet-outline" as const, label: "Both save\n5% off" },
+  ];
 
   return (
-    <Animated.View entering={FadeInRight.delay(index * 120).springify()}>
-      <View style={styles.card}>
-        {/* Name and Stars Row (Name is first) */}
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <AppText weight="bold" size="body" style={styles.userName}>
-              {review.name}
-            </AppText>
-          </View>
-          <View style={styles.ratingRow}>
-            {[...Array(5)].map((_, i) => (
-              <Ionicons
-                key={i}
-                name={i < review.rating ? "star" : "star-outline"}
-                size={12}
-                color={i < review.rating ? "#FFD700" : "#ccc"}
-                style={{ marginLeft: 2 }}
-              />
-            ))}
-          </View>
-        </View>
+    <LinearGradient
+      colors={[C.refBg1, "#C2680A", C.refBg2]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={refS.shell}
+    >
+      {/* Decorative blobs */}
+      <View style={refS.blob1} />
+      <View style={refS.blob2} />
+      <View style={refS.blob3} />
 
-        <View style={styles.divider} />
+      {/* Floating gift */}
+      <Animated.View style={[refS.giftWrap, { transform: [{ translateY: bounce }] }]}>
+        <Ionicons name="gift" size={90} color="rgba(255,255,255,0.18)" />
+      </Animated.View>
 
-        {/* Review Text */}
-        <AppText size="small" color="textMuted" style={styles.reviewText}>
-          "{review.review}"
+      {/* Tag label */}
+      <View style={refS.tag}>
+        <AppText weight="bold" style={{ color: "#92400e", fontSize: 11, letterSpacing: 0.8 }}>
+          🎁  REFER &amp; EARN
         </AppText>
+      </View>
 
-        <View style={styles.quoteIcon}>
-          <Ionicons name="chatbubble" size={24} color={theme.colors.primary} style={{ opacity: 0.05 }} />
+      {/* Headline */}
+      <AppText weight="bold" style={{ color: "#fff", fontSize: 32, lineHeight: 42, marginTop: 18, marginBottom: 12 }}>
+        Invite Friends.{"\n"}Earn Rewards.
+      </AppText>
+
+      <AppText style={{ color: "rgba(255,255,255,0.78)", fontSize: 14, lineHeight: 22, marginBottom: 30 }}>
+        Share your code — they get 5% off, you get 5% off. Win-win!
+      </AppText>
+
+      {/* CTA button */}
+      <Animated.View style={{ transform: [{ scale: btnScale }], alignSelf: "flex-start" }}>
+        <Pressable
+          onPress={() => navigation.navigate("ProfileTab", { screen: "InviteReferralScreen" } as any)}
+          style={({ pressed }) => [refS.ctaBtn, { opacity: pressed ? 0.82 : 1 }]}
+        >
+          <AppText weight="bold" style={{ color: "#92400e", fontSize: 15 }}>
+            Start Inviting →
+          </AppText>
+        </Pressable>
+      </Animated.View>
+
+      {/* How it works steps */}
+      <View style={refS.stepsBox}>
+        <AppText weight="bold" style={{ color: "#92400e", fontSize: 12, marginBottom: 16, textAlign: "center", letterSpacing: 1 }}>
+          HOW IT WORKS
+        </AppText>
+        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+          {STEPS.map((s, i) => (
+            <React.Fragment key={i}>
+              <View style={{ alignItems: "center", flex: 1 }}>
+                <View style={refS.stepIcon}>
+                  <Ionicons name={s.icon} size={20} color={C.refBg1} />
+                </View>
+                <AppText weight="semibold" style={{ color: "#92400e", fontSize: 11, textAlign: "center", marginTop: 8, lineHeight: 16 }}>
+                  {s.label}
+                </AppText>
+              </View>
+              {i < 2 && (
+                <View style={{ paddingTop: 14, flexShrink: 0 }}>
+                  <Ionicons name="chevron-forward" size={16} color="rgba(146,64,14,0.4)" />
+                </View>
+              )}
+            </React.Fragment>
+          ))}
         </View>
       </View>
-    </Animated.View>
+    </LinearGradient>
   );
-};
+}
 
-const SectionHeader = ({ title }: any) => {
-  const styles = createStyles(useTheme().theme);
-
-  return (
-    <View style={styles.sectionHeader}>
-      <AppText weight="bold" size="h3">{title}</AppText>
-    </View>
-  );
-};
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-
-    hero: {
-      marginHorizontal: SPACING,
-      borderRadius: CARD_RADIUS,
-      padding: 24,
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 28,
-      position: 'relative',
-      overflow: 'hidden',
-      shadowColor: theme.colors.primary,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
-      elevation: 6,
-    },
-
-    heroSub: {
-      color: "#fff",
-      opacity: 0.9,
-      marginVertical: 10,
-      fontSize: 14,
-    },
-
-    heroBtn: {
-      backgroundColor: "#fff",
-      alignSelf: "flex-start",
-      paddingVertical: 10,
-      paddingHorizontal: 18,
-      borderRadius: 12,
-    },
-
-    heroIcon: {
-      position: 'absolute',
-      right: 15,
-      bottom: 5,
-    },
-
-    offerCard: {
-      marginLeft: SPACING,
-      borderRadius: CARD_RADIUS,
-      overflow: "hidden",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-
-    offerImg: {
-      width: "100%",
-      height: 180,
-    },
-
-    sectionHeader: {
-      paddingHorizontal: SPACING,
-      marginBottom: 14,
-    },
-  });
-
-const popularServiceStyles = (theme: any, screenWidth: number) =>
-  StyleSheet.create({
-    card: {
-      width: screenWidth * 0.64,
-      borderRadius: CARD_RADIUS,
-      marginRight: 16,
-      backgroundColor: theme.colors.surface,
-      overflow: "hidden",
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 1,
-      shadowRadius: 12,
-      elevation: 3,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-
-    imageContainer: {
-      height: 130,
-      width: "100%",
-      position: "relative",
-      backgroundColor: theme.colors.border,
-    },
-
-    image: {
-      width: "100%",
-      height: "100%",
-    },
-
-    placeholder: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-
-    badge: {
-      position: "absolute",
-      top: 10,
-      left: 10,
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-    },
-
-    content: {
-      padding: 16,
-    },
-  });
-
-const reviewStyles = (theme: any, screenWidth: number) =>
-  StyleSheet.create({
-    card: {
-      width: screenWidth * 0.72,
-      backgroundColor: theme.colors.surface,
-      borderRadius: CARD_RADIUS,
-      padding: 16,
-      marginRight: 16,
-      position: 'relative',
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.02,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-
-    quoteIcon: {
-      position: 'absolute',
-      bottom: 12,
-      right: 12,
-    },
-
-    headerRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 10,
-    },
-
-    ratingRow: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-
-    reviewText: {
-      color: theme.colors.text,
-      lineHeight: 20,
-      fontSize: 13,
-      fontStyle: 'italic',
-    },
-
-    divider: {
-      height: 1,
-      backgroundColor: theme.colors.border,
-      marginBottom: 10,
-    },
-
-    userName: {
-      fontSize: 14,
-      color: theme.colors.text,
-    },
-  });
+const refS = StyleSheet.create({
+  shell: {
+    borderTopLeftRadius: CURVE,
+    borderTopRightRadius: CURVE,
+    paddingTop: 44,
+    paddingHorizontal: 24,
+    paddingBottom: 64,
+    overflow: "hidden",
+    position: "relative",
+  },
+  blob1: {
+    position: "absolute", width: 220, height: 220, borderRadius: 110,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    top: -70, right: -60,
+  },
+  blob2: {
+    position: "absolute", width: 140, height: 140, borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    bottom: 50, left: -30,
+  },
+  blob3: {
+    position: "absolute", width: 80, height: 80, borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    top: "55%", right: 30,
+  },
+  giftWrap: {
+    position: "absolute", right: 20, top: 64, zIndex: 1,
+  },
+  tag: {
+    backgroundColor: "rgba(255,255,255,0.88)",
+    alignSelf: "flex-start",
+    borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6,
+  },
+  ctaBtn: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingHorizontal: 26, paddingVertical: 14,
+  },
+  stepsBox: {
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 22,
+    padding: 20,
+    marginTop: 32,
+  },
+  stepIcon: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: "#fde68a",
+    justifyContent: "center", alignItems: "center",
+  },
+});

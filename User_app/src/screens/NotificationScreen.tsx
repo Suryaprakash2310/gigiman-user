@@ -1,22 +1,22 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
+  RefreshControl,
+  StatusBar,
   StyleSheet,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  RefreshControl,
-  StatusBar,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
 
-import AppText from "@/src/components/ui/AppText";
-import { useTheme } from "@/src/theme/useTheme";
-import { useNotifications } from "@/src/context/NotificationContext";
 import { NotificationItem } from "@/src/api/notification.api";
+import AppText from "@/src/components/ui/AppText";
 import { useBooking } from "@/src/context/BookingContext";
+import { useNotifications } from "@/src/context/NotificationContext";
+import { useTheme } from "@/src/theme/useTheme";
 
 export default function NotificationScreen() {
   const { theme } = useTheme();
@@ -70,7 +70,7 @@ export default function NotificationScreen() {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString("en-IN", {
       month: "short",
       day: "numeric",
@@ -131,11 +131,11 @@ export default function NotificationScreen() {
         return "#c02bff";
       case "FAILED_BOOKING":
       case "ALERT":
-        return "#007AFF"; // Blue color
+        return "#059669"; // Blue color
       case "BLOCK":
         return theme.colors.danger;
       default:
-        return "#007AFF"; // Blue color
+        return "#059669"; // Blue color
     }
   };
 
@@ -320,7 +320,7 @@ export default function NotificationScreen() {
           renderItem={({ item }) => (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <AppText weight="bold" size="small" color="textMuted">
+                <AppText weight="bold" size="small" color="text">
                   {item.title.toUpperCase()}
                 </AppText>
               </View>
