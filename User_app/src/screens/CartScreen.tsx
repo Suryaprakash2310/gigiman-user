@@ -167,7 +167,7 @@ export default function CartScreen({ navigation }: any) {
           <AppButton
             title="Browse Services"
             style={{ marginTop: 24, width: '60%' }}
-            onPress={() => navigation.navigate('MainServiceScreen')}
+            onPress={() => navigation.navigate('ServiceTab', { screen: 'MainServiceScreen' })}
           />
         </View>
       ) : (

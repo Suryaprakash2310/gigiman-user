@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Linking, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Linking, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import { ProfileAPI } from '@/src/api/profile.api';
 export default function InviteReferralScreen() {
     const { theme } = useTheme();
     const insets = useSafeAreaInsets();
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
 
     const [copied, setCopied] = useState(false);
     const [referralCode, setReferralCode] = useState('GIGI');
@@ -67,8 +67,22 @@ export default function InviteReferralScreen() {
         init();
     }, []);
 
+    useEffect(() => {
+        const backAction = () => {
+            navigation.navigate('ProfileScreen' as any);
+            return true;
+        };
+
+        const backHandler = BackHandler.addEventListener(
+            'hardwareBackPress',
+            backAction
+        );
+
+        return () => backHandler.remove();
+    }, [navigation]);
+
     const handleBack = () => {
-        navigation.goBack();
+        navigation.navigate('ProfileScreen' as any);
     };
 
     const handleShare = async () => {

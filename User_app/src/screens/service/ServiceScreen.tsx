@@ -172,7 +172,7 @@ export default function ServicesScreen({ navigation }: any) {
           { paddingTop: Platform.OS === "android" ? insets.top : 0 },
         ]}
       >
-        <AppHeader title="Services" showBack />
+        <AppHeader title="Services" showBack onBackPress={() => navigation.navigate('HomeTab')} />
         <View style={styles.loadingContainer}>
           <AppLoader visible={true} text="Loading services..." />
         </View>
@@ -187,7 +187,7 @@ export default function ServicesScreen({ navigation }: any) {
         { paddingTop: Platform.OS === "android" ? insets.top : 0 },
       ]}
     >
-      <AppHeader title="Services" showBack />
+      <AppHeader title="Services" showBack onBackPress={() => navigation.navigate('HomeTab')} />
 
       <View style={styles.container}>
         {/* Header */}

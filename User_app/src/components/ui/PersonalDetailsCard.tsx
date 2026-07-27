@@ -97,6 +97,23 @@ export default function PersonalDetailsCard({
         onSubmit(values);
     };
 
+    // Returns true when the email field has a valid, changed email that can be verified
+    const emailReadyToVerify = (() => {
+        const trimmed = values.email.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return (
+            editingField === 'email' &&
+            emailRegex.test(trimmed) &&
+            trimmed.toLowerCase() !== initialValues.email.trim().toLowerCase() &&
+            !errors.email
+        );
+    })();
+
+    const handleVerifyEmail = () => {
+        setEditingField(null);
+        onSubmit(values);
+    };
+
     const renderField = (
         label: string,
         field: keyof PersonalDetails,
@@ -148,6 +165,26 @@ export default function PersonalDetailsCard({
                                 }}
                                 error={error}
                             />
+
+                            {/* Inline Verify Email button — appears when a valid new email is typed */}
+                            {field === 'email' && emailReadyToVerify && (
+                                <TouchableOpacity
+                                    onPress={handleVerifyEmail}
+                                    activeOpacity={0.8}
+                                    style={[
+                                        styles.verifyEmailBtn,
+                                        { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary },
+                                    ]}
+                                >
+                                    <AppText
+                                        size="caption"
+                                        weight="semibold"
+                                        style={{ color: theme.colors.primary }}
+                                    >
+                                        ✉ Verify Email →
+                                    </AppText>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     ) : (
                         <AppText size="body" style={[styles.valueText, { color: theme.colors.textMuted }]}>
@@ -213,6 +250,14 @@ const styles = StyleSheet.create({
     },
     editButton: {
         padding: 8,
+    },
+    verifyEmailBtn: {
+        marginTop: 10,
+        alignSelf: 'flex-start',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
     },
     buttonContainer: {
         marginTop: 24,

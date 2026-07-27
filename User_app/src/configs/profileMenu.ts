@@ -50,7 +50,8 @@ export const SUPPORT_MENU = [
     id: 'terms',
     label: 'Terms & Conditions',
     icon: 'file-text',
-    screen: 'TermsAndConditionsPage',
+    screen: '',
+    url: 'https://www.gigiman.in/terms',
   },
   {
     id: 'privacy',
@@ -69,3 +70,11 @@ export const LOGOUT_MENU = [
     isDestructive: true,
   },
 ];
+
+export const DELETE_ACCOUNT_MENU = {
+  id: 'delete-account',
+  label: 'Delete Account',
+  icon: 'trash-2',
+  url: 'https://www.gigiman.in/delete-account',
+  isDestructive: true,
+};

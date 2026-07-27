@@ -1,12 +1,14 @@
 import AppText from '@/src/components/ui/AppText';
 import AvatarUpload from '@/src/components/ui/AvatorUpload';
 import PersonalDetailsCard from '@/src/components/ui/PersonalDetailsCard';
+import EmailOtpModal from '@/src/components/ui/EmailOtpModal';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileAPI, updateProfile } from '../api/profile.api';
+import { sendEmailOtpAPI } from '../api/email.api';
 import { useTheme } from '@/src/theme/useTheme';
 import { useAuth } from '@/src/hook/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,43 +22,84 @@ export default function PersonalDetailsPage() {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
+    // ─── Email OTP modal state ────────────────────────────────────────────────
+    const [otpModalVisible, setOtpModalVisible] = useState(false);
+    const [pendingValues, setPendingValues] = useState<any>(null);
+
     const handleBack = () => {
         navigation.goBack();
     };
 
+    /** Persist the profile after email OTP is verified (or when email didn't change). */
+    const saveProfile = async (values: any) => {
+        try {
+            const payload: any = { 
+                fullName: values.fullName,
+                email: values.email
+            }; 
+            if (avatar !== undefined) payload.avatar = avatar; // string | null
+
+            const res = await updateProfile(payload);
+            
+            if (res.data?.success && res.data.user) {
+                const updatedUserObj = res.data.user;
+                setProfile(updatedUserObj);
+                setAvatar(updatedUserObj.avatar || null);
+
+                // Sync with AuthContext and AsyncStorage
+                const updatedUser = {
+                    ...user,
+                    fullName: updatedUserObj.fullName || updatedUserObj.name,
+                    email: updatedUserObj.email,
+                    avatar: updatedUserObj.avatar || undefined,
+                } as any;
+                setUser(updatedUser);
+                await AsyncStorage.setItem('gg_user', JSON.stringify(updatedUser));
+                Alert.alert('Success', 'Profile updated successfully');
+            }
+        } catch (err) {
+            console.warn('Failed to update profile', err);
+            Alert.alert('Error', 'Failed to update profile details');
+        }
+    };
+
+    /**
+     * Called by PersonalDetailsCard when the user taps "Save Changes".
+     * If the email has changed we first send an OTP via Mailjet (backend),
+     * then show the EmailOtpModal. If the email is unchanged we save directly.
+     */
     const handleSubmit = (values: any) => {
-        // Call updateProfile API to save changes
         (async () => {
-            try {
-                const payload: any = { 
-                    fullName: values.fullName,
-                    email: values.email
-                }; 
-                if (avatar !== undefined) payload.avatar = avatar; // string | null
+            const currentEmail = (profile?.email || '').trim().toLowerCase();
+            const newEmail = (values.email || '').trim().toLowerCase();
+            const emailChanged = newEmail.length > 0 && newEmail !== currentEmail;
 
-                const res = await updateProfile(payload);
-                
-                if (res.data?.success && res.data.user) {
-                    const updatedUserObj = res.data.user;
-                    setProfile(updatedUserObj);
-                    setAvatar(updatedUserObj.avatar || null);
-
-                    // Sync with AuthContext and AsyncStorage
-                    const updatedUser = {
-                        ...user,
-                        fullName: updatedUserObj.fullName || updatedUserObj.name,
-                        email: updatedUserObj.email,
-                        avatar: updatedUserObj.avatar || undefined,
-                    } as any;
-                    setUser(updatedUser);
-                    await AsyncStorage.setItem('gg_user', JSON.stringify(updatedUser));
-                    Alert.alert('Success', 'Profile updated successfully');
+            if (emailChanged) {
+                try {
+                    await sendEmailOtpAPI(values.email.trim());
+                    setPendingValues(values);
+                    setOtpModalVisible(true);
+                } catch (err: any) {
+                    const msg =
+                        err?.response?.data?.message ||
+                        err?.message ||
+                        'Failed to send verification email. Please try again.';
+                    Alert.alert('Email Verification', msg);
                 }
-            } catch (err) {
-                console.warn('Failed to update profile', err);
-                Alert.alert('Error', 'Failed to update profile details');
+            } else {
+                // Email unchanged — save directly
+                await saveProfile(values);
             }
         })();
+    };
+
+    /** Called by EmailOtpModal after a successful OTP verification. */
+    const handleEmailVerified = async () => {
+        setOtpModalVisible(false);
+        if (pendingValues) {
+            await saveProfile(pendingValues);
+            setPendingValues(null);
+        }
     };
     const [profile, setProfile] = useState<any>(user);
     const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
@@ -132,9 +175,18 @@ export default function PersonalDetailsPage() {
                         onSubmit={handleSubmit}
                     />
                 )}
-
-
             </ScrollView>
+
+            {/* Email OTP verification modal (shown only when email changes) */}
+            <EmailOtpModal
+                visible={otpModalVisible}
+                email={pendingValues?.email ?? ''}
+                onVerified={handleEmailVerified}
+                onDismiss={() => {
+                    setOtpModalVisible(false);
+                    setPendingValues(null);
+                }}
+            />
         </View>
     );
 }

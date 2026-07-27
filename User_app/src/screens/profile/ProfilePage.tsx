@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProfileMenuItem from '../../components/ProfileMenuItem';
 import AvatarUpload from '../../components/ui/AvatorUpload';
 import {
+  DELETE_ACCOUNT_MENU,
   LOGOUT_MENU,
   PROFILE_MENU,
   SUPPORT_MENU,
@@ -105,14 +106,14 @@ export default function ProfileScreen() {
             />
           ))}
         </View>
+
+        {/* APPEARANCE */}
         <View style={{ marginBottom: 24 }}>
           <AppText weight="bold" size="h3" style={{ marginBottom: 8 }}>
             Appearance
           </AppText>
-
           <ThemeToggle />
         </View>
-
 
         {/* LOGOUT */}
         <View style={styles.menuBlock}>
@@ -127,6 +128,18 @@ export default function ProfileScreen() {
             />
           ))}
         </View>
+
+        {/* DELETE ACCOUNT */}
+        <View style={[styles.menuBlock, styles.deleteBlock]}>
+          <ProfileMenuItem
+            label={DELETE_ACCOUNT_MENU.label}
+            icon={DELETE_ACCOUNT_MENU.icon}
+            isDestructive
+            showChevron={false}
+            onPress={() => Linking.openURL(DELETE_ACCOUNT_MENU.url)}
+          />
+        </View>
+
         <ConfirmDialog
           visible={showLogoutDialog}
           title="Logout"
@@ -169,5 +182,11 @@ const createStyles = (theme: any, insets: any) =>
       padding: 12,
       marginBottom: 20,
       elevation: 2,
+    },
+    deleteBlock: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: theme.radius.lg,
+      borderWidth: 0,
+      elevation: 4,
     },
   });

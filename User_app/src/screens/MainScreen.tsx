@@ -227,7 +227,7 @@ function HeroSection({ user, navigation, insets }: any) {
       </View>
 
       {/* ── NATIVE SEARCH BAR ── */}
-      <Pressable onPress={() => navigation.navigate("ServiceTab")} style={hS.searchBar}>
+      {/* <Pressable onPress={() => navigation.navigate("ServiceTab")} style={hS.searchBar}>
         <Ionicons name="search-outline" size={19} color="#26413C" style={{ marginRight: 10 }} />
         <AppText style={hS.searchPlaceholder}>
           Search for "Cleaning", "AC Service"...
@@ -235,7 +235,7 @@ function HeroSection({ user, navigation, insets }: any) {
         <View style={hS.filterBtn}>
           <Ionicons name="options-outline" size={16} color="#ffffff" />
         </View>
-      </Pressable>
+      </Pressable> */}
 
       {/* ── NATIVE FEATURED PROMO HERO CARD ── */}
       <View style={hS.promoCard}>
