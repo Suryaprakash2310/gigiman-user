@@ -1,10 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   View,
-  Image,
-  ActivityIndicator,
   Alert,
   Dimensions,
 } from 'react-native';
@@ -17,18 +15,20 @@ import { getStatusBadgeConfig, isComingSoon } from '@/src/utils/serviceStatus';
 interface ServiceCardProps {
   service: DomainService;
   onPress: (domainName: string, domainId: string) => void;
+  cardWidth?: number;
 }
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DEFAULT_CARD_WIDTH = (SCREEN_WIDTH - 32 - 12) / 2;
 
-const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
+const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress, cardWidth }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
 
   const badgeConfig = getStatusBadgeConfig(service.status);
   const comingSoon = isComingSoon(service.status);
+
+  const imageUrl = service.domainImage || (service as any).serviceImage || (service as any).image;
 
   const handlePress = () => {
     if (comingSoon) {
@@ -38,109 +38,108 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
     onPress(service.domainName, service._id);
   };
 
-  const handleImageLoad = () => {
-    setImageLoading(false);
-  };
-
-  const handleImageError = () => {
-    setImageLoading(false);
-    setImageError(true);
-  };
-
   return (
-    <TouchableOpacity
-      activeOpacity={comingSoon ? 0.9 : 0.75}
-      style={[styles.card, comingSoon && styles.comingSoonCard]}
+    <Pressable
       onPress={handlePress}
-      accessible={true}
-      accessibilityLabel={`${service.domainName} service`}
+      style={({ pressed }) => [
+        styles.card,
+        { width: cardWidth || DEFAULT_CARD_WIDTH },
+        pressed && styles.pressed,
+        comingSoon && styles.comingSoonCard,
+      ]}
       accessibilityRole="button"
+      accessibilityLabel={`${service.domainName} service`}
     >
-      {/* Top Status Tag Badge */}
-      {badgeConfig && (
-        <View
-          style={[
-            styles.statusTag,
-            {
-              backgroundColor: badgeConfig.bgColor,
-              borderColor: badgeConfig.borderColor,
-            },
-          ]}
-        >
-          <AppText
-            weight="bold"
-            style={[styles.statusTagText, { color: badgeConfig.textColor }]}
-          >
-            {badgeConfig.label}
-          </AppText>
-        </View>
-      )}
-
-      {/* Image Container */}
+      {/* Image Container matching CategoryCard visual language */}
       <View style={styles.imageContainer}>
         <OptimizedImage
-          uri={service.domainImage || (service as any).serviceImage}
+          uri={imageUrl}
           style={styles.image}
-          contentFit="contain"
+          contentFit="cover"
           transition={250}
         />
+        {/* Status Tag Badge */}
+        {badgeConfig && (
+          <View
+            style={[
+              styles.statusTag,
+              {
+                backgroundColor: badgeConfig.bgColor,
+                borderColor: badgeConfig.borderColor,
+              },
+            ]}
+          >
+            <AppText
+              weight="bold"
+              style={[styles.statusTagText, { color: badgeConfig.textColor }]}
+            >
+              {badgeConfig.label}
+            </AppText>
+          </View>
+        )}
       </View>
 
-      {/* Text Container */}
-      <View style={styles.textContainer}>
+      {/* Content Container */}
+      <View style={styles.contentContainer}>
         <AppText
           weight="semibold"
           numberOfLines={2}
-          size="body"
-          style={styles.title}
+          style={styles.titleText}
         >
           {service.domainName}
         </AppText>
-
         <AppText
           size="small"
           color={comingSoon ? "accent" : "textMuted"}
           numberOfLines={1}
-          style={styles.subtitle}
+          style={styles.subtitleText}
         >
           {comingSoon ? "Coming Soon" : "View services"}
         </AppText>
       </View>
-
-      {/* Tap Indicator */}
-      {!comingSoon && <View style={styles.tapIndicator} />}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     card: {
-      flex: 1,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.xl,
-      paddingVertical: theme.spacing.md,
-      paddingHorizontal: theme.spacing.sm,
-      marginHorizontal: theme.spacing.xs,
-      marginBottom: theme.spacing.md,
       alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.dark ? theme.colors.border : 'transparent',
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
-      position: 'relative',
+      justifyContent: 'flex-start',
+      marginBottom: theme.spacing.md,
+      minHeight: 165,
+    },
+    pressed: {
+      transform: [{ scale: 0.97 }],
+      opacity: 0.95,
     },
     comingSoonCard: {
-      opacity: 0.9,
+      opacity: 0.85,
+    },
+    imageContainer: {
+      width: '100%',
+      height: 120,
+      borderRadius: 18,
+      backgroundColor: theme.dark ? '#1E293B' : '#F8FAFC',
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 2,
+      position: 'relative',
+    },
+    image: {
+      width: '100%',
+      height: '100%',
     },
     statusTag: {
       position: 'absolute',
-      top: theme.spacing.xs,
-      right: theme.spacing.xs,
+      top: 8,
+      right: 8,
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 6,
@@ -152,56 +151,23 @@ const createStyles = (theme: any) =>
       textTransform: 'uppercase',
       letterSpacing: 0.2,
     },
-    imageContainer: {
-      width: 100,
-      height: 100,
-      borderRadius: theme.radius.lg,
-      backgroundColor: theme.colors.background,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: theme.spacing.md,
-      overflow: 'hidden',
-    },
-    image: {
+    contentContainer: {
       width: '100%',
-      height: '100%',
-    },
-    loaderContainer: {
-      ...StyleSheet.absoluteFillObject,
-      justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: `${theme.colors.background}80`,
+      paddingHorizontal: 2,
     },
-    placeholderContainer: {
-      width: '100%',
-      height: '100%',
-      backgroundColor: theme.colors.background,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    textContainer: {
-      alignItems: 'center',
-      flex: 1,
-      width: '100%',
-    },
-    title: {
-      marginBottom: theme.spacing.xs,
-      textAlign: 'center',
+    titleText: {
       color: theme.colors.text,
-    },
-    subtitle: {
+      fontSize: 13,
+      lineHeight: 18,
       textAlign: 'center',
-      fontSize: 12,
+      marginBottom: 2,
     },
-    tapIndicator: {
-      position: 'absolute',
-      top: theme.spacing.sm,
-      right: theme.spacing.sm,
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: theme.colors.primary,
+    subtitleText: {
+      textAlign: 'center',
+      fontSize: 11,
     },
   });
 
 export default ServiceCard;
+

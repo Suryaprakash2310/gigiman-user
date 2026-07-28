@@ -12,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "@/src/theme/useTheme";
 import AppText from "@/src/components/ui/AppText";
+import OptimizedImage from "@/src/components/ui/OptimizedImage";
 import { getStatusBadgeConfig, isComingSoon } from "@/src/utils/serviceStatus";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -82,10 +83,10 @@ const ServiceCard: React.FC<Props> = ({ category, index }) => {
 
           {/* IMAGE CONTAINER */}
           <View style={s.imageContainer}>
-            <Image
-              source={{ uri: category.image }}
+            <OptimizedImage
+              uri={category.image}
               style={s.image}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
 

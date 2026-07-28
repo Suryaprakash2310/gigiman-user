@@ -1,20 +1,19 @@
+import { useTheme } from '@/src/theme/useTheme';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  Modal,
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
+  Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
-  SafeAreaView,
-  Dimensions,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useTheme } from '@/src/theme/useTheme';
-import AppText from './ui/AppText';
 import AppButton from './ui/AppButton';
-import { Ionicons } from '@expo/vector-icons';
+import AppText from './ui/AppText';
 
 type Props = {
   visible: boolean;
@@ -47,7 +46,7 @@ export default function CancellationModal({
       selectedReason === "Other (please specify)"
         ? customReason.trim()
         : selectedReason;
-    
+
     // Reset state before callback
     setSelectedReason(null);
     setCustomReason('');
@@ -87,7 +86,7 @@ export default function CancellationModal({
               { backgroundColor: theme.colors.surface, borderTopLeftRadius: theme.radius.xl, borderTopRightRadius: theme.radius.xl }
             ]}
           >
-            <SafeAreaView style={styles.safeArea}>
+            <View style={styles.safeArea}>
               {/* Grab Indicator */}
               <View style={[styles.indicator, { backgroundColor: theme.colors.border }]} />
 
@@ -217,7 +216,7 @@ export default function CancellationModal({
                   </AppText>
                 </TouchableOpacity>
               </View>
-            </SafeAreaView>
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </KeyboardAvoidingView>

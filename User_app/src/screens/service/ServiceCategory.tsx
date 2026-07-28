@@ -208,7 +208,7 @@ export default function ServiceCategory({ route, navigation }: any) {
           renderItem={({ item, index }) => (
             <CategoryCard
               id={item._id}
-              image={item.servicecategoryImage}
+              image={item.servicecategoryImage || (item as any).categoryImage || (item as any).serviceImage || (item as any).image}
               title={item.serviceCategoryName}
               description={item.description}
               price={item.price}

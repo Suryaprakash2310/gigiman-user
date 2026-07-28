@@ -1,4 +1,5 @@
 import AppText from '@/src/components/ui/AppText';
+import OptimizedImage from '@/src/components/ui/OptimizedImage';
 import { useTheme } from '@/src/theme/useTheme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -79,37 +80,12 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
       >
         {/* Image Section */}
         <View style={styles.imageWrapper}>
-          {image && !imageError ? (
-            <>
-              <Image
-                source={{ uri: image }}
-                style={styles.image}
-                resizeMode="cover"
-                onLoad={() => setImageLoading(false)}
-                onError={() => {
-                  setImageLoading(false);
-                  setImageError(true);
-                }}
-              />
-              {imageLoading && (
-                <View style={styles.loader}>
-                  <ActivityIndicator
-                    size="small"
-                    color={theme.colors.primary}
-                  />
-                </View>
-              )}
-            </>
-          ) : (
-            <LinearGradient
-              colors={[theme.colors.primary, theme.colors.primaryDark]}
-              style={styles.gradientPlaceholder}
-            >
-              <AppText weight="bold" size="h2" style={{ color: '#fff' }}>
-                {title.charAt(0).toUpperCase()}
-              </AppText>
-            </LinearGradient>
-          )}
+          <OptimizedImage
+            uri={image}
+            style={styles.image}
+            contentFit="cover"
+            transition={250}
+          />
         </View>
 
         {/* Content Section */}

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { ActivityIndicator, Image as RNImage, StyleSheet, View, ImageStyle, StyleProp } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { API_BASE_URL } from "@/src/config/env";
 
 let ExpoImageComponent: any = null;
 try {
@@ -9,8 +11,27 @@ try {
   ExpoImageComponent = null;
 }
 
+export const getImageUrl = (rawUri?: string | null): string | null => {
+  if (!rawUri || typeof rawUri !== "string") return null;
+  const trimmed = rawUri.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("data:") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  const serverOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+  if (trimmed.startsWith("/")) {
+    return `${serverOrigin}${trimmed}`;
+  }
+  return `${serverOrigin}/${trimmed}`;
+};
+
 export const prefetchImages = async (urls: string[]) => {
-  const validUrls = urls.filter((url) => Boolean(url && typeof url === "string"));
+  const validUrls = urls
+    .map((url) => getImageUrl(url))
+    .filter((url): url is string => Boolean(url));
+
   if (validUrls.length === 0) return;
 
   try {
@@ -22,7 +43,6 @@ export const prefetchImages = async (urls: string[]) => {
     // Fall back to RN Image prefetch
   }
 
-  // Fallback to RN Image.prefetch
   try {
     await Promise.all(validUrls.map((url) => RNImage.prefetch(url).catch(() => false)));
   } catch (e) {
@@ -43,44 +63,54 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   style,
   contentFit = "contain",
   transition = 300,
-  placeholderText = "G",
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  if (!uri || error) {
+  const finalUrl = getImageUrl(uri);
+
+  if (!finalUrl || error) {
     return (
       <View style={[styles.placeholderContainer, style]}>
-        <View style={styles.initialBadge}>
-          <RNImage
-            source={{ uri: "https://via.placeholder.com/150" }}
-            style={StyleSheet.absoluteFillObject}
-          />
-        </View>
+        <Ionicons name="image-outline" size={24} color="#94A3B8" />
       </View>
     );
   }
 
   if (ExpoImageComponent) {
     return (
-      <ExpoImageComponent
-        source={{ uri }}
-        style={style}
-        contentFit={contentFit}
-        transition={transition}
-        cachePolicy="disk"
-      />
+      <View style={[styles.imageWrapper, style]}>
+        <ExpoImageComponent
+          source={{ uri: finalUrl }}
+          style={StyleSheet.absoluteFillObject}
+          contentFit={contentFit}
+          transition={transition}
+          cachePolicy="disk"
+          onLoad={() => setLoading(false)}
+          onError={(err: any) => {
+            console.log("[OptimizedImage] expo-image failed to load:", finalUrl, err?.error);
+            setLoading(false);
+            setError(true);
+          }}
+        />
+        {loading && (
+          <View style={[StyleSheet.absoluteFillObject, styles.loaderOverlay]}>
+            <ActivityIndicator size="small" color="#2F6B63" />
+          </View>
+        )}
+      </View>
     );
   }
 
   return (
-    <View style={styles.imageWrapper}>
+    <View style={[styles.imageWrapper, style]}>
       <RNImage
-        source={{ uri }}
-        style={style}
+        source={{ uri: finalUrl }}
+        style={StyleSheet.absoluteFillObject}
         resizeMode={contentFit === "contain" ? "contain" : "cover"}
         onLoadEnd={() => setLoading(false)}
-        onError={() => {
+        onError={(e) => {
+          console.log("[OptimizedImage] RNImage failed to load:", finalUrl, e.nativeEvent?.error);
           setLoading(false);
           setError(true);
         }}
@@ -110,12 +140,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 12,
   },
-  initialBadge: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
 });
 
 export default OptimizedImage;
+
