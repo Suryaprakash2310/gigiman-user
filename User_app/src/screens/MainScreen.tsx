@@ -1,7 +1,7 @@
-// src/screens/MainScreen.tsx — FLAGSHIP 2026 REDESIGN
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -20,7 +20,11 @@ import AnimatedRN, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { DomainService, ServiceAPI } from "@/src/api/service.api";
+import CategoryCard from "@/src/components/home/CategoryCard";
+import CategorySkeleton from "@/src/components/home/CategorySkeleton";
 import AppText from "@/src/components/ui/AppText";
+import { prefetchImages } from "@/src/components/ui/OptimizedImage";
 import { useAuthContext } from "@/src/context/AuthContext";
 import { useCartContext } from "@/src/context/CartContext";
 import { useNotifications } from "@/src/context/NotificationContext";
@@ -483,80 +487,209 @@ const hS = StyleSheet.create({
   },
 });
 
-/* ══════════════════════════════════════════════════════════════════════
-   ② CATEGORY SECTION
-   Visual: Soft lavender bg. Emoji gradient pill icons. No white cards.
-   ══════════════════════════════════════════════════════════════════════ */
-function CategorySection({ navigation }: any) {
-  const CATS = [
-    { name: "Cleaning", emoji: "✨", g: ["#2F6B63", "#285B5B"] as const },
-    { name: "Home Helper", emoji: "❄️", g: ["#2F6B63", "#285B5B"] as const },
-    { name: "Electrical", emoji: "⚡", g: ["#2F6B63", "#285B5B"] as const },
-    { name: "Plumbing", emoji: "💧", g: ["#2F6B63", "#285B5B"] as const },
-  ];
+const CACHE_KEY_SERVICES = "@gigiman_cached_services";
+
+  function CategorySection({ navigation }: any) {
+  const [services, setServices] = useState<DomainService[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { width } = useWindowDimensions();
+
+  const isCompact = width < 600;
+  const columns = isCompact ? 2 : 3;
+  const cardWidth = (width - 48 - (columns - 1) * 12) / columns;
+  const maxVisibleCount = isCompact ? 6 : 9;
+
+  const fetchAndCacheServices = useCallback(async () => {
+    try {
+      const cachedData = await AsyncStorage.getItem(CACHE_KEY_SERVICES);
+      if (cachedData) {
+        const parsed = JSON.parse(cachedData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setServices(parsed);
+          setLoading(false);
+
+          const cachedUrls = parsed
+            .map((s: any) => s.domainImage || s.serviceImage || s.image)
+            .filter(Boolean);
+          prefetchImages(cachedUrls);
+        }
+      }
+
+      const res = await ServiceAPI.getServicesAPI();
+      const rawList = res?.services || [];
+      const activeServices = (rawList as DomainService[]).filter(
+        (s) => !isComingSoon(s.status)
+      );
+
+      const freshUrls = activeServices
+        .map((s: any) => s.domainImage || s.serviceImage || s.image)
+        .filter(Boolean);
+      prefetchImages(freshUrls);
+
+      const serializedFresh = JSON.stringify(activeServices);
+      if (cachedData !== serializedFresh) {
+        await AsyncStorage.setItem(CACHE_KEY_SERVICES, serializedFresh);
+        setServices(activeServices);
+      }
+    } catch (error) {
+      console.error("CategorySection load error:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAndCacheServices();
+  }, [fetchAndCacheServices]);
+
+  const activeServices = useMemo(() => {
+    return services.filter((service) => !isComingSoon(service.status));
+  }, [services]);
+
+  const displayItems = useMemo(() => {
+    return activeServices.slice(0, maxVisibleCount);
+  }, [activeServices, maxVisibleCount]);
 
   return (
-    <View style={{ paddingTop: 36, paddingBottom: 8 }}>
-      {/* Title row */}
-      <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.catAccent }} />
-          <AppText style={{ color: C.catAccent, fontSize: 10, fontWeight: "700", letterSpacing: 2.5, textTransform: "uppercase" }}>
-            Browse
-          </AppText>
+    <View style={styles.categorySection}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.titleWrap}>
+          <View style={styles.eyebrowDot} />
+          <AppText style={styles.eyebrowText}>Browse</AppText>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
-          <AppText weight="bold" style={{ color: "#1a1a2e", fontSize: 24 }}>
-            Our Services
+        <View style={styles.headerRow}>
+          <AppText weight="bold" style={styles.sectionTitle}>
+            Professional Home Services
           </AppText>
-          <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.6}>
-            <AppText weight="semibold" style={{ color: C.catAccent, fontSize: 13 }}>See all →</AppText>
+          <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.7}>
+            <AppText weight="semibold" style={styles.seeAllText}>See all</AppText>
           </TouchableOpacity>
         </View>
+        <AppText style={styles.sectionSubtitle}>
+          Choose the service you need and get started instantly.
+        </AppText>
       </View>
 
-      {/* Pill chips — horizontal scroll, edge-to-edge */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingLeft: 24, paddingRight: 12, gap: 14 }}
-      >
-        {CATS.map((cat, idx) => (
-          <AnimatedRN.View key={idx} entering={FadeInRight.delay(idx * 55).springify()}>
-            <Pressable
-              onPress={() => navigation.navigate("ServiceTab")}
-              style={({ pressed }) => ({ opacity: pressed ? 0.72 : 1 })}
-            >
-              <View style={catS.item}>
-                <LinearGradient
-                  colors={cat.g}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={catS.iconBox}
-                >
-                  <AppText style={{ fontSize: 26 }}>{cat.emoji}</AppText>
-                </LinearGradient>
-                <AppText weight="semibold" style={{ color: "#1a1a2e", fontSize: 11, marginTop: 10, textAlign: "center" }}>
-                  {cat.name}
-                </AppText>
-              </View>
-            </Pressable>
-          </AnimatedRN.View>
-        ))}
-      </ScrollView>
+      {loading && services.length === 0 ? (
+        <CategorySkeleton count={isCompact ? 4 : 6} columns={columns} />
+      ) : (
+        <>
+          <View style={styles.listContent}>
+            <View style={styles.gridRow}>
+              {displayItems.map((item, index) => {
+                const isLastInRow = (index + 1) % columns === 0;
+                return (
+                  <View
+                    key={item._id}
+                    style={[
+                      styles.gridItem,
+                      !isLastInRow && styles.gridItemSpacing,
+                    ]}
+                  >
+                    <CategoryCard
+                      service={item}
+                      cardWidth={cardWidth}
+                      onPress={() => navigation.navigate("ServiceTab")}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+          {activeServices.length > displayItems.length ? (
+            <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.85} style={styles.viewAllButton}>
+              <Ionicons name="apps-outline" size={16} color="#0D2A1A" />
+              <AppText weight="semibold" style={styles.viewAllButtonText}>View All Services</AppText>
+            </TouchableOpacity>
+          ) : null}
+        </>
+      )}
     </View>
   );
 }
 
-const catS = StyleSheet.create({
-  item: { alignItems: "center", width: 76 },
-  iconBox: {
-    width: 64, height: 64, borderRadius: 22,
-    justifyContent: "center", alignItems: "center",
-    ...Platform.select({
-      ios: { shadowColor: "#7c3aed", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 12 },
-      android: { elevation: 5 },
-    }),
+const styles = StyleSheet.create({
+  categorySection: {
+    paddingTop: 28,
+    paddingBottom: 20,
+    paddingHorizontal: 0,
+  },
+  sectionHeader: {
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  titleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  eyebrowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.catAccent,
+  },
+  eyebrowText: {
+    color: C.catAccent,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 2.5,
+    textTransform: "uppercase",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 6,
+  },
+  sectionTitle: {
+    color: "#111827",
+    fontSize: 22,
+    lineHeight: 28,
+    flex: 1,
+  },
+  seeAllText: {
+    color: C.catAccent,
+    fontSize: 13,
+  },
+  sectionSubtitle: {
+    color: "#64748B",
+    fontSize: 13,
+    lineHeight: 18,
+    maxWidth: 320,
+  },
+  listContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  gridRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  gridItem: {
+    marginBottom: 12,
+  },
+  gridItemSpacing: {
+    marginRight: 12,
+  },
+  viewAllButton: {
+    marginTop: 6,
+    marginHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(13, 42, 26, 0.04)",
+    gap: 8,
+  },
+  viewAllButtonText: {
+    color: "#0D2A1A",
+    fontSize: 13,
   },
 });
 

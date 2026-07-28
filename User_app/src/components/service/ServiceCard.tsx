@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import AppText from '@/src/components/ui/AppText';
+import OptimizedImage from '@/src/components/ui/OptimizedImage';
 import { useTheme } from '@/src/theme/useTheme';
 import { DomainService } from '@/src/api/service.api';
 import { getStatusBadgeConfig, isComingSoon } from '@/src/utils/serviceStatus';
@@ -77,28 +78,12 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
 
       {/* Image Container */}
       <View style={styles.imageContainer}>
-        {imageError ? (
-          <View style={styles.placeholderContainer}>
-            <AppText size="h3" color="textMuted" weight="bold">
-              {service.domainName.charAt(0).toUpperCase()}
-            </AppText>
-          </View>
-        ) : (
-          <>
-            <Image
-              source={{ uri: (service as any).serviceImage }}
-              style={styles.image}
-              onLoad={handleImageLoad}
-              onError={handleImageError}
-              resizeMode="contain"
-            />
-            {imageLoading && (
-              <View style={styles.loaderContainer}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              </View>
-            )}
-          </>
-        )}
+        <OptimizedImage
+          uri={service.domainImage || (service as any).serviceImage}
+          style={styles.image}
+          contentFit="contain"
+          transition={250}
+        />
       </View>
 
       {/* Text Container */}

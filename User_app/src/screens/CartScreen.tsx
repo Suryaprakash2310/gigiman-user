@@ -1,25 +1,23 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Platform,
   ActivityIndicator,
-  RefreshControl,
-  Modal,
   Alert,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useCartContext } from '../context/CartContext';
-import { useTheme } from '../theme/useTheme';
+import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
 import AppText from '../components/ui/AppText';
-import AppButton from '../components/ui/AppButton';
 import { useAuthContext } from '../context/AuthContext';
+import { useCartContext } from '../context/CartContext';
+import { useTheme } from '../theme/useTheme';
 
 export default function CartScreen({ navigation }: any) {
   const { theme } = useTheme();
@@ -66,7 +64,7 @@ export default function CartScreen({ navigation }: any) {
     const domainId = domain?._id || domain || 'unknown';
     const domainName = domain?.domainName || 'General Services';
     const domainImage = domain?.domainImage;
-    
+
     if (!acc[domainId]) {
       acc[domainId] = {
         domainId,
@@ -92,7 +90,7 @@ export default function CartScreen({ navigation }: any) {
       (s) => String(s.DomainServiceId) === String(domainId) || String(s._id) === String(domainId)
     );
     if (!matchingSuggestion) return [];
-    
+
     return recommendedItems.filter((rec) =>
       matchingSuggestion.serviceCategory?.some((c: any) => String(c._id) === String(rec._id))
     );
@@ -127,7 +125,7 @@ export default function CartScreen({ navigation }: any) {
 
   if (isLoading && cartItems.length === 0) {
     return (
-      <SafeAreaView
+      <View
         style={[
           styles.safe,
           { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
@@ -137,12 +135,12 @@ export default function CartScreen({ navigation }: any) {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView
+    <View
       style={[
         styles.safe,
         { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
@@ -204,19 +202,19 @@ export default function CartScreen({ navigation }: any) {
                   {/* Group Main Items */}
                   {groupMainItems.map((item) => (
                     <View key={item._id || item.serviceCategoryId} style={styles.cartCard}>
-                      <Image
+                      {/* <Image
                         source={
                           item.domainService?.domainImage
                             ? { uri: item.domainService.domainImage }
                             : require('../../assets/images/SampleService.png')
                         }
                         style={styles.cardImage}
-                      />
+                      /> */}
                       <View style={styles.cardContent}>
                         <AppText weight="bold" size="body">
                           {item.serviceCategoryName}
                         </AppText>
-                        
+
                         <View style={styles.cardMeta}>
                           <View style={styles.metaItem}>
                             <Ionicons name="time-outline" size={14} color={theme.colors.primary} />
@@ -232,9 +230,9 @@ export default function CartScreen({ navigation }: any) {
                           ₹{item.price}
                         </AppText>
                       </View>
-                      
+
                       <View style={styles.rightActionsContainer}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           onPress={() => removeFromCart(item.serviceCategoryId, true)}
                           style={styles.deleteBtn}
                         >
@@ -243,8 +241,8 @@ export default function CartScreen({ navigation }: any) {
 
                         {/* Quantity & Actions */}
                         <View style={styles.quantityControls}>
-                          <TouchableOpacity 
-                            style={styles.qtyBtn} 
+                          <TouchableOpacity
+                            style={styles.qtyBtn}
                             onPress={() => addToCart(item.serviceCategoryId, 'MAIN')}
                           >
                             <Ionicons name="add" size={16} color={theme.colors.text} />
@@ -252,7 +250,7 @@ export default function CartScreen({ navigation }: any) {
                           <AppText weight="bold" style={styles.qtyText}>
                             {item.quantity}
                           </AppText>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.qtyBtn}
                             onPress={() => removeFromCart(item.serviceCategoryId, false)}
                           >
@@ -429,7 +427,7 @@ export default function CartScreen({ navigation }: any) {
           </Modal>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
