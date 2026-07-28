@@ -1,7 +1,6 @@
 // OtpScreen.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -10,8 +9,7 @@ import {
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getAuth, signInWithPhoneNumber, onAuthStateChanged } from '@react-native-firebase/auth';
-import { startOtpListener, removeListener } from 'react-native-otp-verify';
+import { getAuth, signInWithPhoneNumber, signOut, onAuthStateChanged } from '@react-native-firebase/auth';
 import { verifyOtpApi } from "../api/auth";
 import AppButton from '../components/ui/AppButton';
 import AppHeader from '../components/ui/AppHeader';
@@ -45,9 +43,8 @@ const OtpScreen: React.FC = () => {
   /** OtpInput ref (correct way) */
   const otpRef = useRef<OtpInputRef>(null);
   const isConfirming = useRef(false);
-  const [smsListening, setSmsListening] = useState(false);
 
-  // ⚡ Auto-verification listener (Firebase onAuthStateChanged)
+  // ⚡ Auto-verification listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
       if (user && (user.phoneNumber === `+91${phone}` || user.phoneNumber?.replace(/\s+/g, '') === `+91${phone}`)) {
@@ -103,46 +100,6 @@ const OtpScreen: React.FC = () => {
 
     return () => unsubscribe();
   }, [phone]);
-
-  // 📱 SMS OTP Auto-fill (Android only — SMS Retriever API)
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-
-    let subscription: any = null;
-
-    const startSmsAutoFill = async () => {
-      try {
-        setSmsListening(true);
-        subscription = await startOtpListener((message: string) => {
-          // Extract 6-digit OTP from the SMS body
-          const match = /\b(\d{6})\b/.exec(message);
-          if (match && match[1]) {
-            const extractedOtp = match[1];
-            // Auto-fill the OTP input (setValue also triggers onOtpComplete)
-            otpRef.current?.setValue(extractedOtp);
-          }
-          setSmsListening(false);
-        });
-      } catch (err) {
-        // SMS Retriever failed silently — user can still enter manually
-        setSmsListening(false);
-      }
-    };
-
-    startSmsAutoFill();
-
-    return () => {
-      // Clean up listener on unmount
-      try {
-        if (subscription && typeof subscription.remove === 'function') {
-          subscription.remove();
-        } else {
-          removeListener();
-        }
-      } catch (_) {}
-      setSmsListening(false);
-    };
-  }, []);
 
   const handleOtpComplete = async (otp: string) => {
     if (isConfirming.current) return;
@@ -279,16 +236,6 @@ const OtpScreen: React.FC = () => {
             {phone}
           </AppText>
 
-          {/* SMS Auto-fill banner (Android only) */}
-          {Platform.OS === 'android' && smsListening && (
-            <View style={styles.smsBanner}>
-              <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginRight: 8 }} />
-              <AppText color="textMuted" size="small">
-                Waiting to auto-detect OTP…
-              </AppText>
-            </View>
-          )}
-
           {/* New clean reusable OTP component */}
           <View style={{ marginTop: theme.spacing.lg }}>
             <OtpInput
@@ -345,16 +292,5 @@ const createStyles = (theme: any) =>
       // No, let's look at the structure. 
       // <AppHeader> is outside content.
       // So we need padding on the ROOT container or wrap AppHeader.
-    },
-    smsBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: theme.spacing.sm,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      backgroundColor: theme.colors.surface ?? '#F5F5F5',
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.border ?? '#E0E0E0',
     },
   });
