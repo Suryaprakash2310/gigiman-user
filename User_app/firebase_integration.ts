@@ -21,6 +21,7 @@ if (!firebase.apps.length) {
 }
 */
 
+import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import axios from 'axios';
 
@@ -32,6 +33,11 @@ export const registerUserFcmToken = async (userAuthToken: string, API_BASE_URL: 
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
     if (enabled) {
+      // 📱 iOS APNs registration is required before retrieving FCM token
+      if (Platform.OS === 'ios') {
+        await messaging().registerDeviceForRemoteMessages();
+      }
+
       // 2. Get FCM Device Token
       const fcmToken = await messaging().getToken();
       // console.log("User FCM Token:", fcmToken);

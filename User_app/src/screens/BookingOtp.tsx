@@ -33,6 +33,7 @@ import { ServiceAPI, CategoryService } from "@/src/api/service.api";
 import { initiateMaskedCall } from "@/src/api/call.api";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
 import BookingProcessTracker from "@/src/components/BookingProcessTracker";
+import LiveTrackingMap from "@/src/components/LiveTrackingMap";
 import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
 import AppButton from "@/src/components/ui/AppButton";
@@ -486,6 +487,79 @@ export default function BookingOtp() {
 
   useEffect(() => {
     fetchBooking();
+    if (bookingId) {
+      socket.emit("join-tracking", { bookingId });
+      socket.emit("join-booking", { bookingId });
+      socket.emit("join", { bookingId });
+      socket.emit("join", bookingId);
+      socket.emit("join-room", bookingId);
+      socket.emit("join-service-timer", { bookingId });
+    }
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+
+    const handleTripOrArrival = (data: any) => {
+      const incomingId = String(data?.bookingId || data?.id || data?._id || "");
+      if (incomingId && incomingId !== String(bookingId)) return;
+
+      console.log("📍 [BookingOtp] Received trip/arrival/status socket update:", data);
+      
+      // Immediate local update for faster UI response
+      if (data?.status || data?.eta || data?.latitude || data?.otp) {
+        updateBookingItem(String(bookingId), {
+          ...(data.status ? { status: data.status } : {}),
+          ...(data.eta ? { eta: data.eta } : {}),
+          ...(data.otp ? { otp: String(data.otp) } : {}),
+          ...(data.latitude && data.longitude ? {
+            providerCoordinates: { latitude: Number(data.latitude), longitude: Number(data.longitude) }
+          } : {})
+        });
+      }
+      
+      fetchBooking();
+    };
+
+    socket.on("provider-started-trip", handleTripOrArrival);
+    socket.on("servicer-started-trip", handleTripOrArrival);
+    socket.on("trip-started", handleTripOrArrival);
+    socket.on("technician-started-trip", handleTripOrArrival);
+    socket.on("start-trip", handleTripOrArrival);
+    socket.on("provider-on-the-way", handleTripOrArrival);
+    socket.on("servicer-on-the-way", handleTripOrArrival);
+    socket.on("on-the-way", handleTripOrArrival);
+    socket.on("provider-arrived", handleTripOrArrival);
+    socket.on("servicer-arrived", handleTripOrArrival);
+    socket.on("technician-arrived", handleTripOrArrival);
+    socket.on("arrived", handleTripOrArrival);
+    socket.on("otp-generated", handleTripOrArrival);
+    socket.on("start-service-otp", handleTripOrArrival);
+    socket.on("otp-verified", handleTripOrArrival);
+    socket.on("service-started", handleTripOrArrival);
+    socket.on("in-progress", handleTripOrArrival);
+    socket.on("service-in-progress", handleTripOrArrival);
+
+    return () => {
+      socket.off("provider-started-trip", handleTripOrArrival);
+      socket.off("servicer-started-trip", handleTripOrArrival);
+      socket.off("trip-started", handleTripOrArrival);
+      socket.off("technician-started-trip", handleTripOrArrival);
+      socket.off("start-trip", handleTripOrArrival);
+      socket.off("provider-on-the-way", handleTripOrArrival);
+      socket.off("servicer-on-the-way", handleTripOrArrival);
+      socket.off("on-the-way", handleTripOrArrival);
+      socket.off("provider-arrived", handleTripOrArrival);
+      socket.off("servicer-arrived", handleTripOrArrival);
+      socket.off("technician-arrived", handleTripOrArrival);
+      socket.off("arrived", handleTripOrArrival);
+      socket.off("otp-generated", handleTripOrArrival);
+      socket.off("start-service-otp", handleTripOrArrival);
+      socket.off("otp-verified", handleTripOrArrival);
+      socket.off("service-started", handleTripOrArrival);
+      socket.off("in-progress", handleTripOrArrival);
+      socket.off("service-in-progress", handleTripOrArrival);
+    };
   }, [bookingId]);
 
 
@@ -541,6 +615,277 @@ export default function BookingOtp() {
       socket.off("extra-service-proposed", onExtraServiceProposed);
     };
   }, [bookingId]);
+
+  const handleNavigateToReview = () => {
+    navigation.navigate("BookingTab", {
+      screen: "Review",
+      params: { bookingId: String(bookingId) },
+    });
+  };
+
+  useEffect(() => {
+    const onBookingCompleted = (payload: any) => {
+      const id = String(
+        payload?.bookingId ||
+        payload?.id ||
+        payload?._id ||
+        payload?.booking?._id ||
+        payload?.booking?.id ||
+        payload?.data?.bookingId ||
+        (typeof payload === "string" ? payload : "")
+      );
+      if (!id || String(id) !== String(bookingId)) return;
+
+      updateBookingItem(String(bookingId), { status: "completed" });
+      fetchBooking();
+      navigation.navigate("BookingTab", {
+        screen: "Review",
+        params: { bookingId: String(bookingId) },
+      });
+    };
+
+    socket.on("booking-completed", onBookingCompleted);
+    socket.on("service-completed", onBookingCompleted);
+    socket.on("booking-complete", onBookingCompleted);
+    socket.on("service-complete", onBookingCompleted);
+    socket.on("service-finished", onBookingCompleted);
+
+    return () => {
+      socket.off("booking-completed", onBookingCompleted);
+      socket.off("service-completed", onBookingCompleted);
+      socket.off("booking-complete", onBookingCompleted);
+      socket.off("service-complete", onBookingCompleted);
+      socket.off("service-finished", onBookingCompleted);
+    };
+  }, [bookingId]);
+
+  // ===============================
+  // TIME-BASED SERVICE TIMER STATE
+  // ===============================
+  // ===============================
+  // TIME-BASED SERVICE TIMER STATE
+  // ===============================
+  const [timerData, setTimerData] = useState<{
+    isTimeBased?: boolean;
+    timerStatus?: string;
+    remainingSeconds?: number;
+    extraRemainingSeconds?: number;
+    overtimeSeconds?: number;
+    totalDurationMinutes?: number;
+    startTime?: string | number;
+  } | null>(null);
+
+  // Helper to parse timer data and accurately calculate remaining time from backend startTime
+  const parseAndSyncTimer = (raw: any, fallbackDuration: number = 60) => {
+    if (!raw) return null;
+    const data = raw.timerStatus || raw.timer || raw.serviceTimer || raw.data || raw;
+    const durationMins = Number(
+      data.totalDurationMinutes ||
+      data.durationInMinutes ||
+      raw.totalDurationMinutes ||
+      raw.durationInMinutes ||
+      bookingRef.current?.durationInMinutes ||
+      fallbackDuration
+    );
+    const totalSecs = durationMins * 60;
+    let startStr =
+      data.startTime ||
+      data.startedAt ||
+      data.serviceStartedAt ||
+      raw.serviceStartTime ||
+      raw.startedAt ||
+      bookingRef.current?.serviceStartTime;
+
+    let remainingSecs = data.remainingSeconds != null ? Number(data.remainingSeconds) : undefined;
+    let timerStatus = data.timerStatus || data.status || "RUNNING";
+    let overtimeSecs = Number(data.overtimeSeconds || 0);
+
+    // If remainingSeconds was directly provided from server/socket, infer startTime to synchronize clock
+    if (remainingSecs != null && !startStr) {
+      const elapsed = Math.max(0, totalSecs - remainingSecs);
+      startStr = new Date(Date.now() - (elapsed * 1000)).toISOString();
+    }
+
+    if (startStr) {
+      const startMs = new Date(startStr).getTime();
+      if (!isNaN(startMs) && startMs > 0) {
+        const elapsedSecs = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+        if (elapsedSecs < totalSecs) {
+          remainingSecs = totalSecs - elapsedSecs;
+          timerStatus = "RUNNING";
+        } else if (elapsedSecs < totalSecs + 600) {
+          remainingSecs = (totalSecs + 600) - elapsedSecs;
+          timerStatus = "EXTRA_TIME_RUNNING";
+        } else {
+          remainingSecs = 0;
+          timerStatus = "OVERTIME_RUNNING";
+          overtimeSecs = elapsedSecs - (totalSecs + 600);
+        }
+      }
+    }
+
+    if (remainingSecs == null) {
+      remainingSecs = totalSecs;
+    }
+
+    return {
+      isTimeBased: true,
+      timerStatus,
+      remainingSeconds: Math.max(0, Number(remainingSecs)),
+      extraRemainingSeconds: timerStatus === "EXTRA_TIME_RUNNING" ? Math.max(0, Number(remainingSecs)) : 600,
+      overtimeSeconds: overtimeSecs,
+      totalDurationMinutes: durationMins,
+      startTime: startStr,
+    };
+  };
+
+  useEffect(() => {
+    const fetchTimerStatus = async () => {
+      try {
+        const res = await api.get(`/booking/${bookingId}/timer-status`);
+        const synced = parseAndSyncTimer(res.data, booking?.durationInMinutes || 60);
+        if (synced) {
+          setTimerData(synced);
+        }
+      } catch (err) {
+        // If timer-status endpoint not available, fallback to booking's own timestamps
+        if (booking) {
+          const synced = parseAndSyncTimer(booking, booking.durationInMinutes || 60);
+          if (synced) setTimerData(synced);
+        }
+      }
+    };
+
+    if (['in_progress', 'otp_verified'].includes(booking?.status || '')) {
+      fetchTimerStatus();
+    }
+
+    const onTimerStatus = (data: any) => {
+      if (!data) return;
+      const incomingId = String(data.bookingId || data.id || data._id || "");
+      if (incomingId && incomingId !== String(bookingId)) return;
+      const synced = parseAndSyncTimer(data, booking?.durationInMinutes || 60);
+      if (synced) {
+        setTimerData(synced);
+      }
+    };
+
+    socket.on("service-timer-started", onTimerStatus);
+    socket.on("booking-timer-status", onTimerStatus);
+    socket.on("timer-status", onTimerStatus);
+    socket.on("timer-update", onTimerStatus);
+    socket.on("timer-tick", onTimerStatus);
+    socket.on("service-timer", onTimerStatus);
+    socket.on("extra-timer-extended", (data: any) => {
+      const synced = parseAndSyncTimer(data, booking?.durationInMinutes || 60);
+      if (synced) {
+        setTimerData(synced);
+      }
+    });
+
+    return () => {
+      socket.off("service-timer-started", onTimerStatus);
+      socket.off("booking-timer-status", onTimerStatus);
+      socket.off("timer-status", onTimerStatus);
+      socket.off("timer-update", onTimerStatus);
+      socket.off("timer-tick", onTimerStatus);
+      socket.off("service-timer", onTimerStatus);
+      socket.off("extra-timer-extended");
+    };
+  }, [bookingId, booking?.status, booking?.durationInMinutes, booking?.serviceStartTime]);
+
+  // Real-time 1-second countdown tick with timestamp reconciliation
+  useEffect(() => {
+    if (!['in_progress', 'otp_verified'].includes(booking?.status || '')) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimerData((prev: any) => {
+        if (!prev) {
+          if (booking?.status === 'in_progress') {
+            return parseAndSyncTimer(booking, booking.durationInMinutes || 60);
+          }
+          return null;
+        }
+
+        // If we have startTime, recalculate with exact system clock
+        if (prev.startTime) {
+          const startMs = new Date(prev.startTime).getTime();
+          if (!isNaN(startMs) && startMs > 0) {
+            const durationMins = prev.totalDurationMinutes || 60;
+            const totalSecs = durationMins * 60;
+            const elapsedSecs = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+
+            if (elapsedSecs < totalSecs) {
+              return {
+                ...prev,
+                timerStatus: 'RUNNING',
+                remainingSeconds: totalSecs - elapsedSecs,
+              };
+            } else if (elapsedSecs < totalSecs + 600) {
+              return {
+                ...prev,
+                timerStatus: 'EXTRA_TIME_RUNNING',
+                remainingSeconds: 0,
+                extraRemainingSeconds: (totalSecs + 600) - elapsedSecs,
+              };
+            } else {
+              return {
+                ...prev,
+                timerStatus: 'OVERTIME_RUNNING',
+                remainingSeconds: 0,
+                extraRemainingSeconds: 0,
+                overtimeSeconds: elapsedSecs - (totalSecs + 600),
+              };
+            }
+          }
+        }
+
+        // Fallback decrement if startTime not provided
+        if (prev.timerStatus === 'RUNNING') {
+          if (prev.remainingSeconds > 1) {
+            return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
+          } else {
+            return {
+              ...prev,
+              timerStatus: 'EXTRA_TIME_RUNNING',
+              remainingSeconds: 0,
+              extraRemainingSeconds: 600,
+            };
+          }
+        }
+
+        if (prev.timerStatus === 'EXTRA_TIME_RUNNING') {
+          if (prev.extraRemainingSeconds > 1) {
+            return { ...prev, extraRemainingSeconds: prev.extraRemainingSeconds - 1 };
+          } else {
+            return {
+              ...prev,
+              timerStatus: 'OVERTIME_RUNNING',
+              extraRemainingSeconds: 0,
+              overtimeSeconds: 1,
+            };
+          }
+        }
+
+        return prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [booking?.status]);
+
+  const formatTimerSeconds = (totalSecs: number = 0) => {
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${remMins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+    }
+    return `${remMins.toString().padStart(2, '0')} : ${secs.toString().padStart(2, '0')}`;
+  };
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
 
@@ -777,7 +1122,11 @@ export default function BookingOtp() {
                       ? theme.colors.primary + '30'
                       : ['pending', 'confirmed', 'searching'].includes(booking.status)
                         ? theme.colors.primary + '30'
-                        : brightCyan
+                        : ['provider_arrived', 'otp_verified', 'completed'].includes(booking.status)
+                          ? '#D1FAE5'
+                          : ['provider_started_trip', 'provider_on_the_way'].includes(booking.status)
+                            ? '#CCFBF1'
+                            : brightCyan
               },
               animatedCircleStyle,
             ]}
@@ -794,7 +1143,17 @@ export default function BookingOtp() {
                         ? 'alert-circle-outline'
                         : ['pending', 'confirmed', 'searching'].includes(booking.status)
                           ? 'search-outline'
-                          : 'person-outline'
+                          : ['provider_started_trip', 'provider_on_the_way'].includes(booking.status)
+                            ? 'navigate-outline'
+                            : booking.status === 'provider_arrived'
+                              ? 'location-outline'
+                              : booking.status === 'otp'
+                                ? 'key-outline'
+                                : booking.status === 'otp_verified'
+                                  ? 'checkmark-circle-outline'
+                                  : booking.status === 'in_progress'
+                                    ? 'construct-outline'
+                                    : 'person-outline'
               }
               size={32}
               color={
@@ -806,7 +1165,11 @@ export default function BookingOtp() {
                       ? theme.colors.primary
                       : ['pending', 'confirmed', 'searching'].includes(booking.status)
                         ? theme.colors.primary
-                        : "#0F172A"
+                        : ['provider_arrived', 'otp_verified', 'completed'].includes(booking.status)
+                          ? '#059669'
+                          : ['provider_started_trip', 'provider_on_the_way'].includes(booking.status)
+                            ? '#0D9488'
+                            : "#0F172A"
               }
             />
           </Animated.View>
@@ -819,15 +1182,78 @@ export default function BookingOtp() {
                   ? 'Upcoming Service'
                   : booking.status === 'in_progress'
                     ? 'Service in Progress'
-                    : (booking.status === 'assigned' || booking.status === 'otp')
-                      ? 'Technician Assigned!'
-                      : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
-                        ? 'Awaiting Manual Assignment'
-                        : 'Searching Technician...'}
+                    : booking.status === 'otp_verified'
+                      ? 'OTP Verified!'
+                      : booking.status === 'otp'
+                        ? 'Start Service OTP'
+                        : booking.status === 'provider_arrived'
+                          ? 'Technician Arrived!'
+                          : booking.status === 'provider_on_the_way'
+                            ? 'Technician On The Way!'
+                            : booking.status === 'provider_started_trip'
+                              ? 'Technician Started Trip!'
+                              : (booking.status === 'accepted' || booking.status === 'assigned')
+                                ? 'Technician Assigned!'
+                                : ((booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && !booking.isManuallyAssigned)
+                                  ? 'Awaiting Manual Assignment'
+                                  : 'Searching Technician...'}
           </AppText>
         </View>
 
         <Animated.View style={animatedContentStyle}>
+
+          {/* Completed Banner */}
+          {booking.status === 'completed' && (
+            <AppCard style={styles.completedCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7', width: 48, height: 48, borderRadius: 24, marginRight: 0 }]}>
+                  <Ionicons name="checkmark-done-circle" size={30} color="#059669" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText weight="bold" size="body" style={{ color: "#065F46", fontSize: 16 }}>
+                    Service Completed!
+                  </AppText>
+                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                    {booking.isReviewed
+                      ? "Thank you for your rating and feedback!"
+                      : "Your service has been completed successfully. Please share your rating and feedback."}
+                  </AppText>
+                </View>
+              </View>
+
+              {booking.isReviewed && booking.userRating ? (
+                <View style={styles.reviewedBadgeRow}>
+                  <View style={styles.starsRow}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= (booking.userRating || 0) ? "star" : "star-outline"}
+                        size={18}
+                        color="#F59E0B"
+                        style={{ marginRight: 2 }}
+                      />
+                    ))}
+                  </View>
+                  <AppText size="small" weight="bold" style={{ color: "#047857" }}>
+                    Your Rating: {booking.userRating}/5
+                  </AppText>
+                </View>
+              ) : null}
+
+              {!booking.isReviewed && (
+                <TouchableOpacity
+                  style={styles.reviewButton}
+                  onPress={handleNavigateToReview}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="star" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 15 }}>
+                    Rate & Review Service
+                  </AppText>
+                </TouchableOpacity>
+              )}
+            </AppCard>
+          )}
 
           {/* Cancelled Banner */}
           {booking.status === 'cancelled' && (
@@ -865,6 +1291,75 @@ export default function BookingOtp() {
             <BookingProcessTracker booking={booking} />
           )}
 
+          {/* ⏱️ TIME-BASED SERVICE COUNTDOWN & EXTRA BUFFER TIMER CARD */}
+          {timerData?.isTimeBased && ['in_progress', 'otp_verified'].includes(booking?.status || '') && (
+            <AppCard style={{
+              marginHorizontal: 16,
+              marginVertical: 10,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: timerData.timerStatus === 'EXTRA_TIME_RUNNING'
+                ? '#FFFBEB'
+                : timerData.timerStatus === 'OVERTIME_RUNNING'
+                  ? '#FAF5FF'
+                  : '#ECFDF5',
+              borderWidth: 1.5,
+              borderColor: timerData.timerStatus === 'EXTRA_TIME_RUNNING'
+                ? '#F59E0B'
+                : timerData.timerStatus === 'OVERTIME_RUNNING'
+                  ? '#A855F7'
+                  : '#10B981',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 13,
+                    backgroundColor: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#F59E0B" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#A855F7" : "#059669",
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Ionicons name="time" size={16} color="#FFFFFF" />
+                  </View>
+                  <Ionicons
+                    name="timer-outline"
+                    size={18}
+                    color={timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#D97706" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#9333EA" : "#059669"}
+                  />
+                  <AppText weight="bold" style={{
+                    color: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#B45309" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#7E22CE" : "#065F46",
+                    fontSize: 16,
+                  }}>
+                    Job Service Timer
+                  </AppText>
+                </View>
+
+                <AppText weight="bold" style={{
+                  fontSize: 24,
+                  letterSpacing: 1,
+                  color: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#B45309" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#7E22CE" : "#065F46",
+                  fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                }}>
+                  {timerData.timerStatus === 'RUNNING' && formatTimerSeconds(timerData.remainingSeconds)}
+                  {timerData.timerStatus === 'EXTRA_TIME_RUNNING' && formatTimerSeconds(timerData.extraRemainingSeconds)}
+                  {timerData.timerStatus === 'OVERTIME_RUNNING' && `+${formatTimerSeconds(timerData.overtimeSeconds)}`}
+                </AppText>
+              </View>
+
+              <AppText size="small" style={{
+                color: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#92400E" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#6B21A8" : "#047857",
+                marginTop: 6,
+                fontSize: 12,
+              }}>
+                {timerData.timerStatus === 'RUNNING' && "Countdown synchronized with user in real time."}
+                {timerData.timerStatus === 'EXTRA_TIME_RUNNING' && "Initial service duration completed. 10-minute extra grace period active."}
+                {timerData.timerStatus === 'OVERTIME_RUNNING' && "Your service is ongoing in extended overtime mode."}
+              </AppText>
+            </AppCard>
+          )}
+
           {/* Remaining Balance / Unpaid Payment */}
           {booking && !['paid', 'completed'].includes(booking.paymentStatus || '') && paymentAmount > 0 && (
             <AppCard style={styles.balancePaymentCard}>
@@ -894,20 +1389,104 @@ export default function BookingOtp() {
             </AppCard>
           )}
 
-          {/* Technician Card */}
-          {booking.name && (['assigned', 'otp', 'in_progress', 'completed'].includes(booking.status) || booking.assignmentStatus === 'FAILED' || booking.status === 'manual_assign') && (
-            <BookingDetailsCard
-              name={booking.name ?? "Assigned Technician"}
-              role={booking.serviceCategoryName}
-              image={booking.image}
-              eta={booking.eta}
-              phone={booking.phone}
-              onCallPress={handleCallPress}
+          {/* 🗺️ LIVE MAP: Active ONLY during provider_started_trip, provider_on_the_way, and provider_arrived */}
+          {['provider_started_trip', 'provider_on_the_way', 'provider_arrived'].includes(booking.status) && (
+            <LiveTrackingMap
+              bookingId={booking._id}
+              status={booking.status}
+              customerCoordinates={booking.customerCoordinates}
+              customerAddress={booking.address}
+              initialProviderCoordinates={booking.providerCoordinates}
+              initialEta={booking.eta}
+              providerName={booking.name || "Technician"}
+              providerPhone={booking.phone}
             />
           )}
 
-          {/* OTP Section */}
-          {booking.otp && (booking.status === 'otp' || booking.status === 'assigned' || booking.rawStatus?.toLowerCase() === 'assigned' || booking.rawStatus?.toLowerCase() === 'accepted') && (
+          {/* Stage 2: Provider Accepted Confirmation Banner (No Map, No OTP) */}
+          {(booking.status === 'accepted' || (booking.status === 'assigned' && !booking.isManuallyAssigned)) && (
+            <AppCard style={styles.acceptedBannerCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE', width: 44, height: 44, borderRadius: 22 }]}>
+                  <Ionicons name="checkmark-circle" size={26} color="#0284C7" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText weight="bold" size="body" style={{ color: "#0369A1" }}>
+                    Service Provider Accepted!
+                  </AppText>
+                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                    {booking.name || "Technician"} has accepted your booking. You will be able to track their live location once they start the trip.
+                  </AppText>
+                </View>
+              </View>
+            </AppCard>
+          )}
+
+          {/* Stage 5: Provider Arrived Alert Banner */}
+          {booking.status === 'provider_arrived' && (
+            <AppCard style={styles.arrivedBannerCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.iconCircle, { backgroundColor: '#D1FAE5', width: 44, height: 44, borderRadius: 22 }]}>
+                  <Ionicons name="location" size={26} color="#059669" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText weight="bold" size="body" style={{ color: "#065F46" }}>
+                    Technician Arrived!
+                  </AppText>
+                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                    Your technician has reached your address. Please meet them to begin the service.
+                  </AppText>
+                </View>
+              </View>
+            </AppCard>
+          )}
+
+          {/* Stage 7: OTP Verified Success Transition Banner */}
+          {booking.status === 'otp_verified' && (
+            <AppCard style={styles.otpVerifiedCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7', width: 44, height: 44, borderRadius: 22 }]}>
+                  <Ionicons name="shield-checkmark" size={26} color="#166534" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText weight="bold" size="body" style={{ color: "#166534" }}>
+                    OTP Verified Successfully!
+                  </AppText>
+                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                    Technician is starting your service now.
+                  </AppText>
+                </View>
+              </View>
+            </AppCard>
+          )}
+
+          {/* Technician Profile Card */}
+          {booking.name &&
+            ([
+              'accepted',
+              'assigned',
+              'provider_started_trip',
+              'provider_on_the_way',
+              'provider_arrived',
+              'otp',
+              'otp_verified',
+              'in_progress',
+              'completed',
+            ].includes(booking.status) ||
+              booking.assignmentStatus === 'FAILED' ||
+              booking.status === 'manual_assign') && (
+              <BookingDetailsCard
+                name={booking.name ?? "Assigned Technician"}
+                role={booking.serviceCategoryName}
+                image={booking.image}
+                eta={booking.eta}
+                phone={booking.phone}
+                onCallPress={handleCallPress}
+              />
+            )}
+
+          {/* Stage 6: START SERVICE OTP (Share OTP with servicer) */}
+          {booking.otp && !['completed', 'cancelled', 'otp_verified', 'in_progress'].includes(booking.status) && (
             <View
               style={[
                 styles.otpContainer,
@@ -921,7 +1500,7 @@ export default function BookingOtp() {
                 {booking.otp ?? "----"}
               </AppText>
               <AppText size="small" style={styles.otpInstruction}>
-                Share this code with the technician
+                Share this code with the technician to begin service
               </AppText>
             </View>
           )}
@@ -1071,36 +1650,21 @@ export default function BookingOtp() {
 
 
 
-          {/* Arrival & Summary */}
-          {booking.rawStatus?.toLowerCase() === 'accepted' && (
-            <AppCard style={styles.arrivalCard}>
-              <View style={styles.arrivalHeader}>
-                <View
-                  style={[styles.iconCircle, { backgroundColor: primaryTeal }]}
-                >
-                  <Ionicons name="chevron-down" size={20} color="white" />
-                </View>
-                <AppText size="h3" weight="bold" style={styles.arrivalText}>
-                  Arriving soon
-                </AppText>
-              </View>
 
-              <View style={{ paddingHorizontal: 20 }}>
-                <TouchableOpacity
-                  style={[styles.callButton, calling && { opacity: 0.6 }]}
-                  onPress={handleCallPress}
-                  disabled={calling}
-                >
-                  <AppText style={styles.callText}>
-                    {calling ? "Connecting..." : "📞 Call Technician"}
-                  </AppText>
-                </TouchableOpacity>
-              </View>
-            </AppCard>
-          )}
 
           {/* Ongoing Service Extra Booking Card */}
-          {booking && ['assigned', 'otp', 'in_progress', 'manual_assign'].includes(booking.status) && (
+          {booking &&
+            [
+              'accepted',
+              'assigned',
+              'provider_started_trip',
+              'provider_on_the_way',
+              'provider_arrived',
+              'otp',
+              'otp_verified',
+              'in_progress',
+              'manual_assign',
+            ].includes(booking.status) && (
             <AppCard style={styles.addExtraCard}>
               <View style={styles.addExtraHeader}>
                 <View style={[styles.iconCircle, { backgroundColor: "#EEF2FF" }]}>
@@ -1142,6 +1706,31 @@ export default function BookingOtp() {
                 >
                   Booking Summary
                 </AppText>
+
+                <View style={styles.summaryRow}>
+                  <AppText style={{ color: "#475569" }}>Service Time</AppText>
+                  <AppText style={{ color: "#0F172A" }} weight="medium">
+                    {booking.scheduleDateTime
+                      ? new Date(booking.scheduleDateTime).toLocaleString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : booking.createdAt
+                      ? new Date(booking.createdAt).toLocaleString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : (booking.dateLabel ? `${booking.dateLabel} ${booking.timeLabel || ""}` : "Immediate")}
+                  </AppText>
+                </View>
 
                 {booking.cartItems && booking.cartItems.length > 0 ? (
                   booking.cartItems.map((item, index) => (
@@ -1295,7 +1884,19 @@ export default function BookingOtp() {
             </AppCard>
           )}
 
-
+          {/* Completed Bottom Review Button */}
+          {booking.status === 'completed' && !booking.isReviewed && (
+            <TouchableOpacity
+              style={styles.bottomReviewBtn}
+              onPress={handleNavigateToReview}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="star" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 16 }}>
+                Rate & Review Service
+              </AppText>
+            </TouchableOpacity>
+          )}
 
         </Animated.View>
       </ScrollView>
@@ -2084,5 +2685,88 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#FEE2E2",
+  },
+  acceptedBannerCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#BAE6FD",
+    backgroundColor: "#F0F9FF",
+    marginHorizontal: 4,
+  },
+  arrivedBannerCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    backgroundColor: "#ECFDF5",
+    marginHorizontal: 4,
+  },
+  otpVerifiedCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+    marginHorizontal: 4,
+  },
+  completedCard: {
+    marginBottom: 16,
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "#A7F3D0",
+    backgroundColor: "#ECFDF5",
+    marginHorizontal: 4,
+    shadowColor: "#059669",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  reviewButton: {
+    backgroundColor: "#0D9488",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 14,
+    shadowColor: "#0D9488",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  bottomReviewBtn: {
+    backgroundColor: "#0D9488",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginHorizontal: 4,
+    marginBottom: 20,
+    shadowColor: "#0D9488",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  reviewedBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#A7F3D0",
+  },
+  starsRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });

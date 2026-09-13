@@ -19,7 +19,10 @@ import BookingListCard from "../components/BookingListCard";
 import AppHeader from "../components/ui/AppHeader";
 import { BookingParamList } from "../navigation/stacks/BookingStack";
 
-type TabType = "ongoing" | "manualAssignment" | "upcoming" | "history";
+import { useRecurringStore } from "../store/recurringStore";
+import PlanCard from "../components/recurring/PlanCard";
+
+type TabType = "ongoing" | "manualAssignment" | "upcoming" | "history" | "recurring";
 type BookingRouteProp = RouteProp<BookingParamList, "BookingsMain">;
 
 export default function BookingScreen() {
@@ -28,6 +31,7 @@ export default function BookingScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<BookingRouteProp>();
   const { ongoing, upcoming, manualBookings } = useBooking();
+  const { plans, fetchPlans } = useRecurringStore();
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<TabType>("ongoing");
@@ -92,11 +96,19 @@ export default function BookingScreen() {
     }
   }, [activeTab, fetchHistory]);
 
+  useEffect(() => {
+    if (activeTab === "recurring") {
+      fetchPlans();
+    }
+  }, [activeTab, fetchPlans]);
+
   // Get data for current tab
-  const getTabData = (): BookingItem[] => {
-    let rawData: BookingItem[] = [];
+  const getTabData = (): any[] => {
+    let rawData: any[] = [];
     if (activeTab === "history") {
       rawData = historyBookings;
+    } else if (activeTab === "recurring") {
+      rawData = plans.filter(p => p.status !== "cancelled");
     } else if (activeTab === "manualAssignment") {
       rawData = manualBookings || [];
     } else {
@@ -104,6 +116,10 @@ export default function BookingScreen() {
       rawData = sourceData.filter(
         b => b.status !== "completed" && b.status !== "cancelled"
       );
+    }
+
+    if (activeTab === "recurring") {
+      return rawData;
     }
 
     // De-duplicate items by _id to prevent duplicate key warnings
@@ -132,16 +148,23 @@ export default function BookingScreen() {
     }
 
     if (
-      booking.status === "otp" ||
-      booking.status === "in_progress" ||
-      booking.status === "assigned"
+      [
+        "accepted",
+        "assigned",
+        "provider_started_trip",
+        "provider_on_the_way",
+        "provider_arrived",
+        "otp",
+        "otp_verified",
+        "in_progress",
+      ].includes(booking.status)
     ) {
       navigation.navigate("BookingDetails", { bookingId: booking._id, activeTab });
       return;
     }
 
     if (booking.status === "completed") {
-      //navigation.navigate("Review", { bookingId: booking._id });
+      navigation.navigate("BookingDetails", { bookingId: booking._id, activeTab });
       return;
     }
 
@@ -173,6 +196,11 @@ export default function BookingScreen() {
           title: "No Completed Bookings",
           subtitle: "Your completed service history will appear here.",
         };
+      case "recurring":
+        return {
+          title: "No Active Recurring Plans",
+          subtitle: "Set up a recurring schedule under service booking to clean automatically.",
+        };
     }
   };
 
@@ -180,6 +208,7 @@ export default function BookingScreen() {
     { key: "ongoing", label: "Ongoing", icon: "pulse-outline" },
     { key: "upcoming", label: "Upcoming", icon: "calendar-outline" },
     { key: "manualAssignment", label: "Awaiting Assignment", icon: "person-add-outline" },
+    { key: "recurring", label: "Recurring", icon: "sync-outline" },
     { key: "history", label: "History", icon: "time-outline" },
   ];
 
@@ -207,13 +236,15 @@ export default function BookingScreen() {
           const active = tab.key === activeTab;
           const rawData = tab.key === "ongoing" ? ongoing : upcoming;
           const count =
-            tab.key === "history"
-              ? historyBookings.length
-              : tab.key === "manualAssignment"
-                ? (manualBookings?.length || 0)
-                : rawData.filter(
-                    b => b.status !== "completed" && b.status !== "cancelled"
-                  ).length;
+            tab.key === "recurring"
+              ? plans.filter(p => p.status !== "cancelled").length
+              : tab.key === "history"
+                ? historyBookings.length
+                : tab.key === "manualAssignment"
+                  ? (manualBookings?.length || 0)
+                  : rawData.filter(
+                      b => b.status !== "completed" && b.status !== "cancelled"
+                    ).length;
 
           return (
             <TouchableOpacity
@@ -316,16 +347,59 @@ export default function BookingScreen() {
       {!empty && !(activeTab === "history" && historyLoading) && (
         <FlatList
           data={data}
-          keyExtractor={(item) => String(item._id)}
+          keyExtractor={(item) => String(item._id || item.id)}
           style={[styles.list, activeTab === "history" && { marginTop: 20 }]}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <BookingListCard
-              booking={item}
-              onPress={() => handleCardPress(item)}
-            />
-          )}
+          renderItem={({ item }) => {
+            if (activeTab === "recurring") {
+              return (
+                <PlanCard
+                  plan={item}
+                  onPress={() => {
+                    navigation.navigate("HomeTab", {
+                      screen: "RecurringPlans",
+                      params: {
+                        screen: "PlanDetails",
+                        params: { planId: item.id }
+                      }
+                    });
+                  }}
+                  onPauseToggle={() => useRecurringStore.getState().pausePlan(item.id)}
+                  onSkipNext={() => useRecurringStore.getState().skipNextVisit(item.id)}
+                  onReschedule={() => {
+                    navigation.navigate("HomeTab", {
+                      screen: "RecurringPlans",
+                      params: {
+                        screen: "PlanDetails",
+                        params: { planId: item.id }
+                      }
+                    });
+                  }}
+                  onEdit={() => {
+                    navigation.navigate("HomeTab", {
+                      screen: "RecurringPlans",
+                      params: {
+                        screen: "RecurringBooking",
+                        params: { editPlanId: item.id }
+                      }
+                    });
+                  }}
+                  onCancel={() => useRecurringStore.getState().cancelPlan(item.id)}
+                  style={{ marginBottom: 16 }}
+                />
+              );
+            }
+            return (
+              <BookingListCard
+                booking={item}
+                onPress={() => handleCardPress(item)}
+                onReviewPress={() =>
+                  navigation.navigate("Review", { bookingId: String(item._id) })
+                }
+              />
+            );
+          }}
         />
       )}
     </View>

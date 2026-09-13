@@ -19,7 +19,12 @@ import { BookingAPI } from "../api/booking.api";
 export type BookingStatus =
   | "scheduled"
   | "searching"
+  | "accepted"
+  | "provider_started_trip"
+  | "provider_on_the_way"
+  | "provider_arrived"
   | "otp"
+  | "otp_verified"
   | "in_progress"
   | "completed"
   | "cancelled"
@@ -37,6 +42,7 @@ export type BookingItem = {
   domainService?: string;
   isScheduled?: boolean;
   scheduleDateTime?: string;
+  createdAt?: string;
   name?: string;
   rating?: number;
   reviews?: number;
@@ -61,6 +67,8 @@ export type BookingItem = {
   isManuallyAssigned?: boolean;
   phone?: string;
   eta?: string;
+  customerCoordinates?: { latitude: number; longitude: number };
+  providerCoordinates?: { latitude: number; longitude: number };
   primaryEmployee?: any;
   servicerCompany?: any;
   cartItems?: {
@@ -73,7 +81,12 @@ export type BookingItem = {
     quantity: number;
   }[];
   cancelReason?: string;
+  serviceStartTime?: string;
+  serviceTimer?: any;
   convenienceFee?: number;
+  isReviewed?: boolean;
+  userRating?: number;
+  userReview?: string;
 };
 
 export type ServiceProposal = {
@@ -335,6 +348,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             image: booking.image || b.image,
             rating: booking.rating ?? b.rating,
             reviews: booking.reviews ?? b.reviews,
+            isReviewed: booking.isReviewed !== undefined ? booking.isReviewed : b.isReviewed,
+            userRating: booking.userRating !== undefined ? booking.userRating : b.userRating,
+            userReview: booking.userReview !== undefined ? booking.userReview : b.userReview,
             pendingServiceProposal:
               booking.pendingServiceProposal !== undefined
                 ? booking.pendingServiceProposal
@@ -479,6 +495,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           durationInMinutes:
             updates.durationInMinutes !== undefined ? updates.durationInMinutes : b.durationInMinutes,
           otp: updates.otp ?? b.otp,
+          isReviewed: updates.isReviewed !== undefined ? updates.isReviewed : b.isReviewed,
+          userRating: updates.userRating !== undefined ? updates.userRating : b.userRating,
+          userReview: updates.userReview !== undefined ? updates.userReview : b.userReview,
         };
       })
     );
@@ -519,7 +538,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     () =>
       bookings.filter(
         b =>
-          ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
+          [
+            "searching",
+            "accepted",
+            "assigned",
+            "provider_started_trip",
+            "provider_on_the_way",
+            "provider_arrived",
+            "otp",
+            "otp_verified",
+            "in_progress",
+          ].includes(b.status) &&
           !(b.status === "assigned" && b.isManuallyAssigned) &&
           (b.assignmentStatus !== "FAILED" || b.isManuallyAssigned || !!b.primaryEmployee || !!b.servicerCompany)
       ),
@@ -530,7 +559,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     () =>
       bookings.filter(
         b =>
-          ["searching", "otp", "in_progress", "assigned"].includes(b.status) &&
+          [
+            "searching",
+            "accepted",
+            "assigned",
+            "provider_started_trip",
+            "provider_on_the_way",
+            "provider_arrived",
+            "otp",
+            "otp_verified",
+            "in_progress",
+          ].includes(b.status) &&
           !(b.status === "assigned" && b.isManuallyAssigned) &&
           (b.assignmentStatus !== "FAILED" || b.isManuallyAssigned || !!b.primaryEmployee || !!b.servicerCompany)
       ),

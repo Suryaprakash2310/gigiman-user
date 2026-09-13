@@ -6,15 +6,15 @@ import AppText from '@/src/components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
 
 interface BookingModeOption {
-  id: 'now' | 'schedule';
+  id: 'now' | 'schedule' | 'recurring';
   label: string;
   icon: string;
   description?: string;
 }
 
 interface BookingModeSelectorProps {
-  selectedMode: 'now' | 'schedule';
-  onModeChange: (mode: 'now' | 'schedule') => void;
+  selectedMode: 'now' | 'schedule' | 'recurring';
+  onModeChange: (mode: 'now' | 'schedule' | 'recurring') => void;
 }
 
 const BOOKING_MODES: BookingModeOption[] = [
@@ -29,6 +29,12 @@ const BOOKING_MODES: BookingModeOption[] = [
     label: 'Schedule Later',
     icon: 'calendar',
     description: 'Choose date & time',
+  },
+  {
+    id: 'recurring',
+    label: 'Recurring',
+    icon: 'repeat',
+    description: 'Book once, clean automatically',
   },
 ];
 
@@ -130,11 +136,11 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing.md,
     },
     modesContainer: {
-      flexDirection: 'row',
-      gap: theme.spacing.md,
+      flexDirection: 'column',
+      gap: theme.spacing.sm,
     },
     modeWrapper: {
-      flex: 1,
+      width: '100%',
     },
     modeButton: {
       flexDirection: 'row',

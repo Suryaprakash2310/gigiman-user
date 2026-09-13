@@ -6,7 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MainScreen from '@/src/screens/MainScreen';
 import NotificationScreen from '@/src/screens/NotificationScreen';
 import ResumeBar from '@/src/components/ResumeBar';
-
+import RecurringStack from './RecurringStack';
 
 
 const Stack = createNativeStackNavigator();
@@ -17,8 +17,10 @@ export default function HomeStack() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Home" component={MainScreen} />
         <Stack.Screen name="Notifications" component={NotificationScreen} />
+        <Stack.Screen name="RecurringPlans" component={RecurringStack} />
       </Stack.Navigator>
       <ResumeBar />
     </>
   );
 }
+

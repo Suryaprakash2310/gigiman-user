@@ -52,7 +52,7 @@ export default function TimePickerModal({ visible, onClose, onSelect, selectedTi
     };
 
     const createDateWithTime = (hour: number, minute: number) => {
-        const d = new Date();
+        const d = new Date(selectedDate || new Date());
         d.setHours(hour);
         d.setMinutes(minute);
         d.setSeconds(0);
@@ -63,10 +63,11 @@ export default function TimePickerModal({ visible, onClose, onSelect, selectedTi
     const timeSlots = generateTimeSlots();
 
     const formatTime = (date: Date) => {
-        return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     };
 
     const isSelected = (slotDate: Date) => {
+        if (!selectedTime) return false;
         return slotDate.getHours() === selectedTime.getHours() && slotDate.getMinutes() === selectedTime.getMinutes();
     };
 

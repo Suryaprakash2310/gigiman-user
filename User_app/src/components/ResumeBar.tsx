@@ -17,7 +17,18 @@ export default function ResumeBar() {
     if (latest.status === "searching") {
       navigation.navigate("BookingTab", { screen: "Searching", params: { bookingId: latest._id } });
     }
-    else if (latest.status === "otp" || latest.status === "in_progress") {
+    else if (
+      [
+        "accepted",
+        "assigned",
+        "provider_started_trip",
+        "provider_on_the_way",
+        "provider_arrived",
+        "otp",
+        "otp_verified",
+        "in_progress",
+      ].includes(latest.status)
+    ) {
       navigation.navigate("BookingTab", { screen: "BookingDetails", params: { bookingId: latest._id } });
     }
     else {

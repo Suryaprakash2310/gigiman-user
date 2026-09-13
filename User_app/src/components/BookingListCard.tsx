@@ -3,15 +3,17 @@ import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
 import { BookingItem } from "@/src/context/BookingContext";
 import { useTheme } from "@/src/theme/useTheme";
+import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 interface Props {
   booking: BookingItem;
   onPress: () => void;
+  onReviewPress?: () => void;
 }
 
-export default function BookingListCard({ booking, onPress }: Props) {
+export default function BookingListCard({ booking, onPress, onReviewPress }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
 
@@ -32,18 +34,47 @@ export default function BookingListCard({ booking, onPress }: Props) {
           color: "#B45309",
         };
 
-      case "otp":
-        return {
-          label: "Technician arrived",
-          bg: "#DBEAFE",
-          color: "#1D4ED8",
-        };
-
+      case "accepted":
       case "assigned":
         return {
           label: "Technician assigned",
           bg: "#DBEAFE",
           color: "#1D4ED8",
+        };
+
+      case "provider_started_trip":
+        return {
+          label: "Trip started",
+          bg: "#E0F2FE",
+          color: "#0284C7",
+        };
+
+      case "provider_on_the_way":
+        return {
+          label: "On the way",
+          bg: "#CCFBF1",
+          color: "#0F766E",
+        };
+
+      case "provider_arrived":
+        return {
+          label: "Technician arrived",
+          bg: "#D1FAE5",
+          color: "#059669",
+        };
+
+      case "otp":
+        return {
+          label: "Start Service OTP",
+          bg: "#A5F3FC",
+          color: "#0E7490",
+        };
+
+      case "otp_verified":
+        return {
+          label: "OTP Verified",
+          bg: "#DCFCE7",
+          color: "#166534",
         };
 
       case "in_progress":
@@ -83,6 +114,59 @@ export default function BookingListCard({ booking, onPress }: Props) {
 
   if (!statusConfig) return null; // safety
 
+  const hasOtp = !!(booking.otp && !["completed", "cancelled", "otp_verified", "in_progress"].includes(booking.status));
+  const isInProgress = booking.status === "in_progress" || booking.status === "otp_verified";
+  const duration = booking.durationInMinutes || 60;
+
+  // Live timer for ongoing active service
+  const [liveRemaining, setLiveRemaining] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (!isInProgress) {
+      setLiveRemaining(null);
+      return;
+    }
+
+    const computeSeconds = () => {
+      const totalSecs = duration * 60;
+      let startStr = booking.serviceStartTime;
+      if (booking.serviceTimer?.remainingSeconds != null && !startStr) {
+        const elapsed = Math.max(0, totalSecs - Number(booking.serviceTimer.remainingSeconds));
+        startStr = new Date(Date.now() - (elapsed * 1000)).toISOString();
+      } else if (booking.serviceTimer?.startTime) {
+        startStr = booking.serviceTimer.startTime;
+      }
+
+      if (startStr) {
+        const startMs = new Date(startStr).getTime();
+        if (!isNaN(startMs) && startMs > 0) {
+          const elapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+          return Math.max(0, totalSecs - elapsed);
+        }
+      }
+      return totalSecs;
+    };
+
+    setLiveRemaining(computeSeconds());
+
+    const interval = setInterval(() => {
+      setLiveRemaining(computeSeconds());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isInProgress, booking.serviceStartTime, booking.createdAt, duration]);
+
+  const formatMinSec = (totalSecs: number) => {
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${remMins.toString().padStart(2, '0')}m`;
+    }
+    return `${remMins.toString().padStart(2, '0')} : ${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
       <AppCard style={styles.card}>
@@ -110,17 +194,102 @@ export default function BookingListCard({ booking, onPress }: Props) {
           )}
         </View>
 
-        <View style={styles.rowMid}>
-          <AppText size="small" color="textMuted">
-            {booking.scheduleDateTime
-              ? new Date(booking.scheduleDateTime).toLocaleString()
-              : ""}
-          </AppText>
+        {/* SERVICE TIME & DURATION ROW */}
+        <View style={styles.serviceInfoRow}>
+          <View style={styles.serviceMetaItem}>
+            <Ionicons name="time-outline" size={14} color="#64748B" />
+            <AppText size="small" color="textMuted" style={{ marginLeft: 4 }}>
+              {booking.scheduleDateTime
+                ? new Date(booking.scheduleDateTime).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : booking.createdAt
+                ? new Date(booking.createdAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : booking.dateLabel
+                ? `${booking.dateLabel} ${booking.timeLabel || ""}`
+                : "Service Time"}
+            </AppText>
+          </View>
 
-          <AppText size="small" color="textMuted">
+          {duration > 0 && (
+            <View style={styles.durationPill}>
+              <Ionicons
+                name={isInProgress ? "hourglass-outline" : "timer-outline"}
+                size={12}
+                color={isInProgress ? "#0D9488" : "#64748B"}
+              />
+              <AppText
+                size="caption"
+                weight="semibold"
+                style={{
+                  color: isInProgress ? "#0D9488" : "#64748B",
+                  marginLeft: 3,
+                  fontSize: 11,
+                }}
+              >
+                {isInProgress ? `Working: ${duration}m` : `${duration} mins`}
+              </AppText>
+            </View>
+          )}
+        </View>
+
+        {/* ⏱️ LIVE SYNCHRONIZED JOB SERVICE TIMER IN ONGOING TAB */}
+        {isInProgress && liveRemaining != null && (
+          <View style={styles.ongoingTimerCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={styles.timerPulseDot} />
+              <Ionicons name="timer-outline" size={16} color="#047857" />
+              <AppText weight="bold" size="small" style={{ color: "#065F46" }}>
+                Job Service Timer
+              </AppText>
+            </View>
+            <AppText weight="bold" style={styles.ongoingTimerDigits}>
+              {formatMinSec(liveRemaining)}
+            </AppText>
+          </View>
+        )}
+
+        <View style={styles.rowMid}>
+          <AppText size="small" color="textMuted" numberOfLines={1}>
             {booking.address}
           </AppText>
         </View>
+
+        {/* PROMINENT START SERVICE OTP BANNER (ONGOING TAB) */}
+        {hasOtp && (
+          <View style={styles.otpBanner}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <View style={styles.otpIconCircle}>
+                <Ionicons name="key" size={14} color="#0E7490" />
+              </View>
+              <View>
+                <AppText size="caption" color="textMuted" style={{ fontSize: 10, lineHeight: 12 }}>
+                  Share with technician
+                </AppText>
+                <AppText size="small" weight="bold" style={{ color: "#0E7490" }}>
+                  Start Service OTP
+                </AppText>
+              </View>
+            </View>
+            <View style={styles.otpCodeBadge}>
+              <AppText weight="bold" style={styles.otpCodeText}>
+                {booking.otp}
+              </AppText>
+            </View>
+          </View>
+        )}
 
         <View style={styles.rowBottom}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -139,26 +308,43 @@ export default function BookingListCard({ booking, onPress }: Props) {
               </AppText>
             </View>
 
-            {booking.otp && (booking.status === "otp" || booking.status === "assigned") && (
-              <View style={[styles.pill, { backgroundColor: "#A5F3FC" }]}>
-                <AppText size="small" weight="bold" style={{ color: "#0E7490" }}>
-                  OTP: {booking.otp}
+            {booking.eta && ["provider_started_trip", "provider_on_the_way"].includes(booking.status) && (
+              <View style={[styles.pill, { backgroundColor: "#CCFBF1" }]}>
+                <AppText size="small" weight="bold" style={{ color: "#0F766E" }}>
+                  ETA: ~{booking.eta}
                 </AppText>
               </View>
             )}
           </View>
 
-          {(booking.status === "in_progress" || booking.status === "completed" || booking.status === "assigned" || booking.status === "otp") &&
-            booking.name && (
+          {booking.name &&
+            ![ "searching", "cancelled" ].includes(booking.status) && (
               <AppText size="small" color="textMuted">
                 {booking.status === "completed" ? "By" : "With"} {booking.name}
               </AppText>
             )}
         </View>
 
-        {/* 4 Process Stepper */}
-        {booking.status !== "cancelled" && booking.status !== "completed" && (
+        {/* 5 Process Stepper */}
+        {booking.status !== "cancelled" && (
           <BookingProcessTracker booking={booking} compact={true} />
+        )}
+
+        {/* Rate & Review Button for Completed Bookings (only if not yet reviewed) */}
+        {booking.status === "completed" && !booking.isReviewed && onReviewPress && (
+          <TouchableOpacity
+            style={styles.reviewBtn}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onReviewPress();
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="star" size={14} color="#0D9488" style={{ marginRight: 6 }} />
+            <AppText weight="bold" style={{ color: "#0D9488", fontSize: 13 }}>
+              Rate & Review
+            </AppText>
+          </TouchableOpacity>
         )}
 
         {booking.status === "cancelled" && booking.cancelReason && (
@@ -197,9 +383,82 @@ const createStyles = (theme: any) =>
     serviceName: {
       flex: 1,
       marginRight: 12,
+      fontSize: 16,
+    },
+    serviceInfoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 6,
+    },
+    serviceMetaItem: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    durationPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#F1F5F9",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    ongoingTimerCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: "#ECFDF5",
+      borderWidth: 1.5,
+      borderColor: "#10B981",
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 10,
+    },
+    timerPulseDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: "#10B981",
+    },
+    ongoingTimerDigits: {
+      fontSize: 16,
+      color: "#065F46",
+      letterSpacing: 1,
     },
     rowMid: {
       marginBottom: 8,
+    },
+    otpBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: "#ECFEFF",
+      borderWidth: 1,
+      borderColor: "#67E8F9",
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 10,
+    },
+    otpIconCircle: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: "#CFFAFE",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    otpCodeBadge: {
+      backgroundColor: "#0891B2",
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    otpCodeText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      letterSpacing: 2,
     },
     rowBottom: {
       flexDirection: "row",
@@ -210,5 +469,16 @@ const createStyles = (theme: any) =>
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 999,
+    },
+    reviewBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 10,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: "#CCFBF1",
+      borderWidth: 1,
+      borderColor: "#99F6E4",
     },
   });

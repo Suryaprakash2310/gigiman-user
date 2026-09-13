@@ -73,6 +73,12 @@ export default function MyBookingsScreen() {
             <BookingListCard
               booking={item}
               onPress={() => handleCardPress(item)}
+              onReviewPress={() =>
+                navigation.navigate("BookingTab", {
+                  screen: "Review",
+                  params: { bookingId: String(item._id) },
+                })
+              }
             />
           )}
         />

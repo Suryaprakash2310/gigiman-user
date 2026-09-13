@@ -5,7 +5,15 @@ function normalizeStatus(booking: any): BookingStatus {
   const assignment = booking.assignmentStatus?.toLowerCase();
 
   // 1. Check for Terminal Statuses
-  if (status === "completed") return "completed";
+  if (
+    status === "completed" ||
+    status === "complete" ||
+    status === "finished" ||
+    status === "service_completed" ||
+    status === "ended"
+  ) {
+    return "completed";
+  }
   if (
     status === "cancelled" ||
     status === "cancalled" ||
@@ -24,28 +32,48 @@ function normalizeStatus(booking: any): BookingStatus {
 
   // 4. Check for Active / In-Progress Statuses
   if (status === "in_progress") return "in_progress";
+  if (status === "otp_verified") return "otp_verified";
 
-  // 5. Check for Assigned / OTP Statuses
-  // If assignment is "searching", we stay on searching screen
-  if (assignment === "searching") return "searching";
+  // 5. Check for OTP Status
+  if (status === "otp" || status === "start_service_otp") return "otp";
 
-  //if (status === "pending") return "otp";
+  // 6. Check for Arrived Status
+  if (status === "arrived" || status === "provider_arrived" || status === "servicer_arrived") {
+    return "provider_arrived";
+  }
 
+  // 7. Check for On The Way Status
+  if (status === "on_the_way" || status === "provider_on_the_way" || status === "servicer_on_the_way") {
+    return "provider_on_the_way";
+  }
+
+  // 8. Check for Started Trip Status
   if (
-    status === "otp" ||
+    status === "started_trip" ||
+    status === "trip_started" ||
+    status === "provider_started_trip" ||
+    status === "provider_started" ||
+    status === "servicer_started_trip"
+  ) {
+    return "provider_started_trip";
+  }
+
+  // 9. Check for Searching Status
+  if (assignment === "searching" || status === "searching") return "searching";
+
+  // 10. Check for Provider Accepted / Assigned Status
+  if (
     status === "accepted" ||
     status === "assigned" ||
     assignment === "assigned"
   ) {
-    // If technician is assigned, we go to OTP
-    // But if it is manually assigned and still in "assigned" status, we keep it as "assigned"
     if (booking.isManuallyAssigned && status === "assigned") {
       return "assigned";
     }
-    return "otp";
+    return "accepted";
   }
 
-  // 6. Default to Searching
+  // Default to Searching
   return "searching";
 }
 
@@ -171,7 +199,54 @@ export function mapBookingToBookingItem(
     serviceCatName = "Home Service";
   }
 
-  const rawOtp = otp ?? booking.StartWorkOTP ?? booking.otp;
+  const rawOtp =
+    otp ??
+    booking.StartWorkOTP ??
+    booking.otp ??
+    booking.startWorkOtp ??
+    booking.startWorkOTP ??
+    booking.startOtp ??
+    booking.bookingOtp ??
+    booking.serviceOtp;
+
+  // Parse customer coordinates
+  let customerCoords: { latitude: number; longitude: number } | undefined;
+  if (booking.location?.coordinates && Array.isArray(booking.location.coordinates) && booking.location.coordinates.length >= 2) {
+    // MongoDB GeoJSON format: [longitude, latitude]
+    customerCoords = {
+      longitude: Number(booking.location.coordinates[0]),
+      latitude: Number(booking.location.coordinates[1]),
+    };
+  } else if (booking.customerCoordinates?.latitude && booking.customerCoordinates?.longitude) {
+    customerCoords = {
+      latitude: Number(booking.customerCoordinates.latitude),
+      longitude: Number(booking.customerCoordinates.longitude),
+    };
+  } else if (booking.latitude != null && booking.longitude != null) {
+    customerCoords = {
+      latitude: Number(booking.latitude),
+      longitude: Number(booking.longitude),
+    };
+  }
+
+  // Parse provider coordinates
+  let providerCoords: { latitude: number; longitude: number } | undefined;
+  if (booking.servicerLocation?.coordinates && Array.isArray(booking.servicerLocation.coordinates) && booking.servicerLocation.coordinates.length >= 2) {
+    providerCoords = {
+      longitude: Number(booking.servicerLocation.coordinates[0]),
+      latitude: Number(booking.servicerLocation.coordinates[1]),
+    };
+  } else if (booking.providerCoordinates?.latitude && booking.providerCoordinates?.longitude) {
+    providerCoords = {
+      latitude: Number(booking.providerCoordinates.latitude),
+      longitude: Number(booking.providerCoordinates.longitude),
+    };
+  } else if (booking.servicerLocation?.latitude != null && booking.servicerLocation?.longitude != null) {
+    providerCoords = {
+      latitude: Number(booking.servicerLocation.latitude),
+      longitude: Number(booking.servicerLocation.longitude),
+    };
+  }
 
   return {
     _id: String(booking._id),
@@ -180,15 +255,31 @@ export function mapBookingToBookingItem(
     totalPrice: totalPrice,
 
     dateLabel: booking.scheduleDateTime
-      ? new Date(booking.scheduleDateTime).toLocaleDateString()
+      ? new Date(booking.scheduleDateTime).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
       : booking.createdAt
-        ? new Date(booking.createdAt).toLocaleDateString()
+        ? new Date(booking.createdAt).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
         : booking.dateLabel || "",
 
     timeLabel: booking.scheduleDateTime
-      ? new Date(booking.scheduleDateTime).toLocaleTimeString()
+      ? new Date(booking.scheduleDateTime).toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
       : booking.createdAt
-        ? new Date(booking.createdAt).toLocaleTimeString()
+        ? new Date(booking.createdAt).toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
         : booking.timeLabel || "",
 
     address: booking.address || "",
@@ -208,14 +299,30 @@ export function mapBookingToBookingItem(
       booking.externalTechnicianPhone ||
       undefined,
     eta: booking.eta || booking.location?.eta || undefined,
+    customerCoordinates: customerCoords,
+    providerCoordinates: providerCoords,
     cartItems: rawCartItems,
 
     extraServices: rawExtraServices,
 
     isScheduled: Boolean(booking.isScheduled),
     scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,
+    createdAt: booking.createdAt,
     durationInMinutes:
-      booking.durationInMinutes != null ? Number(booking.durationInMinutes) : 0,
+      booking.durationInMinutes != null
+        ? Number(booking.durationInMinutes)
+        : booking.workingHours
+        ? Number(booking.workingHours)
+        : 0,
+    serviceStartTime:
+      booking.serviceStartTime ||
+      booking.startedAt ||
+      booking.serviceStartedAt ||
+      booking.jobStartedAt ||
+      booking.timer?.startTime ||
+      booking.serviceTimer?.startTime ||
+      booking.timerStatus?.startTime,
+    serviceTimer: booking.serviceTimer || booking.timer || booking.timerStatus,
     paymentStatus: booking.paymentStatus ? String(booking.paymentStatus).toLowerCase() : undefined,
     assignmentStatus: booking.assignmentStatus
       ? String(booking.assignmentStatus).toUpperCase()
@@ -234,5 +341,30 @@ export function mapBookingToBookingItem(
       : undefined,
     cancelReason: booking.cancelReason || booking.cancellationReason || undefined,
     convenienceFee: booking.convenienceFee != null ? Number(booking.convenienceFee) : undefined,
+    isReviewed: Boolean(
+      booking.isReviewed ||
+      booking.reviewed ||
+      booking.hasReviewed ||
+      booking.reviewSubmitted ||
+      booking.userRating != null ||
+      booking.ratingGiven != null ||
+      booking.customerRating != null ||
+      (booking.review && (typeof booking.review === 'object' ? booking.review.rating != null : true)) ||
+      booking.reviewId
+    ),
+    userRating:
+      booking.userRating != null
+        ? Number(booking.userRating)
+        : booking.ratingGiven != null
+        ? Number(booking.ratingGiven)
+        : typeof booking.review === 'object' && booking.review?.rating != null
+        ? Number(booking.review.rating)
+        : undefined,
+    userReview:
+      typeof booking.review === 'object'
+        ? booking.review?.comment || booking.review?.review
+        : typeof booking.review === 'string'
+        ? booking.review
+        : booking.comment || booking.userReview || undefined,
   };
 }

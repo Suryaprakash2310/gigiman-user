@@ -122,6 +122,84 @@ const PulseCore = ({ icon, color }: { icon: any; color: string }) => {
   );
 };
 
+// Radar Wave Expanding Animation
+const RadarPulseWave = ({ delay = 0 }: { delay?: number }) => {
+  const scale = useSharedValue(0.3);
+  const opacity = useSharedValue(0.7);
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    scale.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(2.2, { duration: 2400, easing: Easing.out(Easing.ease) }),
+        -1,
+        false
+      )
+    );
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(0, { duration: 2400, easing: Easing.out(Easing.ease) }),
+        -1,
+        false
+      )
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.radarWave,
+        {
+          borderColor: theme.colors.primary,
+          backgroundColor: theme.colors.primary + "18",
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+};
+
+// Live Scanning Loading Bar
+const LiveScanningBar = () => {
+  const progress = useSharedValue(0);
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    progress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1400, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${25 + progress.value * 65}%`,
+    opacity: 0.7 + progress.value * 0.3,
+  }));
+
+  return (
+    <View style={styles.scanningTrack}>
+      <Animated.View
+        style={[
+          styles.scanningBar,
+          { backgroundColor: theme.colors.primary },
+          animatedStyle,
+        ]}
+      />
+    </View>
+  );
+};
+
 export default function BookingSearchScreen() {
   const route = useRoute<Route>();
   const navigation = useNavigation<any>();
@@ -173,8 +251,16 @@ export default function BookingSearchScreen() {
     }
 
     if (
-      booking.status === "otp" ||
-      (booking.status as string) === "assigned"
+      [
+        "accepted",
+        "assigned",
+        "provider_started_trip",
+        "provider_on_the_way",
+        "provider_arrived",
+        "otp",
+        "otp_verified",
+        "in_progress",
+      ].includes(booking.status)
     ) {
       redirectedRef.current = true;
       navigation.replace("BookingDetails", { bookingId });
@@ -325,6 +411,11 @@ export default function BookingSearchScreen() {
         <Ionicons name="information-circle-outline" size={26} color={theme.colors.text} />
       </TouchableOpacity>
       <View style={styles.orbitContainer}>
+        {/* Animated Radar Pulse Waves */}
+        <RadarPulseWave delay={0} />
+        <RadarPulseWave delay={800} />
+        <RadarPulseWave delay={1600} />
+
         {/* Outer Ring - Slow */}
         <OrbitRing size={width * 0.85} duration={15000} direction="ccw">
           <Satellite icon="build" color="#8B5CF6" offset={width * 0.425} />
@@ -350,9 +441,10 @@ export default function BookingSearchScreen() {
         <AppText weight="bold" size="h2" style={{ textAlign: 'center', marginBottom: 8, color: theme.colors.text }}>
           {searchMessage}
         </AppText>
-        <AppText color="textMuted" style={{ textAlign: 'center' }}>
+        <AppText color="textMuted" style={{ textAlign: 'center', marginBottom: 16 }}>
           Please wait while we connect you to GigiMan network
         </AppText>
+        <LiveScanningBar />
       </View>
       <CancellationModal
         visible={cancelModalVisible}
@@ -376,6 +468,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  radarWave: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 1.5,
   },
   ringContainer: {
     position: 'absolute',
@@ -422,6 +521,21 @@ const styles = StyleSheet.create({
   textContainer: {
     marginTop: 60,
     paddingHorizontal: 30,
+    alignItems: 'center',
+    width: '100%',
+  },
+  scanningTrack: {
+    width: 140,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  scanningBar: {
+    height: '100%',
+    borderRadius: 2,
   },
   backButton: {
     position: 'absolute',

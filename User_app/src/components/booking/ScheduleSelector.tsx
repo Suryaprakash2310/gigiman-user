@@ -25,16 +25,18 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
     if (date.toDateString() === today.toDateString()) {
       return 'Today';
     }
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
     });
   };
 
   const formatTime = (time: Date) => {
-    return time.toLocaleTimeString('en-US', {
+    return time.toLocaleTimeString(undefined, {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: true,
     });
   };
 

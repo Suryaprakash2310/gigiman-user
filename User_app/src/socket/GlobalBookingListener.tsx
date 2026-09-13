@@ -8,7 +8,7 @@ import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 
 export default function GlobalBookingListener() {
   const navigation = useNavigation<any>();
-  const { bookings, upsertBooking, updateStatus, updateBookingItem } = useBooking();
+  const { bookings, upsertBooking, updateStatus, updateBookingItem, refreshBookings } = useBooking();
   const { addLocalNotification, fetchNotifications } = useNotifications();
 
   const bookingsRef = useRef(bookings);
@@ -48,13 +48,104 @@ export default function GlobalBookingListener() {
 
     /* otp generated */
     const onOtpGenerated = ({ bookingId, otp }: any) => {
-      updateStatus(bookingId, "otp");
-
-      upsertBooking({
-        _id: bookingId,
+      updateBookingItem(bookingId, {
         status: "otp",
         otp: String(otp),
-      } as any);
+      });
+    };
+
+    /* provider started trip */
+    const onTripStarted = (data: any) => {
+      const id = String(data?.bookingId || data?.id || data?._id || (typeof data === "string" ? data : ""));
+      if (!id) return;
+      updateBookingItem(id, {
+        status: "provider_started_trip",
+        providerCoordinates:
+          data?.latitude && data?.longitude
+            ? { latitude: Number(data.latitude), longitude: Number(data.longitude) }
+            : undefined,
+        eta: data?.eta,
+        ...(data?.otp ? { otp: String(data.otp) } : {}),
+      });
+      refreshBookings?.();
+    };
+
+    /* provider on the way */
+    const onProviderOnTheWay = (data: any) => {
+      const id = String(data?.bookingId || data?.id || data?._id || (typeof data === "string" ? data : ""));
+      if (!id) return;
+      updateBookingItem(id, {
+        status: "provider_on_the_way",
+        providerCoordinates:
+          data?.latitude && data?.longitude
+            ? { latitude: Number(data.latitude), longitude: Number(data.longitude) }
+            : undefined,
+        eta: data?.eta,
+        ...(data?.otp ? { otp: String(data.otp) } : {}),
+      });
+      refreshBookings?.();
+    };
+
+    /* provider location update */
+    const onServicerLocation = (data: any) => {
+      const id = String(data?.bookingId || data?.id || data?._id || "");
+      if (!id) return;
+      if (data?.latitude != null && data?.longitude != null) {
+        updateBookingItem(id, {
+          providerCoordinates: { latitude: Number(data.latitude), longitude: Number(data.longitude) },
+          eta: data?.eta,
+        });
+      }
+    };
+
+    /* provider arrived */
+    const onProviderArrived = (data: any) => {
+      const id = String(data?.bookingId || data?.id || data?._id || (typeof data === "string" ? data : ""));
+      if (!id) return;
+      updateBookingItem(id, {
+        status: "provider_arrived",
+        ...(data?.otp ? { otp: String(data.otp) } : {}),
+      });
+      refreshBookings?.();
+    };
+
+    /* otp verified */
+    const onOtpVerified = (data: any) => {
+      const id = String(data?.bookingId || data?.id || data?._id || (typeof data === "string" ? data : ""));
+      if (!id) return;
+      const nowIso = new Date().toISOString();
+      updateBookingItem(id, {
+        status: "otp_verified",
+        serviceStartTime: data?.startTime || data?.startedAt || data?.serviceStartedAt || nowIso,
+      });
+      refreshBookings?.();
+      setTimeout(() => {
+        updateBookingItem(id, { status: "in_progress" });
+        refreshBookings?.();
+      }, 1500);
+    };
+
+    /* service started */
+    const onServiceStarted = (data: any) => {
+      const id = String(data?.bookingId || data?.id || data?._id || (typeof data === "string" ? data : ""));
+      if (!id) return;
+      const nowIso = new Date().toISOString();
+      updateBookingItem(id, {
+        status: "in_progress",
+        serviceStartTime: data?.startTime || data?.startedAt || data?.serviceStartedAt || nowIso,
+        ...(data?.serviceTimer || data?.timerStatus ? { serviceTimer: data.serviceTimer || data.timerStatus } : {}),
+      });
+      refreshBookings?.();
+    };
+
+    /* timer status / tick */
+    const onGlobalTimerStatus = (data: any) => {
+      const id = String(data?.bookingId || data?.id || data?._id || "");
+      if (!id) return;
+      updateBookingItem(id, {
+        serviceTimer: data,
+        ...(data?.startTime || data?.startedAt ? { serviceStartTime: data.startTime || data.startedAt } : {}),
+      });
     };
 
     const handleAssignmentFailure = (bookingId: string) => {
@@ -112,13 +203,25 @@ export default function GlobalBookingListener() {
       }
     };
 
-    const onBookingCompleted = ({ bookingId }: any) => {
-  
-      updateStatus(bookingId, "completed");
+    const onBookingCompleted = (payload: any) => {
+      const id = String(
+        payload?.bookingId ||
+        payload?.id ||
+        payload?._id ||
+        payload?.booking?._id ||
+        payload?.booking?.id ||
+        payload?.data?.bookingId ||
+        (typeof payload === "string" ? payload : "")
+      );
+      if (!id) return;
+
+      updateStatus(id, "completed");
+      refreshBookings?.();
+      fetchNotifications?.(true);
 
       navigation.navigate("BookingTab", {
         screen: "Review",
-        params: { bookingId },
+        params: { bookingId: id },
       });
     };
 
@@ -132,21 +235,99 @@ export default function GlobalBookingListener() {
       }
     };
 
-    // socket.on("servicer-accepted", onServicerAccepted);
     socket.on("servicer-accepted", onServicerAccepted);
+    socket.on("provider-accepted", onServicerAccepted);
+    socket.on("technician-accepted", onServicerAccepted);
+    socket.on("booking-accepted", onServicerAccepted);
+    socket.on("provider-started-trip", onTripStarted);
+    socket.on("trip-started", onTripStarted);
+    socket.on("servicer-started-trip", onTripStarted);
+    socket.on("technician-started-trip", onTripStarted);
+    socket.on("start-trip", onTripStarted);
+    socket.on("provider-on-the-way", onProviderOnTheWay);
+    socket.on("servicer-on-the-way", onProviderOnTheWay);
+    socket.on("technician-on-the-way", onProviderOnTheWay);
+    socket.on("on-the-way", onProviderOnTheWay);
+    socket.on("servicer-location-update", onServicerLocation);
+    socket.on("provider-location-update", onServicerLocation);
+    socket.on("technician-location-update", onServicerLocation);
+    socket.on("location-update", onServicerLocation);
+    socket.on("provider-arrived", onProviderArrived);
+    socket.on("servicer-arrived", onProviderArrived);
+    socket.on("technician-arrived", onProviderArrived);
+    socket.on("arrived", onProviderArrived);
     socket.on("otp-generated", onOtpGenerated);
+    socket.on("start-service-otp", onOtpGenerated);
+    socket.on("booking-otp", onOtpGenerated);
+    socket.on("otp-verified", onOtpVerified);
+    socket.on("service-started", onServiceStarted);
+    socket.on("in-progress", onServiceStarted);
+    socket.on("service-in-progress", onServiceStarted);
+    socket.on("service-timer-started", onGlobalTimerStatus);
+    socket.on("booking-timer-status", onGlobalTimerStatus);
+    socket.on("timer-status", onGlobalTimerStatus);
+    socket.on("timer-update", onGlobalTimerStatus);
+    socket.on("timer-tick", onGlobalTimerStatus);
+    socket.on("service-timer", onGlobalTimerStatus);
+    socket.on("service-timer-update", onGlobalTimerStatus);
+    socket.on("service-timer-sync", onGlobalTimerStatus);
+    socket.on("job-timer-update", onGlobalTimerStatus);
+    socket.on("job-timer-status", onGlobalTimerStatus);
     socket.on("no-servicer-available", onNoProvider);
     socket.on("no-team-available", onNoTeam);
     socket.on("booking-completed", onBookingCompleted);
+    socket.on("service-completed", onBookingCompleted);
+    socket.on("booking-complete", onBookingCompleted);
+    socket.on("service-complete", onBookingCompleted);
+    socket.on("service-finished", onBookingCompleted);
     socket.on("user-cancel-booking", onUserCancelBooking);
 
     return () => {
-      // socket.off("servicer-accepted", onServicerAccepted);
       socket.off("servicer-accepted", onServicerAccepted);
+      socket.off("provider-accepted", onServicerAccepted);
+      socket.off("technician-accepted", onServicerAccepted);
+      socket.off("booking-accepted", onServicerAccepted);
+      socket.off("provider-started-trip", onTripStarted);
+      socket.off("trip-started", onTripStarted);
+      socket.off("servicer-started-trip", onTripStarted);
+      socket.off("technician-started-trip", onTripStarted);
+      socket.off("start-trip", onTripStarted);
+      socket.off("provider-on-the-way", onProviderOnTheWay);
+      socket.off("servicer-on-the-way", onProviderOnTheWay);
+      socket.off("technician-on-the-way", onProviderOnTheWay);
+      socket.off("on-the-way", onProviderOnTheWay);
+      socket.off("servicer-location-update", onServicerLocation);
+      socket.off("provider-location-update", onServicerLocation);
+      socket.off("technician-location-update", onServicerLocation);
+      socket.off("location-update", onServicerLocation);
+      socket.off("provider-arrived", onProviderArrived);
+      socket.off("servicer-arrived", onProviderArrived);
+      socket.off("technician-arrived", onProviderArrived);
+      socket.off("arrived", onProviderArrived);
       socket.off("otp-generated", onOtpGenerated);
+      socket.off("start-service-otp", onOtpGenerated);
+      socket.off("booking-otp", onOtpGenerated);
+      socket.off("otp-verified", onOtpVerified);
+      socket.off("service-started", onServiceStarted);
+      socket.off("in-progress", onServiceStarted);
+      socket.off("service-in-progress", onServiceStarted);
+      socket.off("service-timer-started", onGlobalTimerStatus);
+      socket.off("booking-timer-status", onGlobalTimerStatus);
+      socket.off("timer-status", onGlobalTimerStatus);
+      socket.off("timer-update", onGlobalTimerStatus);
+      socket.off("timer-tick", onGlobalTimerStatus);
+      socket.off("service-timer", onGlobalTimerStatus);
+      socket.off("service-timer-update", onGlobalTimerStatus);
+      socket.off("service-timer-sync", onGlobalTimerStatus);
+      socket.off("job-timer-update", onGlobalTimerStatus);
+      socket.off("job-timer-status", onGlobalTimerStatus);
       socket.off("no-servicer-available", onNoProvider);
       socket.off("no-team-available", onNoTeam);
       socket.off("booking-completed", onBookingCompleted);
+      socket.off("service-completed", onBookingCompleted);
+      socket.off("booking-complete", onBookingCompleted);
+      socket.off("service-complete", onBookingCompleted);
+      socket.off("service-finished", onBookingCompleted);
       socket.off("user-cancel-booking", onUserCancelBooking);
     };
   }, [socket]);

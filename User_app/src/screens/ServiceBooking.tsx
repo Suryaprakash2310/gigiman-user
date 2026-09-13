@@ -14,6 +14,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -42,6 +43,7 @@ import { getAddressFromCoords, getCurrentLocation } from '@/src/utils/location';
 
 import BookingModeSelector from '@/src/components/booking/BookingModeSelector';
 import QuantitySelector from '@/src/components/booking/QuantitySelector';
+import { useRecurringStore, MOCK_SERVICES } from '@/src/store/recurringStore';
 import ScheduleSelector from '@/src/components/booking/ScheduleSelector';
 import ServiceDescription from '@/src/components/booking/ServiceDescription';
 import ServiceHeader from '@/src/components/booking/ServiceHeader';
@@ -108,7 +110,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [bookingMode, setBookingMode] = useState<'now' | 'schedule'>('now');
+  const [bookingMode, setBookingMode] = useState<'now' | 'schedule' | 'recurring'>('now');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -136,32 +138,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
   // Payment Option & Simulation States
   const [paymentType, setPaymentType] = useState<'FULL' | 'ADVANCE'>('FULL');
-  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-
-  const handleClosePaymentSheet = () => {
-    if (paying) return;
-    setShowCancelConfirm(true);
-  };
-
-  const handleConfirmCancel = () => {
-    setShowCancelConfirm(false);
-    if (currentBookingId && socket && socket.connected) {
-      socket.emit("user-cancel-booking", {
-        bookingId: currentBookingId,
-        cancelReason: "Payment cancelled by user",
-      });
-    }
-    setShowPaymentSheet(false);
-    resetPaymentSheetFields();
-  };
   const [currentBookingId, setCurrentBookingId] = useState<string | null>(null);
-  const [paymentMethodType, setPaymentMethodType] = useState<'CARD' | 'UPI'>('CARD');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [upiId, setUpiId] = useState('');
   const [paying, setPaying] = useState(false);
   const [paymentHtml, setPaymentHtml] = useState<string | null>(null);
   const [showWebViewModal, setShowWebViewModal] = useState(false);
@@ -327,13 +304,34 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     return CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex);
   };
 
-  const resetPaymentSheetFields = () => {
-    setCardNumber('');
-    setCardExpiry('');
-    setCardCvv('');
-    setCardName('');
-    setUpiId('');
+  const resetPaymentFields = () => {
     setCurrentBookingId(null);
+    setPaymentHtml(null);
+    setPaying(false);
+  };
+
+  const handleCloseRazorpayModal = () => {
+    Alert.alert(
+      "Cancel Payment?",
+      "Closing the payment screen will cancel your booking request.",
+      [
+        { text: "Continue Payment", style: "cancel" },
+        {
+          text: "Cancel Booking",
+          style: "destructive",
+          onPress: () => {
+            if (currentBookingId && socket && socket.connected) {
+              socket.emit("user-cancel-booking", {
+                bookingId: currentBookingId,
+                cancelReason: "Payment cancelled by user",
+              });
+            }
+            setShowWebViewModal(false);
+            resetPaymentFields();
+          }
+        }
+      ]
+    );
   };
 
   const handleWebViewMessage = async (event: any) => {
@@ -342,9 +340,14 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
       if (!data.success) {
         Alert.alert("Payment Cancelled", data.reason === "dismissed" ? "Payment was cancelled by user" : "Payment failed");
+        if (currentBookingId && socket && socket.connected) {
+          socket.emit("user-cancel-booking", {
+            bookingId: currentBookingId,
+            cancelReason: "Payment cancelled by user",
+          });
+        }
         setShowWebViewModal(false);
-        setPaymentHtml(null);
-        setPaying(false);
+        resetPaymentFields();
         return;
       }
 
@@ -397,9 +400,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         }
 
         setShowWebViewModal(false);
-        setPaymentHtml(null);
-        setShowPaymentSheet(false);
-        resetPaymentSheetFields();
+        resetPaymentFields();
 
         if (isScheduled) {
           navigation.navigate("BookingTab", {
@@ -419,41 +420,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       console.error('Error in handleWebViewMessage:', err);
       Alert.alert('Payment Error', err?.message || 'Failed to verify transaction');
       setShowWebViewModal(false);
-      setPaymentHtml(null);
-      setPaying(false);
-    }
-  };
-
-  const handleSimulatedPayment = async () => {
-    if (!currentBookingId || !category) return;
-
-    try {
-      setPaying(true);
-
-      // Create order via backend (include convenienceFee so the Razorpay order amount matches the UI)
-      const response = await apiClient.post(`/booking/createorder/${currentBookingId}`, { paymentType, convenienceFee });
-      const { keyId, orderId, amount } = response.data;
-
-      // Inject details into local HTML
-      const html = injectRazorpayData({
-        htmlTemplate: razorpayHTML,
-        keyId,
-        amountPaise: amount,
-        orderId,
-        prefillName: user?.fullName,
-        prefillEmail: user?.email,
-        prefillContact: user?.phone,
-      });
-
-      setPaymentHtml(html);
-      setShowWebViewModal(true);
-    } catch (err: any) {
-      console.error('Payment error:', err);
-      Alert.alert(
-        'Payment Failed',
-        err?.response?.data?.message || err.message || 'Payment process failed. Please try again.'
-      );
-      setPaying(false);
+      resetPaymentFields();
     }
   };
 
@@ -582,9 +549,31 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
       const bookingPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
 
-      // Open simulated payment sheet
       setCurrentBookingId(bookingId);
-      setShowPaymentSheet(true);
+
+      // Directly create Razorpay order and open checkout
+      setPaying(true);
+      const orderRes = await apiClient.post(`/booking/createorder/${bookingId}`, { paymentType, convenienceFee });
+      const { keyId, orderId, amount } = orderRes.data;
+
+      const html = injectRazorpayData({
+        htmlTemplate: razorpayHTML,
+        keyId,
+        amountPaise: amount,
+        orderId,
+        serviceName: isCartCheckout ? "Cart Checkout" : category.serviceCategoryName,
+        itemTotal: bookingPrice,
+        convenienceFee: convenienceFee,
+        discountAmount: discountAmount,
+        paymentType: paymentType,
+        description: `${isCartCheckout ? "Cart Booking" : category.serviceCategoryName} (Convenience Fee: ₹${convenienceFee})`,
+        prefillName: user?.fullName,
+        prefillEmail: user?.email,
+        prefillContact: user?.phone,
+      });
+
+      setPaymentHtml(html);
+      setShowWebViewModal(true);
     } catch (err: any) {
       console.error('Booking error:', err);
       let errorMsg = 'Please try again';
@@ -601,6 +590,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         'Booking Failed',
         errorMsg
       );
+      setPaying(false);
     } finally {
       setBooking(false);
     }
@@ -792,10 +782,31 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
           <BookingModeSelector
             selectedMode={bookingMode}
-            onModeChange={(mode: 'now' | 'schedule') => {
-              setBookingMode(mode);
-              setSelectedDate(null);
-              setSelectedTime(null);
+            onModeChange={(mode: 'now' | 'schedule' | 'recurring') => {
+              if (mode === 'recurring') {
+                // Prepopulate draft service in recurring store
+                const match = MOCK_SERVICES.find(s => 
+                  category?.serviceCategoryName?.toLowerCase().includes(s.name.toLowerCase()) ||
+                  s.name.toLowerCase().includes(category?.serviceCategoryName?.toLowerCase() || '')
+                );
+                const serviceToUse = match || MOCK_SERVICES[0];
+                
+                const store = useRecurringStore.getState();
+                store.resetDraft();
+                store.updateDraft({ service: serviceToUse });
+                
+                navigation.navigate('HomeTab' as any, { 
+                  screen: 'RecurringPlans',
+                  params: {
+                    screen: 'RecurringBooking',
+                    params: { fromServiceBooking: true }
+                  }
+                });
+              } else {
+                setBookingMode(mode);
+                setSelectedDate(null);
+                setSelectedTime(null);
+              }
             }}
           />
         </Animated.View>
@@ -857,129 +868,107 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Bill Details Card */}
-        <Animated.View entering={FadeInDown.delay(550).duration(400)} style={styles.billDetailsCard}>
-          <AppText weight="bold" style={{ marginBottom: 12 }}>Bill Details</AppText>
 
-          <View style={styles.billRow}>
-            <AppText color="textMuted">Item Total</AppText>
-            <AppText weight="semibold">₹{totalPrice}</AppText>
-          </View>
-
-          {discountAmount > 0 && (
-            <View style={styles.billRow}>
-              <AppText style={{ color: theme.colors.success }}>Discount</AppText>
-              <AppText weight="semibold" style={{ color: theme.colors.success }}>-₹{discountAmount}</AppText>
-            </View>
-          )}
-
-          <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 12 }} />
-
-          <View style={styles.billRow}>
-            <AppText weight="bold">Total Price</AppText>
-            <AppText weight="bold" size="body">₹{totalPrice - discountAmount}</AppText>
-          </View>
-        </Animated.View>
 
         {/* Spacer */}
         <View style={styles.spacer} />
-      </ScrollView>
 
-      {/* Fixed Bottom Action Bar */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+        {/* Bottom Action Bar */}
+        <View style={styles.bottomBar}>
 
-        {/* Coupon Input Section */}
-        <View style={styles.couponSection}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <Ionicons name="pricetag-outline" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
-            {appliedCoupon ? (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <AppText weight="bold" style={{ color: theme.colors.success }}>{appliedCoupon.code} Applied</AppText>
-                <TouchableOpacity onPress={removeCoupon} style={{ padding: 4 }}>
-                  <Ionicons name="close-circle" size={20} color={theme.colors.danger} />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.couponInputContainer}>
-                <TextInput
-                  style={styles.couponInput}
-                  placeholder="Enter Coupon Code"
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={couponCode}
-                  onChangeText={(text) => {
-                    setCouponCode(text.toUpperCase());
-                    setCouponError('');
-                  }}
-                  autoCapitalize="characters"
-                />
-                <TouchableOpacity
-                  style={styles.applyButton}
-                  onPress={applyCoupon}
-                  disabled={couponLoading || !couponCode.trim()}
-                >
-                  {couponLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <AppText weight="bold" style={{ color: '#fff', fontSize: 12 }}>APPLY</AppText>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-          {couponError ? (
-            <AppText size="small" color="danger" style={{ marginTop: 4 }}>{couponError}</AppText>
-          ) : null}
-        </View>
-
-        <View style={styles.priceDisplay}>
-          <AppText size="body" color="textMuted">
-            {paymentType === 'ADVANCE' ? 'Advance to Pay:' : 'Total:'}
-          </AppText>
-          <View style={{ alignItems: 'flex-end' }}>
-            {discountAmount > 0 ? (
-              <AppText
-                size="small"
-                style={{ color: theme.colors.textMuted, textDecorationLine: 'line-through' }}
-              >
-                ₹{totalPrice}
-              </AppText>
+          {/* Coupon Input Section */}
+          <View style={styles.couponSection}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <Ionicons name="pricetag-outline" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
+              {appliedCoupon ? (
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <AppText weight="bold" style={{ color: theme.colors.success }}>{appliedCoupon.code} Applied</AppText>
+                  <TouchableOpacity onPress={removeCoupon} style={{ padding: 4 }}>
+                    <Ionicons name="close-circle" size={20} color={theme.colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.couponInputContainer}>
+                  <TextInput
+                    style={styles.couponInput}
+                    placeholder="Enter Coupon Code"
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={couponCode}
+                    onChangeText={(text) => {
+                      setCouponCode(text.toUpperCase());
+                      setCouponError('');
+                    }}
+                    autoCapitalize="characters"
+                  />
+                  <TouchableOpacity
+                    style={styles.applyButton}
+                    onPress={applyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                  >
+                    {couponLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <AppText weight="bold" style={{ color: '#fff', fontSize: 12 }}>APPLY</AppText>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+            {couponError ? (
+              <AppText size="small" color="danger" style={{ marginTop: 4 }}>{couponError}</AppText>
             ) : null}
-             <AppText
-              weight="bold"
-              size="h2"
-              style={{ color: theme.colors.primary }}
-            >
-              ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}
-            </AppText>
           </View>
-        </View>
 
-        {isRegionAllowed ? (
-          <AppButton
-            title={
-              isComingSoon(category?.status)
-                ? 'Coming Soon - Booking Unavailable'
-                : booking
-                  ? 'Booking...'
-                  : bookingMode === 'schedule'
-                    ? (paymentType === 'ADVANCE' ? 'Pay Advance & Schedule' : 'Pay Full & Schedule')
-                    : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
-            }
-            disabled={isComingSoon(category?.status) || booking || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
-            onPress={handleBookNow}
-            loading={booking}
-            variant="primary"
-            style={styles.bookButton}
-          />
-        ) : (
-          <View style={styles.unavailableContainer}>
-            <Ionicons name="alert-circle-outline" size={20} color={theme.colors.danger || '#FF3B30'} style={{ marginRight: 6 }} />
-            <AppText size="small" color="danger" weight="semibold">
-              Unavailable in your region
+          <View style={styles.priceDisplay}>
+            <AppText size="body" color="textMuted">
+              {paymentType === 'ADVANCE' ? 'Advance to Pay:' : 'Total:'}
             </AppText>
+            <View style={{ alignItems: 'flex-end' }}>
+              {discountAmount > 0 ? (
+                <AppText
+                  size="small"
+                  style={{ color: theme.colors.textMuted, textDecorationLine: 'line-through' }}
+                >
+                  ₹{totalPrice}
+                </AppText>
+              ) : null}
+              <AppText
+                weight="bold"
+                size="h2"
+                style={{ color: theme.colors.primary }}
+              >
+                ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}
+              </AppText>
+            </View>
           </View>
-        )}
-      </View>
+
+          {isRegionAllowed ? (
+            <AppButton
+              title={
+                isComingSoon(category?.status)
+                  ? 'Coming Soon - Booking Unavailable'
+                  : (booking || paying)
+                    ? 'Processing Payment...'
+                    : bookingMode === 'schedule'
+                      ? (paymentType === 'ADVANCE' ? 'Pay Advance & Schedule' : 'Pay Full & Schedule')
+                      : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
+              }
+              disabled={isComingSoon(category?.status) || booking || paying || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
+              onPress={handleBookNow}
+              loading={booking || paying}
+              variant="primary"
+              style={styles.bookButton}
+            />
+          ) : (
+            <View style={styles.unavailableContainer}>
+              <Ionicons name="alert-circle-outline" size={20} color={theme.colors.danger || '#FF3B30'} style={{ marginRight: 6 }} />
+              <AppText size="small" color="danger" weight="semibold">
+                Unavailable in your region
+              </AppText>
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
       {/* Modals */}
       <CalendarModal
@@ -1005,151 +994,12 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         />
       )}
 
-      {/* Simulated Payment Sheet Modal */}
-      <Modal
-        visible={showPaymentSheet}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleClosePaymentSheet}
-      >
-        <View style={styles.paymentSheetOverlay}>
-          <View style={[styles.paymentSheetContent, { backgroundColor: theme.colors.surface }]}>
-            {/* Header */}
-            <View style={styles.paymentSheetHeader}>
-              <AppText weight="bold" size="h3">Checkout Payment</AppText>
-              {!paying && (
-                <TouchableOpacity
-                  onPress={handleClosePaymentSheet}
-                  style={{ padding: 4 }}
-                >
-                  <Ionicons name="close" size={24} color={theme.colors.text} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Price Details Breakdown */}
-            <View style={[styles.paymentSheetPriceBox, { backgroundColor: theme.colors.background, alignItems: 'stretch' }]}>
-              <AppText weight="bold" size="body" style={{ marginBottom: 12, color: theme.colors.text, textAlign: 'center' }}>
-                Payment Breakdown
-              </AppText>
-              
-              <View style={styles.paymentSheetBillRow}>
-                <AppText size="small" color="textMuted">Item Total</AppText>
-                <AppText size="small" weight="semibold" style={{ color: theme.colors.text }}>₹{totalPrice}</AppText>
-              </View>
-
-              {discountAmount > 0 && (
-                <View style={styles.paymentSheetBillRow}>
-                  <AppText size="small" style={{ color: theme.colors.success }}>Discount</AppText>
-                  <AppText size="small" weight="semibold" style={{ color: theme.colors.success }}>-₹{discountAmount}</AppText>
-                </View>
-              )}
-
-              <View style={styles.paymentSheetBillRow}>
-                <AppText size="small" color="textMuted">Convenience Fee</AppText>
-                <AppText size="small" weight="semibold" style={{ color: theme.colors.text }}>₹{convenienceFee}</AppText>
-              </View>
-
-              <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 8 }} />
-
-              <View style={styles.paymentSheetBillRow}>
-                <AppText weight="bold" style={{ color: theme.colors.text }}>
-                  {paymentType === 'ADVANCE' ? 'Advance to Pay (18% + Fee)' : 'Total to Pay Now'}
-                </AppText>
-                <AppText weight="bold" size="body" style={{ color: theme.colors.primary }}>
-                  ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) + convenienceFee : (totalPrice - discountAmount) + convenienceFee}
-                </AppText>
-              </View>
-
-              {paymentType === 'ADVANCE' && (
-                <View style={{ marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border, paddingTop: 8 }}>
-                  <View style={styles.paymentSheetBillRow}>
-                    <AppText size="small" color="textMuted">Remaining Balance (collected after service)</AppText>
-                    <AppText size="small" weight="bold" style={{ color: theme.colors.text }}>
-                      ₹{Math.round((totalPrice - discountAmount) * 0.82)}
-                    </AppText>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Payment Info */}
-            <View style={{ marginTop: 20, marginBottom: 10, alignItems: 'center', paddingHorizontal: 16 }}>
-              <Ionicons name="shield-checkmark-outline" size={48} color={theme.colors.primary} />
-              <AppText weight="semibold" size="body" style={{ marginTop: 12, textAlign: 'center', color: theme.colors.text }}>
-                Secure Payment with Razorpay
-              </AppText>
-              <AppText size="small" color="textMuted" style={{ marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
-                You will be redirected to Razorpay's secure checkout. Supports Cards, UPI, Netbanking, and popular wallets.
-              </AppText>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={{ marginTop: 24, paddingBottom: Platform.OS === 'ios' ? 24 : 12 }}>
-              <AppButton
-                title={paying ? "Processing Secure Payment..." : `Pay ₹${paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) + convenienceFee : (totalPrice - discountAmount) + convenienceFee}`}
-                onPress={handleSimulatedPayment}
-                loading={paying}
-                disabled={paying}
-                variant="primary"
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Cancel Booking Confirmation Modal */}
-      <Modal
-        visible={showCancelConfirm}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowCancelConfirm(false)}
-      >
-        <View style={styles.cancelConfirmOverlay}>
-          <View style={[styles.cancelConfirmBox, { backgroundColor: theme.colors.surface }]}>
-            <View style={styles.cancelConfirmIconWrap}>
-              <Ionicons name="information-circle" size={42} color={theme.colors.primary} />
-            </View>
-            <AppText weight="bold" size="h3" style={{ textAlign: 'center', marginBottom: 10, color: theme.colors.text }}>
-              Cancel Booking?
-            </AppText>
-            <AppText size="small" color="textMuted" style={{ textAlign: 'center', lineHeight: 20, marginBottom: 28 }}>
-              Closing the payment screen will cancel your booking request. Are you sure you want to cancel?
-            </AppText>
-            <View style={styles.cancelConfirmButtons}>
-              <TouchableOpacity
-                style={[styles.cancelConfirmBtn, styles.cancelConfirmBtnOutline, { borderColor: theme.colors.primary }]}
-                onPress={() => setShowCancelConfirm(false)}
-                activeOpacity={0.8}
-              >
-                <AppText weight="semibold" size="body" style={{ color: theme.colors.primary }}>
-                  No, Continue
-                </AppText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.cancelConfirmBtn, styles.cancelConfirmBtnFill, { backgroundColor: theme.colors.primary }]}
-                onPress={handleConfirmCancel}
-                activeOpacity={0.8}
-              >
-                <AppText weight="semibold" size="body" style={{ color: '#fff' }}>
-                  Yes, Cancel
-                </AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Local WebView Modal for Razorpay Checkout */}
       <Modal
         visible={showWebViewModal}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => {
-          setShowWebViewModal(false);
-          setPaymentHtml(null);
-          setPaying(false);
-        }}
+        onRequestClose={handleCloseRazorpayModal}
       >
         <View style={{ flex: 1, backgroundColor: "#ffffff" }}>
           <View style={{
@@ -1157,19 +1007,16 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             justifyContent: 'space-between',
             alignItems: 'center',
             paddingHorizontal: 16,
-            paddingVertical: 12,
+            paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 28) + 8 : (insets.top || 16) + 8,
+            paddingBottom: 14,
             backgroundColor: '#ffffff',
             borderBottomWidth: 1,
             borderBottomColor: '#e2e8f0'
           }}>
-            <AppText weight="bold" size="body" style={{ color: '#0F172A' }}>Secure Razorpay Checkout</AppText>
+            <AppText weight="bold" size="body" style={{ color: '#0F172A', fontSize: 16 }}>Secure Razorpay Checkout</AppText>
             <TouchableOpacity
-              onPress={() => {
-                setShowWebViewModal(false);
-                setPaymentHtml(null);
-                setPaying(false);
-              }}
-              style={{ padding: 4 }}
+              onPress={handleCloseRazorpayModal}
+              style={{ padding: 6 }}
             >
               <Ionicons name="close" size={24} color="#0F172A" />
             </TouchableOpacity>
@@ -1206,7 +1053,7 @@ const createStyles = (theme: any) =>
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: 200,
+      paddingBottom: 24,
     },
     loadingContainer: {
       flex: 1,
@@ -1244,21 +1091,13 @@ const createStyles = (theme: any) =>
       height: theme.spacing.xl,
     },
     bottomBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.md,
-      backgroundColor: theme.colors.background,
+      paddingBottom: theme.spacing.lg,
+      backgroundColor: theme.colors.surface,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 8,
+      marginTop: 20,
     },
     priceDisplay: {
       flexDirection: 'row',
