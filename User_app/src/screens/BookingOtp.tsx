@@ -16,6 +16,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -42,9 +43,12 @@ import { BookingParamList } from "@/src/navigation/stacks/BookingStack";
 import { useTheme } from "@/src/theme/useTheme";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 import api from "../api/client";
+import { BookingAPI } from "@/src/api/booking.api";
 import AppHeader from "../components/ui/AppHeader";
 import { useAuth } from "../hook/useAuth";
 import CancellationModal from "@/src/components/CancellationModal";
+import ServiceTimerCard from "@/src/components/booking/ServiceTimerCard";
+import { BookingLocationMap } from "@/src/components/booking";
 import { socket } from "../socket/socket";
 import { FEES } from "@/src/utils/enums/Fees";
 
@@ -54,6 +58,7 @@ type DetailsRoute = RouteProp<BookingParamList, "BookingDetails">;
 export default function BookingOtp() {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const route = useRoute<DetailsRoute>();
   const { bookingId, activeTab } = route.params;
   const { getBookingById, upsertBooking, cancelBooking, updateBookingItem } = useBooking();
@@ -76,6 +81,25 @@ export default function BookingOtp() {
     : '';
 
   const isScheduledBooking = !!(booking && (booking.isScheduled || booking.status === 'scheduled' || booking.scheduleDateTime));
+  const isServiceAccepted = !!(
+    booking?.status &&
+    [
+      'accepted',
+      'assigned',
+      'provider_started_trip',
+      'provider_on_the_way',
+      'provider_arrived',
+      'otp',
+      'otp_verified',
+      'in_progress',
+      'completed',
+    ].includes(booking.status)
+  );
+  const serviceName =
+    booking?.serviceCategoryName ||
+    (typeof (booking as any)?.serviceId === 'object' && (booking as any)?.serviceId?.name
+      ? (booking as any)?.serviceId?.name
+      : (booking as any)?.serviceName || 'Home Service');
 
   const serviceProposal = booking?.pendingServiceProposal;
   const proposalScale = useSharedValue(0);
@@ -420,11 +444,45 @@ export default function BookingOtp() {
     setCancelModalVisible(true);
   };
 
-  const handleCancelConfirm = (reason: string) => {
-    socket.emit("user-cancel-booking", { bookingId, cancelReason: reason });
-    cancelBooking(bookingId, reason);
-    setCancelModalVisible(false);
-    navigation.navigate("BookingsMain", { activeTab: "history" });
+  const handleCancelConfirm = async (reason: string) => {
+    try {
+      setCancelModalVisible(false);
+
+      // 1. Call cancellation API to ensure cancellation reason is stored and auto-refund is processed
+      const res = await BookingAPI.cancelBooking(bookingId, reason);
+
+      // 2. Real-time socket sync
+      socket.emit("user-cancel-booking", { bookingId, reason, cancelReason: reason });
+
+      // 3. Update context state
+      cancelBooking(bookingId, reason);
+      if (res?.booking) {
+        updateBookingItem(bookingId, mapBookingToBookingItem(res.booking));
+      }
+
+      // 4. Alert user about refund / cancellation confirmation
+      const alertMsg = res?.message || "Booking cancelled successfully.";
+      Alert.alert("Booking Cancelled", alertMsg, [
+        {
+          text: "OK",
+          onPress: () => navigation.navigate("BookingsMain", { activeTab: "history" }),
+        },
+      ]);
+    } catch (err: any) {
+      console.warn("Cancel booking API error:", err);
+      socket.emit("user-cancel-booking", { bookingId, reason, cancelReason: reason });
+      cancelBooking(bookingId, reason);
+      Alert.alert(
+        "Booking Cancelled",
+        "Your booking cancellation has been recorded. Our team is processing any applicable refund.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("BookingsMain", { activeTab: "history" }),
+          },
+        ]
+      );
+    }
   };
 
 
@@ -460,6 +518,147 @@ export default function BookingOtp() {
     // }, [serviceProposal]);
   };
 
+  // ===============================
+  // TIME-BASED SERVICE TIMER STATE & HELPERS
+  // ===============================
+  const [timerData, setTimerData] = useState<{
+    isTimeBased?: boolean;
+    timerStatus?: string;
+    remainingSeconds?: number;
+    extraRemainingSeconds?: number;
+    overtimeSeconds?: number;
+    totalDurationMinutes?: number;
+    startTime?: string | number;
+  } | null>(null);
+
+  const getBookingDuration = (b: any): number => {
+    if (b?.durationInMinutes && Number(b.durationInMinutes) > 0) {
+      return Number(b.durationInMinutes);
+    }
+    if (b?.workingHours && Number(b.workingHours) > 0) {
+      const wh = Number(b.workingHours);
+      return wh > 12 ? wh : wh * 60;
+    }
+    if (Array.isArray(b?.cartItems) && b.cartItems.length > 0) {
+      const sum = b.cartItems.reduce(
+        (acc: number, it: any) => acc + (Number(it.durationInMinutes || 0) * Number(it.quantity || 1)),
+        0
+      );
+      if (sum > 0) return sum;
+    }
+    return 60;
+  };
+
+  // Helper to parse timer data and accurately calculate remaining time from backend startTime
+  const parseAndSyncTimer = (raw: any, fallbackDuration: number = 60) => {
+    if (!raw) return null;
+    const data = raw.timerStatus || raw.timer || raw.serviceTimer || raw.data || raw;
+    const current = bookingRef.current;
+    const durationMins = Number(
+      data.totalDurationMinutes ||
+      data.durationInMinutes ||
+      raw.totalDurationMinutes ||
+      raw.durationInMinutes ||
+      getBookingDuration(current) ||
+      fallbackDuration
+    );
+    const totalSecs = durationMins * 60;
+    let startStr =
+      data.startTime ||
+      data.startedAt ||
+      data.serviceStartedAt ||
+      raw.serviceStartTime ||
+      raw.startedAt ||
+      current?.serviceStartTime;
+
+    let remainingSecs = data.remainingSeconds != null ? Number(data.remainingSeconds) : undefined;
+    let timerStatus = data.timerStatus || data.status || "RUNNING";
+    let overtimeSecs = Number(data.overtimeSeconds || 0);
+
+    // If remainingSeconds was directly provided from server/socket, infer startTime to synchronize clock
+    if (remainingSecs != null && !startStr) {
+      const elapsed = Math.max(0, totalSecs - remainingSecs);
+      startStr = new Date(Date.now() - (elapsed * 1000)).toISOString();
+    }
+
+    // Fallback: If service is already active/verified but startStr missing, initialize with current time
+    if (!startStr && ['in_progress', 'otp_verified'].includes(current?.status || '')) {
+      startStr = new Date().toISOString();
+    }
+
+    if (startStr) {
+      const startMs = new Date(startStr).getTime();
+      if (!isNaN(startMs) && startMs > 0) {
+        const elapsedSecs = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+        if (elapsedSecs < totalSecs) {
+          remainingSecs = totalSecs - elapsedSecs;
+          timerStatus = "RUNNING";
+        } else if (elapsedSecs < totalSecs + 600) {
+          remainingSecs = 0;
+          timerStatus = "EXTRA_TIME_RUNNING";
+          remainingSecs = (totalSecs + 600) - elapsedSecs;
+        } else {
+          remainingSecs = 0;
+          timerStatus = "OVERTIME_RUNNING";
+          overtimeSecs = elapsedSecs - (totalSecs + 600);
+        }
+      }
+    }
+
+    if (remainingSecs == null) {
+      remainingSecs = totalSecs;
+    }
+
+    return {
+      isTimeBased: true,
+      timerStatus,
+      remainingSeconds: Math.max(0, Number(remainingSecs)),
+      extraRemainingSeconds: timerStatus === "EXTRA_TIME_RUNNING" ? Math.max(0, Number(remainingSecs)) : 600,
+      overtimeSeconds: overtimeSecs,
+      totalDurationMinutes: durationMins,
+      startTime: startStr,
+    };
+  };
+
+  const getFallbackTimer = (b: any) => {
+    const duration = getBookingDuration(b);
+    const totalSecs = duration * 60;
+    const startStr = b?.serviceStartTime || b?.startedAt || b?.serviceStartedAt || new Date().toISOString();
+    const startMs = new Date(startStr).getTime();
+    let elapsedSecs = 0;
+    if (!isNaN(startMs) && startMs > 0) {
+      elapsedSecs = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+    }
+    let timerStatus = "RUNNING";
+    let remainingSecs = totalSecs;
+    let extraRemainingSecs = 600;
+    let overtimeSecs = 0;
+
+    if (elapsedSecs < totalSecs) {
+      remainingSecs = totalSecs - elapsedSecs;
+      timerStatus = "RUNNING";
+    } else if (elapsedSecs < totalSecs + 600) {
+      remainingSecs = 0;
+      extraRemainingSecs = (totalSecs + 600) - elapsedSecs;
+      timerStatus = "EXTRA_TIME_RUNNING";
+    } else {
+      remainingSecs = 0;
+      extraRemainingSecs = 0;
+      overtimeSecs = elapsedSecs - (totalSecs + 600);
+      timerStatus = "OVERTIME_RUNNING";
+    }
+
+    return {
+      isTimeBased: true,
+      timerStatus,
+      remainingSeconds: remainingSecs,
+      extraRemainingSeconds: extraRemainingSecs,
+      overtimeSeconds: overtimeSecs,
+      totalDurationMinutes: duration,
+      startTime: startStr,
+    };
+  };
+
   // Fetch full booking from API to ensure technician name is available
   const fetchBooking = async () => {
     try {
@@ -471,8 +670,17 @@ export default function BookingOtp() {
         const mapped = mapBookingToBookingItem(rawBooking);
 
         const currentBooking = bookingRef.current;
+        const currentStatus = currentBooking?.status;
+        const mappedStatus = mapped.status;
+
+        // If local state is already otp_verified or in_progress, don't revert to earlier status
+        const isCurrentlyActive = ['otp_verified', 'in_progress'].includes(currentStatus || '');
+        const isStaleRevert = isCurrentlyActive && !['completed', 'cancelled', 'in_progress', 'otp_verified'].includes(mappedStatus);
+
         upsertBooking({
           ...mapped,
+          status: isStaleRevert ? currentStatus! : mappedStatus,
+          serviceStartTime: mapped.serviceStartTime || currentBooking?.serviceStartTime,
           otp: mapped.otp ?? currentBooking?.otp   // 🔑 PRESERVE OTP
         });
       } else {
@@ -499,6 +707,99 @@ export default function BookingOtp() {
 
   useEffect(() => {
     if (!bookingId) return;
+
+    const handleOtpVerified = (data: any) => {
+      const incomingId = String(data?.bookingId || data?.id || data?._id || "");
+      if (incomingId && incomingId !== String(bookingId)) return;
+
+      console.log("⚡ [BookingOtp] OTP Verified socket event received:", data);
+
+      const nowIso = new Date().toISOString();
+      const startTime =
+        data?.startTime ||
+        data?.startedAt ||
+        data?.serviceStartedAt ||
+        data?.serviceStartTime ||
+        nowIso;
+
+      const durationMins = getBookingDuration(bookingRef.current);
+
+      // 1. Instantly update booking context to 'otp_verified' & record startTime
+      updateBookingItem(String(bookingId), {
+        status: "otp_verified",
+        serviceStartTime: startTime,
+        ...(data?.serviceTimer || data?.timerStatus ? { serviceTimer: data.serviceTimer || data.timerStatus } : {}),
+      });
+
+      // 2. Instantly calculate and show the Service Timer with 0 delay
+      const immediateTimer = parseAndSyncTimer(
+        {
+          startTime,
+          timerStatus: "RUNNING",
+          totalDurationMinutes: durationMins,
+          remainingSeconds: durationMins * 60,
+          isTimeBased: true,
+          ...data,
+        },
+        durationMins
+      );
+      if (immediateTimer) {
+        setTimerData(immediateTimer);
+      }
+
+      // 3. Smooth transition to 'in_progress' after 2.5 seconds
+      setTimeout(() => {
+        const curr = bookingRef.current;
+        if (curr?.status === "otp_verified") {
+          updateBookingItem(String(bookingId), {
+            status: "in_progress",
+          });
+        }
+      }, 2500);
+
+      // 4. Also fetch latest booking info from backend
+      fetchBooking();
+    };
+
+    const handleServiceStarted = (data: any) => {
+      const incomingId = String(data?.bookingId || data?.id || data?._id || "");
+      if (incomingId && incomingId !== String(bookingId)) return;
+
+      console.log("⚡ [BookingOtp] Service Started socket event received:", data);
+
+      const nowIso = new Date().toISOString();
+      const startTime =
+        data?.startTime ||
+        data?.startedAt ||
+        data?.serviceStartedAt ||
+        data?.serviceStartTime ||
+        nowIso;
+
+      const durationMins = getBookingDuration(bookingRef.current);
+
+      updateBookingItem(String(bookingId), {
+        status: "in_progress",
+        serviceStartTime: startTime,
+        ...(data?.serviceTimer || data?.timerStatus ? { serviceTimer: data.serviceTimer || data.timerStatus } : {}),
+      });
+
+      const immediateTimer = parseAndSyncTimer(
+        {
+          startTime,
+          timerStatus: "RUNNING",
+          totalDurationMinutes: durationMins,
+          remainingSeconds: durationMins * 60,
+          isTimeBased: true,
+          ...data,
+        },
+        durationMins
+      );
+      if (immediateTimer) {
+        setTimerData(immediateTimer);
+      }
+
+      fetchBooking();
+    };
 
     const handleTripOrArrival = (data: any) => {
       const incomingId = String(data?.bookingId || data?.id || data?._id || "");
@@ -535,10 +836,14 @@ export default function BookingOtp() {
     socket.on("arrived", handleTripOrArrival);
     socket.on("otp-generated", handleTripOrArrival);
     socket.on("start-service-otp", handleTripOrArrival);
-    socket.on("otp-verified", handleTripOrArrival);
-    socket.on("service-started", handleTripOrArrival);
-    socket.on("in-progress", handleTripOrArrival);
-    socket.on("service-in-progress", handleTripOrArrival);
+
+    // Dedicated OTP Verified & Service Started listeners
+    socket.on("otp-verified", handleOtpVerified);
+    socket.on("otp_verified", handleOtpVerified);
+    socket.on("service-started", handleServiceStarted);
+    socket.on("service_started", handleServiceStarted);
+    socket.on("in-progress", handleServiceStarted);
+    socket.on("service-in-progress", handleServiceStarted);
 
     return () => {
       socket.off("provider-started-trip", handleTripOrArrival);
@@ -555,10 +860,13 @@ export default function BookingOtp() {
       socket.off("arrived", handleTripOrArrival);
       socket.off("otp-generated", handleTripOrArrival);
       socket.off("start-service-otp", handleTripOrArrival);
-      socket.off("otp-verified", handleTripOrArrival);
-      socket.off("service-started", handleTripOrArrival);
-      socket.off("in-progress", handleTripOrArrival);
-      socket.off("service-in-progress", handleTripOrArrival);
+
+      socket.off("otp-verified", handleOtpVerified);
+      socket.off("otp_verified", handleOtpVerified);
+      socket.off("service-started", handleServiceStarted);
+      socket.off("service_started", handleServiceStarted);
+      socket.off("in-progress", handleServiceStarted);
+      socket.off("service-in-progress", handleServiceStarted);
     };
   }, [bookingId]);
 
@@ -659,104 +967,28 @@ export default function BookingOtp() {
     };
   }, [bookingId]);
 
-  // ===============================
-  // TIME-BASED SERVICE TIMER STATE
-  // ===============================
-  // ===============================
-  // TIME-BASED SERVICE TIMER STATE
-  // ===============================
-  const [timerData, setTimerData] = useState<{
-    isTimeBased?: boolean;
-    timerStatus?: string;
-    remainingSeconds?: number;
-    extraRemainingSeconds?: number;
-    overtimeSeconds?: number;
-    totalDurationMinutes?: number;
-    startTime?: string | number;
-  } | null>(null);
-
-  // Helper to parse timer data and accurately calculate remaining time from backend startTime
-  const parseAndSyncTimer = (raw: any, fallbackDuration: number = 60) => {
-    if (!raw) return null;
-    const data = raw.timerStatus || raw.timer || raw.serviceTimer || raw.data || raw;
-    const durationMins = Number(
-      data.totalDurationMinutes ||
-      data.durationInMinutes ||
-      raw.totalDurationMinutes ||
-      raw.durationInMinutes ||
-      bookingRef.current?.durationInMinutes ||
-      fallbackDuration
-    );
-    const totalSecs = durationMins * 60;
-    let startStr =
-      data.startTime ||
-      data.startedAt ||
-      data.serviceStartedAt ||
-      raw.serviceStartTime ||
-      raw.startedAt ||
-      bookingRef.current?.serviceStartTime;
-
-    let remainingSecs = data.remainingSeconds != null ? Number(data.remainingSeconds) : undefined;
-    let timerStatus = data.timerStatus || data.status || "RUNNING";
-    let overtimeSecs = Number(data.overtimeSeconds || 0);
-
-    // If remainingSeconds was directly provided from server/socket, infer startTime to synchronize clock
-    if (remainingSecs != null && !startStr) {
-      const elapsed = Math.max(0, totalSecs - remainingSecs);
-      startStr = new Date(Date.now() - (elapsed * 1000)).toISOString();
-    }
-
-    if (startStr) {
-      const startMs = new Date(startStr).getTime();
-      if (!isNaN(startMs) && startMs > 0) {
-        const elapsedSecs = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
-        if (elapsedSecs < totalSecs) {
-          remainingSecs = totalSecs - elapsedSecs;
-          timerStatus = "RUNNING";
-        } else if (elapsedSecs < totalSecs + 600) {
-          remainingSecs = (totalSecs + 600) - elapsedSecs;
-          timerStatus = "EXTRA_TIME_RUNNING";
-        } else {
-          remainingSecs = 0;
-          timerStatus = "OVERTIME_RUNNING";
-          overtimeSecs = elapsedSecs - (totalSecs + 600);
-        }
-      }
-    }
-
-    if (remainingSecs == null) {
-      remainingSecs = totalSecs;
-    }
-
-    return {
-      isTimeBased: true,
-      timerStatus,
-      remainingSeconds: Math.max(0, Number(remainingSecs)),
-      extraRemainingSeconds: timerStatus === "EXTRA_TIME_RUNNING" ? Math.max(0, Number(remainingSecs)) : 600,
-      overtimeSeconds: overtimeSecs,
-      totalDurationMinutes: durationMins,
-      startTime: startStr,
-    };
-  };
-
   useEffect(() => {
     const fetchTimerStatus = async () => {
       try {
         const res = await api.get(`/booking/${bookingId}/timer-status`);
-        const synced = parseAndSyncTimer(res.data, booking?.durationInMinutes || 60);
+        const synced = parseAndSyncTimer(res.data, getBookingDuration(bookingRef.current));
         if (synced) {
           setTimerData(synced);
         }
       } catch (err) {
         // If timer-status endpoint not available, fallback to booking's own timestamps
-        if (booking) {
-          const synced = parseAndSyncTimer(booking, booking.durationInMinutes || 60);
+        if (bookingRef.current) {
+          const synced = parseAndSyncTimer(bookingRef.current, getBookingDuration(bookingRef.current));
           if (synced) setTimerData(synced);
         }
       }
     };
 
     if (['in_progress', 'otp_verified'].includes(booking?.status || '')) {
+      if (!timerData) {
+        const initial = parseAndSyncTimer(booking, getBookingDuration(booking));
+        if (initial) setTimerData(initial);
+      }
       fetchTimerStatus();
     }
 
@@ -764,7 +996,7 @@ export default function BookingOtp() {
       if (!data) return;
       const incomingId = String(data.bookingId || data.id || data._id || "");
       if (incomingId && incomingId !== String(bookingId)) return;
-      const synced = parseAndSyncTimer(data, booking?.durationInMinutes || 60);
+      const synced = parseAndSyncTimer(data, getBookingDuration(bookingRef.current));
       if (synced) {
         setTimerData(synced);
       }
@@ -777,7 +1009,7 @@ export default function BookingOtp() {
     socket.on("timer-tick", onTimerStatus);
     socket.on("service-timer", onTimerStatus);
     socket.on("extra-timer-extended", (data: any) => {
-      const synced = parseAndSyncTimer(data, booking?.durationInMinutes || 60);
+      const synced = parseAndSyncTimer(data, getBookingDuration(bookingRef.current));
       if (synced) {
         setTimerData(synced);
       }
@@ -802,9 +1034,10 @@ export default function BookingOtp() {
 
     const interval = setInterval(() => {
       setTimerData((prev: any) => {
+        const current = bookingRef.current;
         if (!prev) {
-          if (booking?.status === 'in_progress') {
-            return parseAndSyncTimer(booking, booking.durationInMinutes || 60);
+          if (['in_progress', 'otp_verified'].includes(current?.status || '')) {
+            return parseAndSyncTimer(current, getBookingDuration(current));
           }
           return null;
         }
@@ -813,7 +1046,7 @@ export default function BookingOtp() {
         if (prev.startTime) {
           const startMs = new Date(prev.startTime).getTime();
           if (!isNaN(startMs) && startMs > 0) {
-            const durationMins = prev.totalDurationMinutes || 60;
+            const durationMins = prev.totalDurationMinutes || getBookingDuration(current);
             const totalSecs = durationMins * 60;
             const elapsedSecs = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
 
@@ -863,10 +1096,18 @@ export default function BookingOtp() {
             return {
               ...prev,
               timerStatus: 'OVERTIME_RUNNING',
+              remainingSeconds: 0,
               extraRemainingSeconds: 0,
               overtimeSeconds: 1,
             };
           }
+        }
+
+        if (prev.timerStatus === 'OVERTIME_RUNNING') {
+          return {
+            ...prev,
+            overtimeSeconds: (prev.overtimeSeconds || 0) + 1,
+          };
         }
 
         return prev;
@@ -1030,6 +1271,13 @@ export default function BookingOtp() {
   };
 
   const handleCallPress = () => {
+    if (!isServiceAccepted || !booking?.phone) {
+      Alert.alert(
+        "Technician Not Assigned",
+        "A technician has not accepted your booking yet. You will be able to call them once a technician accepts your request."
+      );
+      return;
+    }
     Alert.alert(
       "Call Technician",
       "This will connect you via a secure masked number to protect your privacy.",
@@ -1054,30 +1302,6 @@ export default function BookingOtp() {
   const otpBg = "#A5F3FC";
   const primaryTeal = "#0D9488";
 
-
-  if (!booking && loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <AppText style={{ marginTop: 12 }}>Loading booking details...</AppText>
-      </View>
-    );
-  }
-
-  if (!booking) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <AppText>No booking found.</AppText>
-      </View>
-    );
-  }
-  // if (!PendingRequest) {
-  //   return <Text> no pending request</Text>; // or loader
-  // }
-
-
-
-
   const handleBack = () => {
     if (activeTab) {
       navigation.navigate("BookingsMain", { activeTab });
@@ -1088,23 +1312,78 @@ export default function BookingOtp() {
     }
   };
 
+  if (!booking && loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: "#F8FAFC", paddingTop: insets.top }]}>
+        <AppHeader showBack={true} title="Booking Details" onBackPress={handleBack} />
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <AppText color="textMuted" style={{ marginTop: 14 }}>Loading booking details...</AppText>
+        </View>
+      </View>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <View style={[styles.container, { backgroundColor: "#F8FAFC", paddingTop: insets.top }]}>
+        <AppHeader showBack={true} title="Booking Details" onBackPress={handleBack} />
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <View style={{
+            width: 72,
+            height: 72,
+            borderRadius: 36,
+            backgroundColor: "#F1F5F9",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 16,
+          }}>
+            <Ionicons name="receipt-outline" size={36} color="#64748B" />
+          </View>
+          <AppText weight="bold" size="h3" style={{ color: "#0F172A", marginBottom: 6, textAlign: "center" }}>
+            No Booking Selected
+          </AppText>
+          <AppText color="textMuted" style={{ textAlign: "center", fontSize: 14, lineHeight: 20, marginBottom: 20 }}>
+            View your active, scheduled, and past service bookings.
+          </AppText>
+          <TouchableOpacity
+            style={{
+              backgroundColor: theme.colors.primary,
+              paddingHorizontal: 20,
+              paddingVertical: 12,
+              borderRadius: 12,
+            }}
+            onPress={() => navigation.navigate("BookingsMain")}
+          >
+            <AppText weight="bold" style={{ color: "#FFFFFF" }}>
+              View All Bookings
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+
   return (
-    <View style={[styles.container, { backgroundColor: "#F8FAFC" }]}>
+    <View style={[styles.container, { backgroundColor: "#F8FAFC", paddingTop: insets.top }]}>
+      <AppHeader
+        showBack={true}
+        title="Booking Details"
+        showShadow={true}
+        onBackPress={handleBack}
+        rightIcon={
+          booking && !['completed', 'cancelled', 'in_progress'].includes(booking.status)
+            ? 'information-circle-outline'
+            : undefined
+        }
+        onRightPress={handleCancelPress}
+      />
+
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 60 }]}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader
-          showBack={true}
-          onBackPress={handleBack}
-          rightIcon={
-            booking && !['completed', 'cancelled', 'in_progress'].includes(booking.status)
-              ? 'information-circle-outline'
-              : undefined
-          }
-          onRightPress={handleCancelPress}
-        />
-
         {PendingRequest && !Array.isArray(PendingRequest.parts) && (
           <Text>Loading parts...</Text>
         )}
@@ -1198,6 +1477,15 @@ export default function BookingOtp() {
                                   ? 'Awaiting Manual Assignment'
                                   : 'Searching Technician...'}
           </AppText>
+          {(booking.bookingCode || (booking._id && String(booking._id).startsWith('GGM-'))) ? (
+            <View style={{ alignItems: 'center', marginTop: 6 }}>
+              <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#E0E7FF' }}>
+                <AppText size="caption" weight="bold" style={{ color: '#4F46E5', letterSpacing: 0.5 }}>
+                  BOOKING ID: {booking.bookingCode || String(booking._id)}
+                </AppText>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <Animated.View style={animatedContentStyle}>
@@ -1291,74 +1579,34 @@ export default function BookingOtp() {
             <BookingProcessTracker booking={booking} />
           )}
 
-          {/* ⏱️ TIME-BASED SERVICE COUNTDOWN & EXTRA BUFFER TIMER CARD */}
-          {timerData?.isTimeBased && ['in_progress', 'otp_verified'].includes(booking?.status || '') && (
-            <AppCard style={{
-              marginHorizontal: 16,
-              marginVertical: 10,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              borderRadius: 16,
-              backgroundColor: timerData.timerStatus === 'EXTRA_TIME_RUNNING'
-                ? '#FFFBEB'
-                : timerData.timerStatus === 'OVERTIME_RUNNING'
-                  ? '#FAF5FF'
-                  : '#ECFDF5',
-              borderWidth: 1.5,
-              borderColor: timerData.timerStatus === 'EXTRA_TIME_RUNNING'
-                ? '#F59E0B'
-                : timerData.timerStatus === 'OVERTIME_RUNNING'
-                  ? '#A855F7'
-                  : '#10B981',
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: 13,
-                    backgroundColor: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#F59E0B" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#A855F7" : "#059669",
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <Ionicons name="time" size={16} color="#FFFFFF" />
-                  </View>
-                  <Ionicons
-                    name="timer-outline"
-                    size={18}
-                    color={timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#D97706" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#9333EA" : "#059669"}
-                  />
-                  <AppText weight="bold" style={{
-                    color: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#B45309" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#7E22CE" : "#065F46",
-                    fontSize: 16,
-                  }}>
-                    Job Service Timer
+          {/* Stage 7: OTP Verified Success Transition Banner */}
+          {booking.status === 'otp_verified' && (
+            <AppCard style={styles.otpVerifiedCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7', width: 44, height: 44, borderRadius: 22 }]}>
+                  <Ionicons name="shield-checkmark" size={26} color="#166534" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText weight="bold" size="body" style={{ color: "#166534" }}>
+                    OTP Verified Successfully!
+                  </AppText>
+                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                    Technician is starting your service now.
                   </AppText>
                 </View>
-
-                <AppText weight="bold" style={{
-                  fontSize: 24,
-                  letterSpacing: 1,
-                  color: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#B45309" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#7E22CE" : "#065F46",
-                  fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-                }}>
-                  {timerData.timerStatus === 'RUNNING' && formatTimerSeconds(timerData.remainingSeconds)}
-                  {timerData.timerStatus === 'EXTRA_TIME_RUNNING' && formatTimerSeconds(timerData.extraRemainingSeconds)}
-                  {timerData.timerStatus === 'OVERTIME_RUNNING' && `+${formatTimerSeconds(timerData.overtimeSeconds)}`}
-                </AppText>
               </View>
-
-              <AppText size="small" style={{
-                color: timerData.timerStatus === 'EXTRA_TIME_RUNNING' ? "#92400E" : timerData.timerStatus === 'OVERTIME_RUNNING' ? "#6B21A8" : "#047857",
-                marginTop: 6,
-                fontSize: 12,
-              }}>
-                {timerData.timerStatus === 'RUNNING' && "Countdown synchronized with user in real time."}
-                {timerData.timerStatus === 'EXTRA_TIME_RUNNING' && "Initial service duration completed. 10-minute extra grace period active."}
-                {timerData.timerStatus === 'OVERTIME_RUNNING' && "Your service is ongoing in extended overtime mode."}
-              </AppText>
             </AppCard>
           )}
+
+          {/* ⏱️ TIME-BASED SERVICE COUNTDOWN & EXTRA BUFFER TIMER CARD */}
+          {['in_progress', 'otp_verified'].includes(booking?.status || '') && (
+            <ServiceTimerCard
+              timerData={timerData || getFallbackTimer(booking)}
+              isOtpVerified={booking.status === 'otp_verified'}
+              serviceName={booking?.serviceCategoryName || (typeof booking?.serviceId === 'object' && booking?.serviceId?.name ? booking.serviceId.name : 'Job Service')}
+            />
+          )}
+
 
           {/* Remaining Balance / Unpaid Payment */}
           {booking && !['paid', 'completed'].includes(booking.paymentStatus || '') && paymentAmount > 0 && (
@@ -1441,45 +1689,16 @@ export default function BookingOtp() {
             </AppCard>
           )}
 
-          {/* Stage 7: OTP Verified Success Transition Banner */}
-          {booking.status === 'otp_verified' && (
-            <AppCard style={styles.otpVerifiedCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7', width: 44, height: 44, borderRadius: 22 }]}>
-                  <Ionicons name="shield-checkmark" size={26} color="#166534" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <AppText weight="bold" size="body" style={{ color: "#166534" }}>
-                    OTP Verified Successfully!
-                  </AppText>
-                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
-                    Technician is starting your service now.
-                  </AppText>
-                </View>
-              </View>
-            </AppCard>
-          )}
-
           {/* Technician Profile Card */}
-          {booking.name &&
-            ([
-              'accepted',
-              'assigned',
-              'provider_started_trip',
-              'provider_on_the_way',
-              'provider_arrived',
-              'otp',
-              'otp_verified',
-              'in_progress',
-              'completed',
-            ].includes(booking.status) ||
+          {isServiceAccepted &&
+            (Boolean(booking.name || booking.phone) ||
               booking.assignmentStatus === 'FAILED' ||
               booking.status === 'manual_assign') && (
               <BookingDetailsCard
                 name={booking.name ?? "Assigned Technician"}
                 role={booking.serviceCategoryName}
                 image={booking.image}
-                eta={booking.eta}
+                eta={['in_progress', 'otp_verified', 'completed'].includes(booking.status) ? undefined : booking.eta}
                 phone={booking.phone}
                 onCallPress={handleCallPress}
               />
@@ -1735,27 +1954,41 @@ export default function BookingOtp() {
                 {booking.cartItems && booking.cartItems.length > 0 ? (
                   booking.cartItems.map((item, index) => (
                     <View key={`${item._id || item.serviceCategoryId || index}-${index}`} style={styles.summaryRow}>
-                      <AppText style={{ color: "#475569" }}>
+                      <AppText style={{ color: "#475569", flex: 1, marginRight: 8 }}>
                         {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ""}
                       </AppText>
-                      <AppText style={{ color: "#0F172A" }}>
-                        ₹{item.price * (item.quantity || 1)}
-                      </AppText>
+                      <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
+                        <AppText style={{ color: "#0F172A" }} weight="semibold">
+                          ₹{item.price * (item.quantity || 1)}
+                        </AppText>
+                        {item.originalPrice != null && Number(item.originalPrice) > Number(item.price) && (
+                          <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                            ₹{Number(item.originalPrice) * (item.quantity || 1)}
+                          </AppText>
+                        )}
+                      </View>
                     </View>
                   ))
                 ) : (
                   <View style={styles.summaryRow}>
-                    <AppText style={{ color: "#475569" }}>Service</AppText>
-                    <AppText style={{ color: "#0F172A" }}>
-                      {booking.serviceCategoryName}
-                    </AppText>
+                    <AppText style={{ color: "#475569", flex: 1, marginRight: 8 }}>Service</AppText>
+                    <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
+                      <AppText style={{ color: "#0F172A" }} weight="semibold">
+                        {booking.serviceCategoryName}
+                      </AppText>
+                      {booking.originalPrice != null && Number(booking.originalPrice) > Number(booking.totalPrice) && (
+                        <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                          ₹{booking.originalPrice}
+                        </AppText>
+                      )}
+                    </View>
                   </View>
                 )}
 
                 {(Array.isArray(booking.extraServices) ? booking.extraServices : []).filter(s => s && String(s.status).toUpperCase() === "APPROVED").map((extra, index) => (
                   <View key={`${extra._id || index}-${index}`} style={styles.summaryRow}>
-                    <AppText style={{ color: "#475569" }}>+ {extra.serviceName || "Extra Service"}</AppText>
-                    <AppText style={{ color: "#0F172A" }}>
+                    <AppText style={{ color: "#475569", flex: 1, marginRight: 8 }}>+ {extra.serviceName || "Extra Service"}</AppText>
+                    <AppText style={{ color: "#0F172A", flexShrink: 0 }}>
                       ₹{extra.price ?? 0}
                     </AppText>
                   </View>
@@ -1763,8 +1996,8 @@ export default function BookingOtp() {
 
                 {(booking.convenienceFee ?? FEES.CONVENIENCE_FEE) > 0 && (
                   <View style={styles.summaryRow}>
-                    <AppText style={{ color: "#475569" }}>Convenience Fee</AppText>
-                    <AppText style={{ color: "#0F172A" }}>
+                    <AppText style={{ color: "#475569", flex: 1, marginRight: 8 }}>Convenience Fee</AppText>
+                    <AppText style={{ color: "#0F172A", flexShrink: 0 }}>
                       ₹{booking.convenienceFee ?? FEES.CONVENIENCE_FEE}
                     </AppText>
                   </View>
@@ -1856,7 +2089,7 @@ export default function BookingOtp() {
                     color={primaryTeal}
                     style={styles.detailIcon}
                   />
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <AppText color="textMuted" size="small">
                       Duration
                     </AppText>
@@ -1865,6 +2098,58 @@ export default function BookingOtp() {
                     </AppText>
                   </View>
                 </View>
+
+                {/* Contact Phone */}
+                {Boolean(booking.receiverPhone || booking.userPhone || (user as any)?.phone || (user as any)?.phoneNo) && (
+                  <View style={styles.detailRow}>
+                    <Ionicons
+                      name="call-outline"
+                      size={20}
+                      color={primaryTeal}
+                      style={styles.detailIcon}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <AppText color="textMuted" size="small">
+                        Contact Phone
+                      </AppText>
+                      <AppText weight="medium" style={styles.detailText}>
+                        {booking.receiverPhone || booking.userPhone || (user as any)?.phone || (user as any)?.phoneNo}
+                      </AppText>
+                    </View>
+                  </View>
+                )}
+
+                {/* Technician Phone */}
+                {isServiceAccepted && Boolean(booking.phone) && (
+                  <View style={styles.detailRow}>
+                    <Ionicons
+                      name="person-circle-outline"
+                      size={20}
+                      color={primaryTeal}
+                      style={styles.detailIcon}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <AppText color="textMuted" size="small">
+                        Technician Phone ({booking.name || "Assigned Technician"})
+                      </AppText>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                        <AppText weight="medium" style={styles.detailText}>
+                          {booking.phone}
+                        </AppText>
+                        <TouchableOpacity
+                          onPress={handleCallPress}
+                          style={styles.quickCallBtn}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="call" size={13} color="#FFFFFF" />
+                          <AppText size="small" weight="bold" style={{ color: "#FFFFFF", marginLeft: 4 }}>
+                            Call
+                          </AppText>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                )}
 
                 {isScheduledBooking && (
                   <>
@@ -1883,6 +2168,17 @@ export default function BookingOtp() {
               </View>
             </AppCard>
           )}
+
+          {/* 📍 GOOGLE MAP VIEW: Booking Location Map - Active ONLY after servicer accepts until OTP is verified */}
+          {['accepted', 'assigned', 'provider_started_trip', 'provider_on_the_way', 'provider_arrived', 'otp'].includes(booking.status) &&
+            (booking.customerCoordinates || booking.address) && (
+              <BookingLocationMap
+                coordinates={booking.customerCoordinates}
+                address={booking.address}
+                serviceName={serviceName}
+                addressTitle="Service Location on Google Maps"
+              />
+            )}
 
           {/* Completed Bottom Review Button */}
           {booking.status === 'completed' && !booking.isReviewed && (
@@ -2101,13 +2397,18 @@ export default function BookingOtp() {
                           <AppText size="caption" color="textMuted" style={{ marginTop: 2 }}>
                             Staff: {item.employeeCount || 1} {(item.employeeCount || 1) === 1 ? 'pro' : 'pros'}
                           </AppText>
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 12 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 8 }}>
                             <AppText weight="bold" style={{ color: theme.colors.primary }}>
-                              ₹{price}
+                              ₹{item.offerPrice != null ? item.offerPrice : price}
                             </AppText>
+                            {item.originalPrice != null && Number(item.originalPrice) > Number(item.offerPrice != null ? item.offerPrice : price) && (
+                              <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                                ₹{item.originalPrice}
+                              </AppText>
+                            )}
                             {item.durationInMinutes ? (
                               <AppText size="caption" color="textMuted">
-                                ⏱ Time: {item.durationInMinutes} mins
+                                ⏱ {item.durationInMinutes}m
                               </AppText>
                             ) : null}
                           </View>
@@ -2197,13 +2498,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 100,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 60,
   },
   header: {
     alignItems: "center",
-    marginBottom: 24,
-    marginTop: 10,
+    marginBottom: 20,
+    marginTop: 6,
   },
   checkCircle: {
     width: 70,
@@ -2233,7 +2535,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
-    marginHorizontal: 4,
+    marginHorizontal: 0,
   },
   otpLabel: {
     marginBottom: 6,
@@ -2257,14 +2559,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 20,
     elevation: 10,
-    marginHorizontal: 4,
+    marginHorizontal: 0,
     marginBottom: 20,
     backgroundColor: "white",
   },
   arrivalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
@@ -2282,8 +2584,8 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: "row",
-    padding: 20,
-    gap: 16,
+    padding: 16,
+    gap: 12,
   },
   actionButton: {
     flex: 1,
@@ -2299,7 +2601,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   summaryContainer: {
-    padding: 20,
+    padding: 18,
     paddingTop: 0,
   },
   summaryTitle: {
@@ -2309,7 +2611,9 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 10,
+    gap: 8,
   },
   divider: {
     height: 1,
@@ -2318,7 +2622,8 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: "row",
-    marginBottom: 16,
+    marginBottom: 14,
+    alignItems: "flex-start",
   },
   detailIcon: {
     marginRight: 12,
@@ -2328,6 +2633,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 20,
     color: "#0F172A",
+  },
+  quickCallBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0D9488",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   footer: {
     position: "absolute",

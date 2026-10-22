@@ -180,7 +180,7 @@ export default function CreateTicketScreen() {
                 {/* Booking ID */}
                 <AppInput
                     label="Booking ID (Optional)"
-                    placeholder="e.g. BOK-123456"
+                    placeholder="e.g. GGM-2610-0001"
                     value={bookingId}
                     onChangeText={setBookingId}
                 />

@@ -16,6 +16,7 @@ interface CalendarModalProps {
     onSelect: (date: Date) => void;
     selectedDate: Date | null;
     minDate?: Date;
+    maxDate?: Date;
 }
 
 const months = [
@@ -25,7 +26,7 @@ const months = [
 
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function CalendarModal({ visible, onClose, onSelect, selectedDate, minDate }: CalendarModalProps) {
+export default function CalendarModal({ visible, onClose, onSelect, selectedDate, minDate, maxDate }: CalendarModalProps) {
     const { theme } = useTheme();
 
     // State for the currently displayed month/year
@@ -33,9 +34,9 @@ export default function CalendarModal({ visible, onClose, onSelect, selectedDate
 
     useEffect(() => {
         if (visible) {
-            setViewDate(selectedDate || new Date());
+            setViewDate(selectedDate || minDate || new Date());
         }
-    }, [visible, selectedDate]);
+    }, [visible, selectedDate, minDate]);
 
     const getDaysInMonth = (year: number, month: number) => {
         return new Date(year, month + 1, 0).getDate();
@@ -49,10 +50,14 @@ export default function CalendarModal({ visible, onClose, onSelect, selectedDate
         const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + increment, 1);
 
         const today = new Date();
-        const minViewDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        const maxDate = new Date(today.getFullYear(), today.getMonth() + 1, 1); // Next month
+        const minViewDate = minDate 
+            ? new Date(minDate.getFullYear(), minDate.getMonth(), 1)
+            : new Date(today.getFullYear(), today.getMonth(), 1);
+        const maxViewDate = maxDate 
+            ? new Date(maxDate.getFullYear(), maxDate.getMonth(), 1)
+            : new Date(today.getFullYear() + 2, 11, 1); // 2 years in the future
 
-        if (newDate < minViewDate || newDate > maxDate) return;
+        if (newDate < minViewDate || newDate > maxViewDate) return;
 
         setViewDate(newDate);
     };
@@ -140,11 +145,15 @@ export default function CalendarModal({ visible, onClose, onSelect, selectedDate
 
     // Navigation constraints
     const today = new Date();
-    const minNavDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    const maxDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const minNavDate = minDate 
+        ? new Date(minDate.getFullYear(), minDate.getMonth(), 1)
+        : new Date(today.getFullYear(), today.getMonth(), 1);
+    const maxNavDate = maxDate 
+        ? new Date(maxDate.getFullYear(), maxDate.getMonth(), 1)
+        : new Date(today.getFullYear() + 2, 11, 1);
 
     const canGoBack = viewDate > minNavDate;
-    const canGoForward = viewDate < maxDate;
+    const canGoForward = viewDate < maxNavDate;
 
     return (
         <Modal

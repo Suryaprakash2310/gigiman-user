@@ -89,18 +89,21 @@ export default function BookingDetailsCard({
 const styles = StyleSheet.create({
     card: {
         alignItems: 'center',
-        paddingVertical: 24,
+        paddingVertical: 20,
+        paddingHorizontal: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.08,
         shadowRadius: 20,
         elevation: 10,
         borderRadius: 24,
-        marginHorizontal: 4,
+        marginHorizontal: 0,
         backgroundColor: 'white', // Force white background
+        width: '100%',
     },
     content: {
         alignItems: 'center',
+        width: '100%',
     },
     imageContainer: {
         marginBottom: 16,

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  Linking,
   Platform,
   StyleSheet,
   TouchableOpacity,
@@ -192,6 +193,25 @@ export default function LiveTrackingMap({
   const initialLng =
     servicerLocation?.longitude || customerCoords?.longitude || 77.5946;
 
+  const openInGoogleMaps = () => {
+    if (servicerLocation && customerCoords) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${servicerLocation.latitude},${servicerLocation.longitude}&destination=${customerCoords.latitude},${customerCoords.longitude}&travelmode=driving`;
+      Linking.openURL(url).catch((err) =>
+        console.warn("Failed to open Google Maps directions:", err)
+      );
+    } else if (customerCoords) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${customerCoords.latitude},${customerCoords.longitude}`;
+      Linking.openURL(url).catch((err) =>
+        console.warn("Failed to open Google Maps:", err)
+      );
+    } else if (customerAddress) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customerAddress)}`;
+      Linking.openURL(url).catch((err) =>
+        console.warn("Failed to open Google Maps:", err)
+      );
+    }
+  };
+
   // 🌐 Web rendering fallback
   if (Platform.OS === "web" || !MapView) {
     return (
@@ -214,6 +234,17 @@ export default function LiveTrackingMap({
               </AppText>
             </View>
           ) : null}
+
+          <TouchableOpacity
+            style={styles.openGmapsBtnWeb}
+            onPress={openInGoogleMaps}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="navigate-outline" size={14} color="#0D9488" style={{ marginRight: 6 }} />
+            <AppText weight="bold" size="small" style={{ color: "#0D9488" }}>
+              View in Google Maps
+            </AppText>
+          </TouchableOpacity>
         </View>
 
         {/* Floating Status Pill */}
@@ -248,6 +279,7 @@ export default function LiveTrackingMap({
     <View style={[styles.container, { height }]}>
       <MapView
         ref={mapRef}
+        provider="google"
         style={StyleSheet.absoluteFillObject}
         initialRegion={{
           latitude: initialLat,
@@ -343,6 +375,18 @@ export default function LiveTrackingMap({
         </View>
       </View>
 
+      {/* Floating Google Maps Button */}
+      <TouchableOpacity
+        style={styles.floatingGmapsBtn}
+        onPress={openInGoogleMaps}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="navigate" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+        <AppText weight="bold" size="caption" style={{ color: "#FFFFFF" }}>
+          Google Maps
+        </AppText>
+      </TouchableOpacity>
+
       {/* Floating Recenter Button */}
       <TouchableOpacity
         style={styles.recenterButton}
@@ -430,6 +474,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
     zIndex: 10,
+  },
+  floatingGmapsBtn: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0D9488",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
+  },
+  openGmapsBtnWeb: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#99F6E4",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginTop: 12,
   },
   customerMarkerOuter: {
     alignItems: "center",

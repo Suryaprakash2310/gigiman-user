@@ -139,6 +139,7 @@ export default function PlanDetails() {
   const modalConfig = getModalConfig();
 
   const getFrequencyLabel = () => {
+    if (frequency === 'everyday') return 'Everyday (Mon - Sat)';
     if (frequency === 'weekly') return 'Weekly';
     if (frequency === 'every-2-weeks') return 'Every 2 Weeks';
     if (frequency === 'monthly') return 'Monthly';
@@ -146,6 +147,9 @@ export default function PlanDetails() {
   };
 
   const getScheduleText = () => {
+    if (frequency === 'everyday') {
+      return 'Mon - Sat (Sundays off)';
+    }
     if (frequency === 'weekly' || frequency === 'every-2-weeks') {
       return `Every ${schedule.weekdays?.join(', ')}`;
     }
@@ -154,6 +158,9 @@ export default function PlanDetails() {
         return `Every month on day ${schedule.dateOfMonth}`;
       }
       return `Every month on ${schedule.monthlyRule}`;
+    }
+    if (schedule.weekdays && schedule.weekdays.length > 0) {
+      return `On ${schedule.weekdays.join(', ')}`;
     }
     return 'Custom Schedule';
   };

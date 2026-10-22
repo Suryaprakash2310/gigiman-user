@@ -26,6 +26,11 @@ export const BookingAPI = {
     const res = await apiClient.get("/booking/scheduled/user");
     return deduplicate(res.data.bookings);
   },
+
+  async cancelBooking(bookingId: string, reason: string) {
+    const res = await apiClient.post(`/booking/${bookingId}/cancel`, { reason });
+    return res.data;
+  },
 };
 
 

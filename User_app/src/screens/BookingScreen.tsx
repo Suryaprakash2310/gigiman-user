@@ -336,12 +336,28 @@ export default function BookingScreen() {
           </AppText>
           <AppText
             color="textMuted"
-            style={{ marginTop: 6, textAlign: "center", width: "70%" }}
+            style={{ marginTop: 6, textAlign: "center", width: "70%", lineHeight: 20 }}
           >
             {getEmptyText().subtitle}
           </AppText>
+          <TouchableOpacity
+            style={{
+              marginTop: 18,
+              backgroundColor: theme.colors.primary,
+              paddingHorizontal: 20,
+              paddingVertical: 11,
+              borderRadius: 12,
+            }}
+            onPress={() => navigation.navigate("ServiceTab", { screen: "MainServiceScreen" })}
+            activeOpacity={0.85}
+          >
+            <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 14 }}>
+              Explore Services
+            </AppText>
+          </TouchableOpacity>
         </View>
       )}
+
 
       {/* LIST */}
       {!empty && !(activeTab === "history" && historyLoading) && (
@@ -349,7 +365,7 @@ export default function BookingScreen() {
           data={data}
           keyExtractor={(item) => String(item._id || item.id)}
           style={[styles.list, activeTab === "history" && { marginTop: 20 }]}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
             if (activeTab === "recurring") {

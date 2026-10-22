@@ -1,6 +1,6 @@
 // src/screens/recurring/ChooseService.tsx
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, ScrollView, StatusBar, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import ServiceCard from '../../components/recurring/ServiceCard';
 import PrimaryButton from '../../components/recurring/PrimaryButton';
 import SectionHeader from '../../components/recurring/SectionHeader';
 import { RecurringService } from '../../types/recurring';
+import { ServiceAPI } from '../../api/service.api';
 
 export default function ChooseService() {
   const navigation = useNavigation<any>();
@@ -18,6 +19,34 @@ export default function ChooseService() {
 
   const { draft, updateDraft, plans } = useRecurringStore();
   const [selectedService, setSelectedService] = useState<RecurringService | null>(null);
+  const [servicesList, setServicesList] = useState<RecurringService[]>(MOCK_SERVICES);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function loadServices() {
+      try {
+        const res = await ServiceAPI.getSubServicesAPI();
+        if (res?.categoriesservices && res.categoriesservices.length > 0) {
+          const mapped: RecurringService[] = res.categoriesservices.map((cat: any) => ({
+            id: cat._id,
+            name: cat.serviceCategoryName || cat.parentServiceName || 'Cleaning Service',
+            icon: 'sparkles-outline',
+            description: cat.description || `Professional ${cat.serviceCategoryName || 'service'}`,
+            pricePerVisit: cat.offerPrice != null ? Number(cat.offerPrice) : (cat.price != null ? Number(cat.price) : 499),
+          }));
+          setServicesList(mapped);
+          if (!selectedService && !editPlanId && !draft.service) {
+            setSelectedService(mapped[0]);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load subservices from API, using default services:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadServices();
+  }, []);
 
   useEffect(() => {
     if (editPlanId) {
@@ -34,7 +63,7 @@ export default function ChooseService() {
   const handleContinue = () => {
     if (!selectedService) return;
     updateDraft({ service: selectedService });
-    navigation.navigate('RecurringBooking', { editPlanId });
+    navigation.navigate('RecurringBooking', { editPlanId, serviceData: selectedService });
   };
 
   return (
@@ -71,18 +100,25 @@ export default function ChooseService() {
           />
 
           <View style={styles.grid}>
-            {MOCK_SERVICES.map((service) => (
-              <ServiceCard
-                key={service.id}
-                name={service.name}
-                description={service.description}
-                icon={service.icon as any}
-                pricePerVisit={service.pricePerVisit}
-                selected={selectedService?.id === service.id}
-                onPress={() => setSelectedService(service)}
-                style={styles.serviceCard}
-              />
-            ))}
+            {loading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#0F6A4B" />
+                <AppText style={{ marginTop: 12, color: '#6B7280' }}>Loading available services...</AppText>
+              </View>
+            ) : (
+              servicesList.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  name={service.name}
+                  description={service.description}
+                  icon={service.icon as any}
+                  pricePerVisit={service.pricePerVisit}
+                  selected={selectedService?.id === service.id}
+                  onPress={() => setSelectedService(service)}
+                  style={styles.serviceCard}
+                />
+              ))
+            )}
           </View>
         </View>
       </ScrollView>

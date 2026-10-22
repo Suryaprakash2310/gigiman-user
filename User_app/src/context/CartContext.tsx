@@ -6,6 +6,7 @@ import { useAuthContext } from './AuthContext';
 interface CartContextType {
   cartItems: CartItem[];
   totalPrice: number;
+  totalOriginalPrice: number;
   suggestions: any[];
   isLoading: boolean;
   addToCart: (serviceCategoryId: string, type?: 'MAIN' | 'EXTRA', clearExist?: boolean) => Promise<void>;
@@ -20,6 +21,7 @@ const CartContext = createContext<CartContextType | null>(null);
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [totalOriginalPrice, setTotalOriginalPrice] = useState<number>(0);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
@@ -33,6 +35,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (res.success && res.cart) {
         setCartItems(res.cart.items || []);
         setTotalPrice(res.cart.totalPrice || 0);
+        setTotalOriginalPrice(
+          res.cart.totalOriginalPrice ||
+          (res.cart.items || []).reduce((sum, item) => sum + (Number(item.originalPrice || item.price) * item.quantity), 0)
+        );
       }
     } catch (err) {
       console.error('Failed to fetch cart:', err);
@@ -60,6 +66,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (res.success && res.cart) {
         setCartItems(res.cart.items || []);
         setTotalPrice(res.cart.totalPrice || 0);
+        setTotalOriginalPrice(
+          res.cart.totalOriginalPrice ||
+          (res.cart.items || []).reduce((sum, item) => sum + (Number(item.originalPrice || item.price) * item.quantity), 0)
+        );
         await fetchSuggestions();
       }
     } catch (err: any) {
@@ -93,6 +103,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (res.success && res.cart) {
         setCartItems(res.cart.items || []);
         setTotalPrice(res.cart.totalPrice || 0);
+        setTotalOriginalPrice(
+          res.cart.totalOriginalPrice ||
+          (res.cart.items || []).reduce((sum, item) => sum + (Number(item.originalPrice || item.price) * item.quantity), 0)
+        );
         await fetchSuggestions();
       }
     } catch (err) {
@@ -105,6 +119,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const clearCart = () => {
     setCartItems([]);
     setTotalPrice(0);
+    setTotalOriginalPrice(0);
     setSuggestions([]);
   };
 
@@ -125,6 +140,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     <CartContext.Provider value={{
       cartItems,
       totalPrice,
+      totalOriginalPrice,
       suggestions,
       isLoading,
       addToCart,

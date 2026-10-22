@@ -2,7 +2,7 @@
 import * as Location from "expo-location";
 import { Platform } from "react-native";
 
-export const getCurrentLocation = async () => {
+export const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number }> => {
   // 🌐 WEB fallback
   if (Platform.OS === "web") {
     return new Promise<{ latitude: number; longitude: number }>(
@@ -22,7 +22,7 @@ export const getCurrentLocation = async () => {
           (err) => {
             reject(new Error("Location access denied in browser"));
           },
-          { enableHighAccuracy: true }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
         );
       }
     );
@@ -32,51 +32,113 @@ export const getCurrentLocation = async () => {
   const { status } = await Location.requestForegroundPermissionsAsync();
 
   if (status !== "granted") {
-    throw new Error("Location permission denied");
+    throw new Error("Location permission denied. Please allow location access in settings.");
   }
 
   // 🚨 Check if GPS is ON
-  const servicesEnabled = await Location.hasServicesEnabledAsync();
-  if (!servicesEnabled) {
-    throw new Error("Please turn ON location services");
+  try {
+    const servicesEnabled = await Location.hasServicesEnabledAsync();
+    if (!servicesEnabled) {
+      // Prompt or attempt fallback
+      console.warn("Location services disabled");
+    }
+  } catch (e) {
+    console.warn("Error checking location services:", e);
   }
 
-  const location = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
-  });
+  try {
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
 
-  if (!location?.coords) {
-    throw new Error("Unable to fetch location");
+    if (location?.coords) {
+      return {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+    }
+  } catch (err) {
+    console.warn("getCurrentPositionAsync failed, trying last known position:", err);
+    const lastKnown = await Location.getLastKnownPositionAsync();
+    if (lastKnown?.coords) {
+      return {
+        latitude: lastKnown.coords.latitude,
+        longitude: lastKnown.coords.longitude,
+      };
+    }
+    throw new Error("Unable to fetch GPS location. Please check your GPS settings.");
   }
 
-  return {
-    latitude: location.coords.latitude,
-    longitude: location.coords.longitude,
-  };
+  throw new Error("Unable to fetch location");
 };
 
 export const getAddressFromCoords = async (latitude: number, longitude: number): Promise<string> => {
-  try {
-    if (Platform.OS === "web") {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-      const data = await response.json();
-      return data.display_name || "Current Location";
+  // 1. Try Native Reverse Geocoding (iOS / Android)
+  if (Platform.OS !== "web") {
+    try {
+      const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (results && results.length > 0) {
+        const res = results[0];
+        const parts: string[] = [];
+
+        if (res.name && res.name !== res.street) parts.push(res.name);
+        if (res.street) parts.push(res.street);
+        if (res.district && !parts.includes(res.district)) parts.push(res.district);
+        if (res.city && !parts.includes(res.city)) parts.push(res.city);
+        if (res.region && !parts.includes(res.region)) parts.push(res.region);
+        if (res.postalCode) parts.push(res.postalCode);
+
+        const joined = parts.filter(Boolean).join(", ").trim();
+        if (joined.length > 3) {
+          return joined;
+        }
+      }
+    } catch (nativeErr) {
+      console.warn("Native reverse geocoding error, falling back to OSM Nominatim:", nativeErr);
     }
-    const [result] = await Location.reverseGeocodeAsync({ latitude, longitude });
-    if (result) {
-      const parts = [
-        result.name,
-        result.street,
-        result.district,
-        result.city,
-        result.region,
-        result.postalCode,
-        result.country,
-      ].filter(Boolean);
-      return parts.join(", ");
+  }
+
+  // 2. Network Reverse Geocoding Fallback via OpenStreetMap Nominatim
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+      {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "GigiManUserApp/1.0",
+        },
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+    if (data?.display_name) {
+      const addr = data.address;
+      if (addr) {
+        const parts = [
+          addr.road || addr.street || addr.neighbourhood || addr.suburb,
+          addr.suburb || addr.city_district || addr.district,
+          addr.city || addr.town || addr.village || addr.county,
+          addr.state,
+          addr.postcode,
+        ].filter(Boolean);
+
+        // Remove adjacent duplicates
+        const uniqueParts = parts.filter((item, index) => parts.indexOf(item) === index);
+        if (uniqueParts.length > 0) {
+          return uniqueParts.join(", ");
+        }
+      }
+      return data.display_name;
     }
   } catch (err) {
-    console.error("Reverse geocoding failed:", err);
+    console.error("OSM Reverse geocoding failed:", err);
   }
-  return "Current Location";
+
+  // 3. Last fallback
+  return `GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
 };

@@ -27,34 +27,37 @@ export default function ChooseFrequency() {
 
   const handleContinue = () => {
     if (!selectedFreq) return;
-    updateDraft({ frequency: selectedFreq });
+    const weekdays = selectedFreq === 'everyday' 
+      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] 
+      : (draft.schedule?.weekdays || ['Mon', 'Wed', 'Fri']);
+    
+    updateDraft({ 
+      frequency: selectedFreq,
+      schedule: {
+        ...(draft.schedule || {
+          time: '10:00 AM',
+          startDate: '',
+          endDate: '',
+          isNoEndDate: false
+        }),
+        weekdays
+      }
+    });
     navigation.navigate('SetupSchedule', { editPlanId });
   };
 
   const frequencies = [
     {
-      id: 'weekly' as const,
-      title: 'Weekly',
-      subtitle: 'Cleaner visits every week. Ideal for active households.',
+      id: 'everyday' as const,
+      title: 'Everyday (Mon - Sat)',
+      subtitle: 'Cleaner visits every day from Monday to Saturday (Sundays excluded).',
       icon: 'calendar-outline' as const,
-      badge: 'Popular',
-    },
-    {
-      id: 'every-2-weeks' as const,
-      title: 'Every 2 Weeks',
-      subtitle: 'Great middle ground. Keeps home clean with less visits.',
-      icon: 'repeat-outline' as const,
-    },
-    {
-      id: 'monthly' as const,
-      title: 'Monthly',
-      subtitle: 'Best for thorough regular upkeep and deep cleanings.',
-      icon: 'leaf-outline' as const,
+      badge: 'Recommended',
     },
     {
       id: 'custom' as const,
-      title: 'Custom',
-      subtitle: 'Define your own intervals and customized schedule.',
+      title: 'Custom Schedule',
+      subtitle: 'Pick specific days of the week that suit your personal schedule.',
       icon: 'options-outline' as const,
     },
   ];

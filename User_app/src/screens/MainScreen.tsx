@@ -35,6 +35,8 @@ import {
 } from "@/src/utils/serviceStatus";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
+import * as Clipboard from "expo-clipboard";
+import { CouponAPI, AvailableCoupon } from "../api/coupon.api";
 import { getBanners, getPopularServices } from "../api/dashboard.api";
 import { AppTabsParamList } from "../navigation/AppStack";
 
@@ -89,20 +91,25 @@ export default function HomeScreen() {
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [banners, setBanners] = useState<any[]>([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
+  const [coupons, setCoupons] = useState<AvailableCoupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [pop, ban] = await Promise.all([
+        const [pop, ban, coup] = await Promise.all([
           getPopularServices().catch(() => []),
           getBanners().catch(() => []),
+          CouponAPI.getAvailableCoupons().catch(() => ({ success: false, coupons: [] })),
         ]);
         setPopularServices(pop);
         setBanners(ban);
+        setCoupons(coup?.coupons || []);
       } catch { }
       finally {
         setLoadingPopular(false);
         setLoadingBanners(false);
+        setLoadingCoupons(false);
       }
     })();
   }, []);
@@ -122,7 +129,7 @@ export default function HomeScreen() {
 
         {/* ③ OFFERS — on lavender, if banners exist */}
         <View style={{ backgroundColor: C.catBg }}>
-          <OffersSection banners={banners} loading={loadingBanners} />
+          <OffersSection banners={banners} coupons={coupons} loading={loadingBanners || loadingCoupons} />
         </View>
 
         {/* ④ POPULAR — Midnight, curved top sitting on lavender */}
@@ -490,8 +497,11 @@ const hS = StyleSheet.create({
 const CACHE_KEY_SERVICES = "@gigiman_cached_services";
 
   function CategorySection({ navigation }: any) {
+  const { user } = useAuthContext();
   const [services, setServices] = useState<DomainService[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isRegionRestricted, setIsRegionRestricted] = useState<boolean>(false);
+  const [activeRegion, setActiveRegion] = useState<string>("");
   const { width } = useWindowDimensions();
 
   const isCompact = width < 600;
@@ -501,7 +511,14 @@ const CACHE_KEY_SERVICES = "@gigiman_cached_services";
 
   const fetchAndCacheServices = useCallback(async () => {
     try {
-      const cachedData = await AsyncStorage.getItem(CACHE_KEY_SERVICES);
+      const defaultAddr = (user as any)?.addresses?.find((a: any) => a.isDefault) || (user as any)?.addresses?.[0];
+      const userRegion = (user as any)?.region || (user as any)?.city || defaultAddr?.city || defaultAddr?.region || "";
+      const userPincode = (user as any)?.pincode || (user as any)?.postalCode || defaultAddr?.pincode || defaultAddr?.postalCode || "";
+      const lat = (user as any)?.location?.coordinates?.[1] || defaultAddr?.location?.coordinates?.[1];
+      const lng = (user as any)?.location?.coordinates?.[0] || defaultAddr?.location?.coordinates?.[0];
+      const cacheKey = `${CACHE_KEY_SERVICES}_${userRegion || 'ALL'}`;
+
+      const cachedData = await AsyncStorage.getItem(cacheKey);
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -515,7 +532,15 @@ const CACHE_KEY_SERVICES = "@gigiman_cached_services";
         }
       }
 
-      const res = await ServiceAPI.getServicesAPI();
+      const res = await ServiceAPI.getServicesAPI(userRegion, userPincode, lat, lng);
+      if (res?.currentRegion) {
+        const regStr = typeof res.currentRegion === "object" && res.currentRegion !== null
+          ? (res.currentRegion.name || res.currentRegion.code || "")
+          : String(res.currentRegion || "");
+        setActiveRegion(regStr);
+      }
+      if (res?.isRegionRestricted !== undefined) setIsRegionRestricted(Boolean(res.isRegionRestricted));
+
       const rawList = res?.services || [];
       const activeServices = (rawList as DomainService[]).filter(
         (s) => !isComingSoon(s.status)
@@ -528,7 +553,7 @@ const CACHE_KEY_SERVICES = "@gigiman_cached_services";
 
       const serializedFresh = JSON.stringify(activeServices);
       if (cachedData !== serializedFresh) {
-        await AsyncStorage.setItem(CACHE_KEY_SERVICES, serializedFresh);
+        await AsyncStorage.setItem(cacheKey, serializedFresh);
         setServices(activeServices);
       }
     } catch (error) {
@@ -536,7 +561,7 @@ const CACHE_KEY_SERVICES = "@gigiman_cached_services";
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchAndCacheServices();
@@ -561,9 +586,9 @@ const CACHE_KEY_SERVICES = "@gigiman_cached_services";
           <AppText weight="bold" style={styles.sectionTitle}>
             Professional Home Services
           </AppText>
-          <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.7}>
+          <Pressable onPress={() => navigation.navigate("ServiceTab")} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
             <AppText weight="semibold" style={styles.seeAllText}>See all</AppText>
-          </TouchableOpacity>
+          </Pressable>
         </View>
         <AppText style={styles.sectionSubtitle}>
           Choose the service you need and get started instantly.
@@ -597,10 +622,13 @@ const CACHE_KEY_SERVICES = "@gigiman_cached_services";
             </View>
           </View>
           {activeServices.length > displayItems.length ? (
-            <TouchableOpacity onPress={() => navigation.navigate("ServiceTab")} activeOpacity={0.85} style={styles.viewAllButton}>
+            <Pressable
+              onPress={() => navigation.navigate("ServiceTab")}
+              style={({ pressed }) => [styles.viewAllButton, { opacity: pressed ? 0.85 : 1 }]}
+            >
               <Ionicons name="apps-outline" size={16} color="#0D2A1A" />
               <AppText weight="semibold" style={styles.viewAllButtonText}>View All Services</AppText>
-            </TouchableOpacity>
+            </Pressable>
           ) : null}
         </>
       )}
@@ -697,36 +725,148 @@ const styles = StyleSheet.create({
    ③ OFFERS SECTION
    Visual: Edge-to-edge banners on lavender. Animated dot indicators.
    ══════════════════════════════════════════════════════════════════════ */
-function OffersSection({ banners, loading }: { banners: any[]; loading: boolean }) {
+function OffersSection({ banners, coupons = [], loading }: { banners: any[]; coupons?: AvailableCoupon[]; loading: boolean }) {
   const { width } = useWindowDimensions();
   const [idx, setIdx] = useState(0);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const OFFER_W = width - 48;
 
-  if (loading || !banners?.length) return null;
+  const hasBanners = banners && banners.length > 0;
+  const hasCoupons = coupons && coupons.length > 0;
+
+  if (loading || (!hasBanners && !hasCoupons)) return null;
+
+  const handleCopy = async (code: string) => {
+    try {
+      await Clipboard.setStringAsync(code);
+      setCopiedCode(code);
+      Alert.alert(
+        "Coupon Copied!",
+        `Code '${code}' copied to clipboard. Apply it at checkout to get your discount.`,
+        [{ text: "OK", onPress: () => setCopiedCode(null) }]
+      );
+      setTimeout(() => setCopiedCode(null), 3000);
+    } catch {
+      Alert.alert("Code", code);
+    }
+  };
 
   return (
     <View style={{ paddingBottom: 8 }}>
-      <View style={{ paddingHorizontal: 24, marginBottom: 16, marginTop: 8 }}>
+      <View style={{ paddingHorizontal: 24, marginBottom: 12, marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <AppText weight="bold" style={{ color: "#1a1a2e", fontSize: 20 }}>
-          🎁 Exclusive Offers
+          🎁 Exclusive Offers & Promos
         </AppText>
+        {hasCoupons && (
+          <View style={{ backgroundColor: "#EDE9FE", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}>
+            <AppText size="caption" weight="bold" style={{ color: "#6D28D9" }}>
+              {coupons.length} Active {coupons.length === 1 ? "Coupon" : "Coupons"}
+            </AppText>
+          </View>
+        )}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingLeft: 24, paddingRight: 8, gap: 16 }}
-        snapToInterval={OFFER_W + 16}
-        decelerationRate="fast"
-        onScroll={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / (OFFER_W + 16)))}
-        scrollEventThrottle={16}
-      >
-        {banners.map((o: any, i: number) => (
-          <View key={i} style={[offS.card, { width: OFFER_W }]}>
-            <Image source={{ uri: o.img }} style={{ width: "100%", height: 200 }} resizeMode="cover" />
-          </View>
-        ))}
-      </ScrollView>
+      {/* Available Coupon Promos Strip */}
+      {hasCoupons && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: 24, paddingRight: 16, gap: 12, paddingBottom: 10 }}
+        >
+          {coupons.map((c) => {
+            const isPercentage = c.discountType === "PERCENTAGE";
+            const discountLabel = isPercentage
+              ? `${c.discountValue}% OFF${c.maxDiscount && c.maxDiscount > 1 ? ` (Up to ₹${c.maxDiscount})` : ""}`
+              : `FLAT ₹${c.discountValue} OFF`;
+
+            return (
+              <LinearGradient
+                key={c._id || c.code}
+                colors={["#1E1B4B", "#312E81"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[offS.couponCard, { width: Math.min(width - 64, 300) }]}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={offS.couponTag}>
+                    <Ionicons name="pricetag" size={12} color="#A78BFA" />
+                    <AppText size="caption" weight="bold" style={{ color: "#E0E7FF", marginLeft: 4 }}>
+                      SPECIAL OFFER
+                    </AppText>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleCopy(c.code)}
+                    style={offS.copyButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={copiedCode === c.code ? "checkmark" : "copy-outline"}
+                      size={14}
+                      color="#fff"
+                    />
+                    <AppText weight="bold" size="caption" style={{ color: "#fff", marginLeft: 4 }}>
+                      {copiedCode === c.code ? "COPIED" : "COPY"}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ marginVertical: 8 }}>
+                  <AppText weight="bold" style={{ color: "#FCD34D", fontSize: 22, letterSpacing: 0.5 }}>
+                    {discountLabel}
+                  </AppText>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                    <View style={offS.dashedCodeBox}>
+                      <AppText weight="bold" style={{ color: "#fff", fontSize: 13, letterSpacing: 1 }}>
+                        {c.code}
+                      </AppText>
+                    </View>
+                    {c.minOrderValue && c.minOrderValue > 0 ? (
+                      <AppText size="caption" style={{ color: "#C7D2FE", marginLeft: 8 }}>
+                        On orders above ₹{c.minOrderValue}
+                      </AppText>
+                    ) : (
+                      <AppText size="caption" style={{ color: "#C7D2FE", marginLeft: 8 }}>
+                        No minimum spend
+                      </AppText>
+                    )}
+                  </View>
+                </View>
+
+                {c.description ? (
+                  <AppText size="caption" style={{ color: "#E0E7FF", opacity: 0.8 }} numberOfLines={1}>
+                    {c.description}
+                  </AppText>
+                ) : null}
+
+                {c.validUntil && (
+                  <AppText size="caption" style={{ color: "#A5B4FC", fontSize: 11, marginTop: 4 }}>
+                    Valid till {new Date(c.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </AppText>
+                )}
+              </LinearGradient>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {/* Image Banners Carousel */}
+      {hasBanners && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingLeft: 24, paddingRight: 8, gap: 16 }}
+          snapToInterval={OFFER_W + 16}
+          decelerationRate="fast"
+          onScroll={e => setIdx(Math.round(e.nativeEvent.contentOffset.x / (OFFER_W + 16)))}
+          scrollEventThrottle={16}
+        >
+          {banners.map((o: any, i: number) => (
+            <View key={i} style={[offS.card, { width: OFFER_W }]}>
+              <Image source={{ uri: o.img }} style={{ width: "100%", height: 180 }} resizeMode="cover" />
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Dot indicators */}
       {banners.length > 1 && (
@@ -748,6 +888,41 @@ function OffersSection({ banners, loading }: { banners: any[]; loading: boolean 
 }
 
 const offS = StyleSheet.create({
+  couponCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(167, 139, 250, 0.3)",
+    ...Platform.select({
+      ios: { shadowColor: "#312E81", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8 },
+      android: { elevation: 4 },
+    }),
+  },
+  couponTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  copyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(99, 102, 241, 0.6)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  dashedCodeBox: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#FCD34D",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "rgba(252, 211, 77, 0.1)",
+  },
   card: {
     borderRadius: 20, overflow: "hidden",
     height: "100%",

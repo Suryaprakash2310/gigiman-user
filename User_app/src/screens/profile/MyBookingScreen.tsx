@@ -97,7 +97,7 @@ const makeStyles = (theme: any, insets: any) =>
     content: {
       paddingHorizontal: Math.min(20, width * 0.05),
       paddingTop: 16,
-      paddingBottom: 28,
+      paddingBottom: insets.bottom + 40,
     },
     empty: {
       textAlign: "center",

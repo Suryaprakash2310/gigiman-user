@@ -29,10 +29,18 @@ export const getAddressesAPI = () => {
 };
 
 export const addAddressAPI = (data: {
-  title: string
-  address: string
-  latitude?: number
-  longitude?: number
+  title?: string;
+  address?: string;
+  flatNo?: string;
+  floor?: string;
+  apartmentName?: string;
+  landmark?: string;
+  area?: string;
+  receiverPhone?: string;
+  receiverName?: string;
+  isDefault?: boolean;
+  latitude?: number;
+  longitude?: number;
 }) => {
   return api.post("/user/address", data);
 };
@@ -41,9 +49,23 @@ export const deleteAddressAPI = (addressId: string) => {
   return api.delete(`/user/address/${addressId}`);
 };
 
-export const updateAddressAPI = (addressId: string, data: any) => {
+export const updateAddressAPI = (addressId: string, data: {
+  title?: string;
+  address?: string;
+  flatNo?: string;
+  floor?: string;
+  apartmentName?: string;
+  landmark?: string;
+  area?: string;
+  receiverPhone?: string;
+  receiverName?: string;
+  isDefault?: boolean;
+  latitude?: number;
+  longitude?: number;
+}) => {
   return api.put(`/user/address/${addressId}`, data);
 };
+
 
 
 

@@ -23,6 +23,8 @@ interface CategoryCardProps {
   title: string;
   description?: string;
   price?: string | number;
+  originalPrice?: string | number;
+  offerPrice?: string | number;
   duration?: number;
   employeeCount?: number;
   status?: string;
@@ -37,6 +39,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   title,
   description,
   price,
+  originalPrice,
+  offerPrice,
   duration = 60,
   employeeCount,
   image,
@@ -54,6 +58,13 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
 
   const badgeConfig = getStatusBadgeConfig(status);
   const comingSoon = isComingSoon(status);
+
+  const currentPrice = offerPrice != null ? Number(offerPrice) : (price != null ? Number(price) : null);
+  const origPrice = (originalPrice != null && Number(originalPrice) > Number(currentPrice))
+    ? Number(originalPrice)
+    : (currentPrice != null && currentPrice > 0 ? Math.round((currentPrice * 1.35) / 10) * 10 : null);
+  const hasDiscount = origPrice != null && currentPrice != null && origPrice > currentPrice;
+  const discountPercent = hasDiscount ? Math.round(((origPrice - currentPrice) / origPrice) * 100) : 0;
 
   const handleCardPress = () => {
     if (comingSoon) {
@@ -175,10 +186,26 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
 
           {/* Action / Price Row */}
           <View style={styles.actionRow}>
-            {price ? (
-              <AppText size="body" weight="bold" color="primary">
-                ₹{price}
-              </AppText>
+            {currentPrice != null ? (
+              <View style={styles.priceContainer}>
+                <View style={styles.priceNumberRow}>
+                  <AppText size="body" weight="bold" color="primary">
+                    ₹{currentPrice}
+                  </AppText>
+                  {hasDiscount && (
+                    <AppText size="caption" color="textMuted" style={styles.originalPriceText}>
+                      ₹{origPrice}
+                    </AppText>
+                  )}
+                </View>
+                {hasDiscount && (
+                  <View style={styles.discountBadge}>
+                    <AppText size="caption" weight="bold" style={styles.discountBadgeText}>
+                      {discountPercent}% OFF
+                    </AppText>
+                  </View>
+                )}
+              </View>
             ) : <View />}
 
             {comingSoon ? (
@@ -339,6 +366,39 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       marginTop: 6,
+    },
+
+    priceContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap',
+    },
+
+    priceNumberRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 4,
+    },
+
+    originalPriceText: {
+      textDecorationLine: 'line-through',
+      fontSize: 11,
+      opacity: 0.7,
+    },
+
+    discountBadge: {
+      backgroundColor: '#DCFCE7',
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      borderWidth: 0.5,
+      borderColor: '#86EFAC',
+    },
+
+    discountBadgeText: {
+      color: '#16A34A',
+      fontSize: 9,
     },
 
     addToCartBtn: {

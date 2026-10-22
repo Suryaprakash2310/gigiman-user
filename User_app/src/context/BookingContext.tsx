@@ -35,10 +35,14 @@ export type BookingStatus =
 /* ============================= */
 export type BookingItem = {
   _id: string;
+  bookingCode?: string;
   serviceCategoryName: string;
   address: string;
   status: BookingStatus;
   totalPrice?: number;
+  originalPrice?: number;
+  offerPrice?: number;
+  serviceId?: any;
   domainService?: string;
   isScheduled?: boolean;
   scheduleDateTime?: string;
@@ -55,6 +59,7 @@ export type BookingItem = {
     _id: string;
     serviceName: string;
     price: number;
+    originalPrice?: number;
     status: string;
   }[];
   paymentStatus?: string;
@@ -66,6 +71,8 @@ export type BookingItem = {
   image?: string;
   isManuallyAssigned?: boolean;
   phone?: string;
+  receiverPhone?: string;
+  userPhone?: string;
   eta?: string;
   customerCoordinates?: { latitude: number; longitude: number };
   providerCoordinates?: { latitude: number; longitude: number };
@@ -76,6 +83,8 @@ export type BookingItem = {
     serviceCategoryId: string;
     serviceCategoryName: string;
     price: number;
+    originalPrice?: number;
+    offerPrice?: number;
     durationInMinutes?: number;
     employeeCount?: number;
     quantity: number;

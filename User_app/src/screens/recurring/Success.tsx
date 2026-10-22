@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay } from 'react-native-reanimated';
+import AppButton from '../../components/ui/AppButton';
 import AppText from '../../components/ui/AppText';
 import { useTheme } from '../../theme/useTheme';
 
@@ -68,26 +69,23 @@ export default function Success() {
 
       {/* Action Buttons */}
       <View style={styles.bottomBar}>
-        <PrimaryButton
+        <AppButton
           title="View Plans"
           onPress={() => {
             const fromServiceBooking = route.params?.fromServiceBooking ?? false;
             navigation.navigate('RecurringHome', { fromServiceBooking });
           }}
-          iconName="list-outline"
-          style={[styles.viewPlansBtn, { shadowColor: primaryColor }]}
+          style={styles.viewPlansBtn}
         />
         
-        <PrimaryButton
+        <AppButton
           title="Go Home"
-          variant="secondary"
+          variant="outline"
           onPress={() => {
             // Navigate back to MainScreen Home Tab
             navigation.navigate('HomeTab', { screen: 'Home' });
           }}
-          iconName="home-outline"
           style={styles.goHomeBtn}
-          textStyle={styles.goHomeText}
         />
       </View>
     </SafeAreaView>

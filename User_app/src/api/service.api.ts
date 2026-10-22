@@ -3,7 +3,28 @@ export interface DomainService {
   _id: string;
   domainName: string;
   domainImage?: string;
+  serviceImage?: string;
   status?: string;
+  serviceType?: string;
+  allowedRegions?: string[];
+  isGlobal?: boolean;
+}
+
+export interface RegionInfo {
+  name: string;
+  code: string;
+  isBookingAllowed: boolean;
+  isRestricted?: boolean;
+}
+
+export interface ServicesResponse {
+  success: boolean;
+  count: number;
+  services: DomainService[];
+  currentRegion?: RegionInfo;
+  isBookingAllowed?: boolean;
+  isRegionRestricted?: boolean;
+  availableRegions?: Array<{ name: string; code: string; pincodes: string[] }>;
 }
 
 export interface CategoryService {
@@ -15,6 +36,8 @@ export interface CategoryService {
   servicecategroyImage?: string;
   description?: string;
   price?: number;
+  originalPrice?: number;
+  offerPrice?: number;
   durationInMinutes?: number;
   employeeCount?: number;
   status?: string;
@@ -22,7 +45,6 @@ export interface CategoryService {
 
 export interface ShowSubServiceResponse {
   success: boolean;
-  // backend returns `services: [...]` where each item contains a `serviceName` and `serviceCategory`
   services: Array<{
     _id: string;
     DomainServiceId?: string;
@@ -33,22 +55,28 @@ export interface ShowSubServiceResponse {
     __v?: number;
     [key: string]: any;
   }>;
-  // optional legacy shapes
   serviceNames?: string[];
   categoriesservices?: CategoryService[];
 }
 
 export interface SubServiceResponse { 
     serviceNames: string[]; 
-    categoriesservices: { _id: string; parentServiceName: string; serviceCategoryName: string; servicecategroyImage?: string; description?: string; price?: number; durationInMinutes?: number; employeeCount?: number; }[]; }
+    categoriesservices: { _id: string; parentServiceName: string; serviceCategoryName: string; servicecategroyImage?: string; description?: string; price?: number; originalPrice?: number; offerPrice?: number; durationInMinutes?: number; employeeCount?: number; }[]; 
+}
 
 export const ServiceAPI = {
-  getServicesAPI: async () => {
-    const res = await api.get("auth/services");
+  getServicesAPI: async (region?: string, pincode?: string, lat?: number, lng?: number): Promise<ServicesResponse> => {
+    const params = new URLSearchParams();
+    if (region) params.append("region", region);
+    if (pincode) params.append("pincode", pincode);
+    if (lat != null && !isNaN(lat)) params.append("lat", String(lat));
+    if (lng != null && !isNaN(lng)) params.append("lng", String(lng));
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    const res = await api.get<ServicesResponse>(`auth/services${queryString}`);
     return res.data;
   },
 
-   getSubServicesAPI: async () => {
+  getSubServicesAPI: async () => {
     const res = await api.get<SubServiceResponse>("/auth/showServices");
     return res.data;
   },
@@ -64,8 +92,5 @@ export const ServiceAPI = {
     );
     return res.data;
   },
-
-
-
-
 };
+

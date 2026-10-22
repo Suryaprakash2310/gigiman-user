@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import AppText from '../../components/ui/AppText';
 import { useRecurringStore } from '../../store/recurringStore';
+import { ScheduleDetails } from '../../types/recurring';
 import PrimaryButton from '../../components/recurring/PrimaryButton';
 import CalendarModal from '../../components/ui/CalendarModal';
 import apiClient from '@/src/api/client';
@@ -22,8 +23,19 @@ export default function RecurringBooking() {
   const editPlanId = route.params?.editPlanId;
   const primaryColor = theme.colors.primary || '#f97316';
 
+  const routeService = route.params?.serviceData || route.params?.service;
+  const resolvedServiceFromParams = routeService ? {
+    id: routeService._id || routeService.id || '1',
+    name: routeService.serviceCategoryName || routeService.name || 'Home Cleaning',
+    icon: 'sparkles-outline',
+    description: routeService.description || '',
+    pricePerVisit: routeService.offerPrice != null 
+      ? Number(routeService.offerPrice) 
+      : (routeService.price != null ? Number(routeService.price) : 499),
+  } : null;
+
   const { draft, updateDraft, createPlan, editPlan, resetDraft, plans } = useRecurringStore();
-  const service = draft.service || plans.find(p => p.id === editPlanId)?.service || {
+  const service = (routeService ? resolvedServiceFromParams : null) || draft.service || plans.find(p => p.id === editPlanId)?.service || {
     id: '1',
     name: 'Home Cleaning',
     icon: 'home-outline',
@@ -31,20 +43,15 @@ export default function RecurringBooking() {
     pricePerVisit: 499,
   };
 
-  // State matching screenshot fields
-  // State matching screenshot fields
-  const [frequency, setFrequency] = useState<'weekly' | 'every-2-weeks' | 'monthly' | 'custom'>('weekly');
-  const [selectedDays, setSelectedDays] = useState<string[]>(['Sat']);
-  const [selectedMonthDay, setSelectedMonthDay] = useState<number>(1);
-  const [customInterval, setCustomInterval] = useState<number>(2);
-  const [customUnit, setCustomUnit] = useState<'days' | 'weeks' | 'months'>('weeks');
-  const [timeSlot, setTimeSlot] = useState<string>('10 AM-12 PM');
+  // State matching requirements
+  const [frequency, setFrequency] = useState<'everyday' | 'custom'>('everyday');
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  const [timeSlot, setTimeSlot] = useState<string>('10:00 AM');
   const [startDate, setStartDate] = useState<string>('08 Aug 2026 (Saturday)');
+  const [customEndDate, setCustomEndDate] = useState<string>('08 Sep 2026');
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
   const [showEndCalendar, setShowEndCalendar] = useState<boolean>(false);
-  const [endOption, setEndOption] = useState<'never' | '3' | '6' | '12' | 'custom'>('never');
-  const [customEndDate, setCustomEndDate] = useState<string>('31 Dec 2026');
-  const [paymentOption, setPaymentOption] = useState<'autopay' | 'subscription'>('autopay');
+  const [paymentOption, setPaymentOption] = useState<'subscription'>('subscription');
   const [cleanerPreference, setCleanerPreference] = useState<'same' | 'any'>('same');
   
   // Reminders checkboxes
@@ -60,21 +67,36 @@ export default function RecurringBooking() {
 
   // Initialize draft inputs
   useEffect(() => {
+    if (resolvedServiceFromParams) {
+      updateDraft({ service: resolvedServiceFromParams });
+    }
+
+    // Set default tomorrow start date and 1 month later end date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const startFormatted = `${tomorrow.getDate().toString().padStart(2, '0')} ${months[tomorrow.getMonth()]} ${tomorrow.getFullYear()} (${days[tomorrow.getDay()]})`;
+    
+    const oneMonth = new Date(tomorrow);
+    oneMonth.setMonth(oneMonth.getMonth() + 1);
+    const endFormatted = `${oneMonth.getDate().toString().padStart(2, '0')} ${months[oneMonth.getMonth()]} ${oneMonth.getFullYear()}`;
+    
+    setStartDate(startFormatted);
+    setCustomEndDate(endFormatted);
+
     if (editPlanId) {
       const plan = plans.find(p => p.id === editPlanId);
       if (plan) {
-        setFrequency(plan.frequency);
-        setSelectedDays(plan.schedule.weekdays || ['Sat']);
-        setSelectedMonthDay(plan.schedule.monthlyDay || 1);
-        setCustomInterval(plan.schedule.customInterval || 2);
-        setCustomUnit(plan.schedule.customUnit || 'weeks');
-        setTimeSlot(plan.schedule.time || '10 AM-12 PM');
-        setStartDate(plan.schedule.startDate || '08 Aug 2026 (Saturday)');
-        setPaymentOption(plan.paymentMethod === 'razorpay' ? 'subscription' : 'autopay');
+        setFrequency(plan.frequency === 'everyday' ? 'everyday' : 'custom');
+        setSelectedDays(plan.schedule.weekdays || (plan.frequency === 'everyday' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['Mon', 'Wed', 'Fri']));
+        setTimeSlot(plan.schedule.time || '10:00 AM');
+        if (plan.schedule.startDate) setStartDate(plan.schedule.startDate);
+        if (plan.schedule.endDate) setCustomEndDate(plan.schedule.endDate);
         setCleanerPreference(plan.cleanerPreference === 'same-cleaner' ? 'same' : 'any');
       }
     }
-  }, [editPlanId]);
+  }, [editPlanId, route.params?.serviceData]);
 
   // Pricing calculations: 10% discount on recurring plans
   const basePrice = service.pricePerVisit;
@@ -82,21 +104,8 @@ export default function RecurringBooking() {
   const discountSaved = basePrice - discountedPrice;
   
   const getVisitsCount = () => {
-    if (frequency === 'weekly') return selectedDays.length * 4;
-    if (frequency === 'every-2-weeks') return selectedDays.length * 2;
-    if (frequency === 'monthly') return 1;
-    if (frequency === 'custom') {
-      if (customUnit === 'days') {
-        return Math.max(1, Math.round(30 / customInterval));
-      }
-      if (customUnit === 'weeks') {
-        return Math.max(1, Math.round((selectedDays.length * 4) / customInterval));
-      }
-      if (customUnit === 'months') {
-        return Math.max(1, Math.round(1 / customInterval));
-      }
-    }
-    return 4; // custom default
+    if (frequency === 'everyday') return 26; // Mon-Sat approx 26 visits / month
+    return Math.max(1, selectedDays.length * 4); // custom weekdays * 4 weeks
   };
   
   const visitsPerMonth = getVisitsCount();
@@ -113,13 +122,20 @@ export default function RecurringBooking() {
       setPaying(true);
 
       // Verify the payment details on the backend
-      const successRes = await apiClient.post('/recurring/payment/verify', {
+      const verifyPayload = {
         planId: currentPlanId,
         razorpayPaymentId: parsedData.razorpay_payment_id,
         razorpayOrderId: parsedData.razorpay_order_id,
         razorpaySubscriptionId: parsedData.razorpay_subscription_id || null,
         razorpaySignature: parsedData.razorpay_signature,
-      });
+      };
+
+      let successRes: any;
+      try {
+        successRes = await apiClient.post(`/recurring/${currentPlanId}/verify-payment`, verifyPayload);
+      } catch (verifyErr) {
+        successRes = await apiClient.post('/recurring/payment/verify', verifyPayload);
+      }
 
       if (successRes.data?.success) {
         setShowWebViewModal(false);
@@ -142,27 +158,30 @@ export default function RecurringBooking() {
   };
 
   const handleConfirm = async () => {
-    const scheduleData = {
-      weekdays: (frequency === 'weekly' || frequency === 'every-2-weeks' || (frequency === 'custom' && customUnit === 'weeks')) ? selectedDays : [],
+    const finalWeekdays = frequency === 'everyday'
+      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      : selectedDays;
+
+    const scheduleData: ScheduleDetails = {
+      weekdays: finalWeekdays,
       time: timeSlot,
       startDate: startDate,
-      isNoEndDate: endOption === 'never',
-      endDate: endOption === 'custom' ? customEndDate : `${endOption} Cleanings`,
-      monthlyDay: frequency === 'monthly' ? selectedMonthDay : ((frequency === 'custom' && customUnit === 'months') ? selectedMonthDay : null),
-      customInterval: frequency === 'custom' ? customInterval : null,
-      customUnit: frequency === 'custom' ? customUnit : null,
+      isNoEndDate: false,
+      endDate: customEndDate,
     };
 
     const finalDraft = {
       service: {
-        id: service.id || service._id || '1',
+        id: (service as any).id || (service as any)._id || '1',
         name: service.name,
-        icon: service.icon || 'home-outline'
+        icon: service.icon || 'home-outline',
+        description: service.description || '',
+        pricePerVisit: discountedPrice,
       },
       frequency,
       schedule: scheduleData,
       cleanerPreference: cleanerPreference === 'same' ? 'same-cleaner' as const : 'best-available' as const,
-      paymentMethod: paymentOption === 'subscription' ? 'razorpay' as const : 'upi' as const,
+      paymentMethod: 'razorpay' as const,
       pricePerVisit: discountedPrice,
       estimatedMonthlyCost: discountedMonthlyTotal,
       reminders: {
@@ -183,7 +202,7 @@ export default function RecurringBooking() {
       } else {
         setPaying(true);
         // 1. Create plan on backend
-        const newPlan = await createPlan();
+        const newPlan: any = await createPlan();
         if (!newPlan || (!newPlan._id && !newPlan.id)) {
           throw new Error("Failed to create plan on backend");
         }
@@ -192,7 +211,12 @@ export default function RecurringBooking() {
         setCurrentPlanId(planId);
 
         // 2. Initiate payment session
-        const paySession = await apiClient.post(`/recurring/payment/initiate/${planId}`);
+        let paySession: any;
+        try {
+          paySession = await apiClient.post(`/recurring/${planId}/initiate-payment`);
+        } catch (initErr) {
+          paySession = await apiClient.post(`/recurring/payment/initiate/${planId}`);
+        }
         const { keyId, amount, orderId, subscriptionId } = paySession.data;
 
         // 3. Inject details into Razorpay Template
@@ -223,8 +247,36 @@ export default function RecurringBooking() {
     }
   };
 
-  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const timeSlots = ['8-10 AM', '10 AM-12 PM', '12-2 PM', '2-4 PM', '4-6 PM'];
+  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const timeSlots = [
+    '10:00 AM',
+    '11:00 AM',
+    '12:00 PM',
+    '01:00 PM',
+    '02:00 PM',
+    '03:00 PM',
+    '04:00 PM',
+    '05:00 PM',
+    '06:00 PM'
+  ];
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (route.params?.fromServiceBooking) {
+      navigation.navigate('ServiceTab', {
+        screen: 'Booking',
+        params: {
+          ...(route.params?.serviceCategoryId ? { serviceCategoryId: route.params.serviceCategoryId } : {}),
+          ...(route.params?.serviceData ? { serviceData: route.params.serviceData } : {}),
+          ...(route.params?.domainServiceId ? { domainServiceId: route.params.domainServiceId } : {}),
+          ...(route.params?.fromMain ? { fromMain: route.params.fromMain } : {}),
+        }
+      });
+    } else {
+      navigation.navigate('HomeTab', { screen: 'Home' });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -234,7 +286,7 @@ export default function RecurringBooking() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backBtn}
-          onPress={() => navigation.goBack()}
+          onPress={handleBack}
         >
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
@@ -273,16 +325,19 @@ export default function RecurringBooking() {
               
               <View style={styles.frequencyRow}>
                 {[
-                  { id: 'weekly', label: 'Every Week' },
-                  { id: 'every-2-weeks', label: 'Every 2 Weeks' },
-                  { id: 'monthly', label: 'Every Month' },
-                  { id: 'custom', label: 'Custom' }
+                  { id: 'everyday', label: 'Everyday (Mon - Sat)' },
+                  { id: 'custom', label: 'Custom Schedule' }
                 ].map((item) => {
                   const isActive = frequency === item.id;
                   return (
                     <TouchableOpacity
                       key={item.id}
-                      onPress={() => setFrequency(item.id as any)}
+                      onPress={() => {
+                        setFrequency(item.id as any);
+                        if (item.id === 'everyday') {
+                          setSelectedDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+                        }
+                      }}
                       style={[styles.freqChip, isActive && { backgroundColor: primaryColor, borderColor: primaryColor }]}
                     >
                       <AppText weight="semibold" style={[styles.freqChipText, isActive && styles.freqChipTextActive]}>
@@ -294,195 +349,51 @@ export default function RecurringBooking() {
               </View>
             </View>
 
-            {/* Step 2: Select Day & Repeat Rules */}
+            {/* Step 2: Select Day */}
             <View style={styles.stepSection}>
               <View style={styles.stepTitleRow}>
                 <View style={styles.stepIndicator}>
                   <AppText weight="bold" style={styles.stepNum}>2</AppText>
                 </View>
                 <AppText weight="bold" style={styles.stepTitle}>
-                  {frequency === 'monthly' ? 'Select Day of the Month' : (frequency === 'custom' ? 'Custom Repeat Rules' : 'Select Day(s)')}
+                  {frequency === 'everyday' ? 'Scheduled Days (Mon - Sat)' : 'Select Weekdays'}
                 </AppText>
               </View>
 
-              {/* A. Weekly or Every 2 Weeks: Multi-Select Weekdays */}
-              {(frequency === 'weekly' || frequency === 'every-2-weeks') && (
-                <View>
-                  <AppText style={styles.stepSubtitleText}>
-                    Choose which days of the week the cleaning should repeat on:
-                  </AppText>
-                  <View style={styles.daysRow}>
-                    {daysOfWeek.map((day) => {
-                      const isActive = selectedDays.includes(day);
-                      return (
-                        <TouchableOpacity
-                          key={day}
-                          onPress={() => {
-                            if (selectedDays.includes(day)) {
-                              if (selectedDays.length > 1) {
-                                setSelectedDays(selectedDays.filter(d => d !== day));
-                              }
-                            } else {
-                              setSelectedDays([...selectedDays, day]);
-                            }
-                          }}
-                          style={[styles.dayCircle, isActive && { backgroundColor: primaryColor }]}
-                        >
-                          <AppText weight="semibold" style={[styles.dayCircleText, isActive && styles.dayCircleTextActive]}>
-                            {day}
-                          </AppText>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-
-              {/* B. Monthly: Select Day 1 to 31 */}
-              {frequency === 'monthly' && (
-                <View>
-                  <AppText style={styles.stepSubtitleText}>
-                    Choose the day of the month for your recurring cleaning:
-                  </AppText>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((num) => {
-                      const isActive = selectedMonthDay === num;
-                      return (
-                        <TouchableOpacity
-                          key={num}
-                          onPress={() => setSelectedMonthDay(num)}
-                          style={[styles.dayCircle, isActive && { backgroundColor: primaryColor }]}
-                        >
-                          <AppText weight="bold" style={[styles.dayCircleText, isActive && styles.dayCircleTextActive]}>
-                            {num}
-                          </AppText>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                  <AppText weight="medium" style={styles.recurrenceHelperText}>
-                    Will occur on the {selectedMonthDay === 1 ? '1st' : selectedMonthDay === 2 ? '2nd' : selectedMonthDay === 3 ? '3rd' : `${selectedMonthDay}th`} of every month.
-                  </AppText>
-                </View>
-              )}
-
-              {/* C. Custom: Interval Counter and Unit Selector */}
-              {frequency === 'custom' && (
-                <View style={{ gap: 14 }}>
-                  <AppText style={styles.stepSubtitleText}>
-                    Define your custom cleaning frequency:
-                  </AppText>
-                  
-                  {/* Interval Row */}
-                  <View style={styles.customIntervalRow}>
-                    <AppText style={styles.customLabel}>Repeat every</AppText>
-                    <View style={styles.counterBox}>
-                      <TouchableOpacity 
-                        style={styles.counterBtn}
-                        onPress={() => setCustomInterval(prev => Math.max(1, prev - 1))}
-                      >
-                        <Ionicons name="remove" size={16} color="#4B5563" />
-                      </TouchableOpacity>
-                      <AppText weight="bold" style={styles.counterVal}>{customInterval}</AppText>
-                      <TouchableOpacity 
-                        style={styles.counterBtn}
-                        onPress={() => setCustomInterval(prev => prev + 1)}
-                      >
-                        <Ionicons name="add" size={16} color="#4B5563" />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Unit Selector Chips */}
-                    <View style={styles.unitRow}>
-                      {[
-                        { id: 'days', label: 'Days' },
-                        { id: 'weeks', label: 'Weeks' },
-                        { id: 'months', label: 'Months' }
-                      ].map((item) => {
-                        const isActive = customUnit === item.id;
-                        return (
-                          <TouchableOpacity
-                            key={item.id}
-                            onPress={() => setCustomUnit(item.id as any)}
-                            style={[styles.unitChip, isActive && { backgroundColor: primaryColor, borderColor: primaryColor }]}
-                          >
-                            <AppText weight="semibold" style={[styles.unitChipText, isActive && styles.unitChipTextActive]}>
-                              {item.label}
-                            </AppText>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-
-                  {/* Unit Sub-Selections */}
-                  {customUnit === 'weeks' && (
-                    <View style={{ marginTop: 8 }}>
-                      <AppText style={styles.stepSubtitleText}>
-                        Select target days of the week:
+              <AppText style={styles.stepSubtitleText}>
+                {frequency === 'everyday'
+                  ? 'All days from Monday to Saturday are included automatically (Sundays excluded).'
+                  : 'Choose which days of the week the cleaning should repeat on:'}
+              </AppText>
+              <View style={styles.daysRow}>
+                {daysOfWeek.map((day) => {
+                  const isActive = selectedDays.includes(day);
+                  return (
+                    <TouchableOpacity
+                      key={day}
+                      activeOpacity={frequency === 'everyday' ? 1 : 0.8}
+                      onPress={() => {
+                        if (frequency === 'everyday') return;
+                        if (selectedDays.includes(day)) {
+                          if (selectedDays.length > 1) {
+                            setSelectedDays(selectedDays.filter(d => d !== day));
+                          }
+                        } else {
+                          setSelectedDays([...selectedDays, day]);
+                        }
+                      }}
+                      style={[
+                        styles.dayCircle,
+                        isActive && { backgroundColor: primaryColor }
+                      ]}
+                    >
+                      <AppText weight="semibold" style={[styles.dayCircleText, isActive && styles.dayCircleTextActive]}>
+                        {day}
                       </AppText>
-                      <View style={styles.daysRow}>
-                        {daysOfWeek.map((day) => {
-                          const isActive = selectedDays.includes(day);
-                          return (
-                            <TouchableOpacity
-                              key={day}
-                              onPress={() => {
-                                if (selectedDays.includes(day)) {
-                                  if (selectedDays.length > 1) {
-                                    setSelectedDays(selectedDays.filter(d => d !== day));
-                                  }
-                                } else {
-                                  setSelectedDays([...selectedDays, day]);
-                                }
-                              }}
-                              style={[styles.dayCircle, isActive && { backgroundColor: primaryColor }]}
-                            >
-                              <AppText weight="semibold" style={[styles.dayCircleText, isActive && styles.dayCircleTextActive]}>
-                                {day}
-                              </AppText>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  )}
-
-                  {customUnit === 'months' && (
-                    <View style={{ marginTop: 8 }}>
-                      <AppText style={styles.stepSubtitleText}>
-                        Select day of the month:
-                      </AppText>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map((num) => {
-                          const isActive = selectedMonthDay === num;
-                          return (
-                            <TouchableOpacity
-                              key={num}
-                              onPress={() => setSelectedMonthDay(num)}
-                              style={[styles.dayCircle, isActive && { backgroundColor: primaryColor }]}
-                            >
-                              <AppText weight="bold" style={[styles.dayCircleText, isActive && styles.dayCircleTextActive]}>
-                                {num}
-                              </AppText>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                  )}
-
-                  {/* Helper Text Summary */}
-                  <View style={[styles.customSummaryBox, { backgroundColor: primaryColor + '10', borderColor: primaryColor + '33' }]}>
-                    <Ionicons name="information-circle-outline" size={16} color={primaryColor} style={{ marginRight: 6 }} />
-                    <AppText weight="medium" style={[styles.customSummaryText, { color: primaryColor }]}>
-                      Repeating every {customInterval} {customInterval === 1 ? customUnit.slice(0, -1) : customUnit}
-                      {customUnit === 'weeks' ? ` on ${selectedDays.join(', ')}` : ''}
-                      {customUnit === 'months' ? ` on the ${selectedMonthDay === 1 ? '1st' : selectedMonthDay === 2 ? '2nd' : selectedMonthDay === 3 ? '3rd' : `${selectedMonthDay}th`}` : ''}.
-                    </AppText>
-                  </View>
-                </View>
-              )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
             {/* Step 3: Preferred Time */}
@@ -491,7 +402,7 @@ export default function RecurringBooking() {
                 <View style={styles.stepIndicator}>
                   <AppText weight="bold" style={styles.stepNum}>3</AppText>
                 </View>
-                <AppText weight="bold" style={styles.stepTitle}>Preferred Time</AppText>
+                <AppText weight="bold" style={styles.stepTitle}>Preferred Time (10 AM - 6 PM)</AppText>
               </View>
 
               <View style={styles.timeGrid}>
@@ -518,7 +429,7 @@ export default function RecurringBooking() {
                 <View style={styles.stepIndicator}>
                   <AppText weight="bold" style={styles.stepNum}>4</AppText>
                 </View>
-                <AppText weight="bold" style={styles.stepTitle}>Start Date</AppText>
+                <AppText weight="bold" style={styles.stepTitle}>Start Date *</AppText>
               </View>
 
               <TouchableOpacity 
@@ -530,55 +441,22 @@ export default function RecurringBooking() {
               </TouchableOpacity>
             </View>
 
-            {/* Step 5: Ends */}
+            {/* Step 5: End Date (Mandatory) */}
             <View style={styles.stepSection}>
               <View style={styles.stepTitleRow}>
                 <View style={styles.stepIndicator}>
                   <AppText weight="bold" style={styles.stepNum}>5</AppText>
                 </View>
-                <AppText weight="bold" style={styles.stepTitle}>Ends</AppText>
+                <AppText weight="bold" style={styles.stepTitle}>End Date *</AppText>
               </View>
 
-              <View style={styles.radioList}>
-                {[
-                  { id: 'never', label: 'Never' },
-                  { id: '3', label: 'After 3 Cleanings' },
-                  { id: '6', label: 'After 6 Cleanings' },
-                  { id: '12', label: 'After 12 Cleanings' },
-                  { id: 'custom', label: 'Choose End Date', isDate: true }
-                ].map((option) => {
-                  const isChecked = endOption === option.id;
-                  return (
-                    <TouchableOpacity
-                      key={option.id}
-                      onPress={() => {
-                        setEndOption(option.id as any);
-                        if (option.id === 'custom') {
-                          setShowEndCalendar(true);
-                        }
-                      }}
-                      style={[styles.radioItem, isChecked && { borderColor: primaryColor }]}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons 
-                          name={isChecked ? 'radio-button-on' : 'radio-button-off'} 
-                          size={18} 
-                          color={isChecked ? primaryColor : '#9CA3AF'} 
-                          style={{ marginRight: 10 }}
-                        />
-                        <AppText style={styles.radioLabel}>
-                          {option.id === 'custom' && isChecked
-                            ? `Choose End Date: ${customEndDate}`
-                            : option.label}
-                        </AppText>
-                      </View>
-                      {option.isDate && isChecked && (
-                        <Ionicons name="calendar-outline" size={16} color={primaryColor} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <TouchableOpacity 
+                style={styles.dateSelector}
+                onPress={() => setShowEndCalendar(true)}
+              >
+                <AppText style={styles.dateText}>{customEndDate}</AppText>
+                <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
 
             {/* Step 6: Payment */}
@@ -591,35 +469,19 @@ export default function RecurringBooking() {
               </View>
 
               <View style={styles.paymentCardGrid}>
-                {/* AutoPay Card */}
-                <TouchableOpacity 
-                  onPress={() => setPaymentOption('autopay')}
-                  style={[styles.paymentSelectCard, paymentOption === 'autopay' && { borderColor: primaryColor }]}
-                >
-                  {paymentOption === 'autopay' && (
-                    <View style={styles.cardCheckmark}>
-                      <Ionicons name="checkmark-circle" size={18} color={primaryColor} />
-                    </View>
-                  )}
-                  <View style={styles.popularBadge}>
-                    <AppText weight="bold" style={styles.popularBadgeText}>Popular</AppText>
-                  </View>
-                  <Ionicons name="flash-outline" size={24} color={paymentOption === 'autopay' ? primaryColor : '#4B5563'} style={styles.cardIcon} />
-                  <AppText weight="bold" style={styles.cardName}>Auto-pay every visit</AppText>
-                </TouchableOpacity>
-
                 {/* Subscription Card */}
                 <TouchableOpacity 
                   onPress={() => setPaymentOption('subscription')}
-                  style={[styles.paymentSelectCard, paymentOption === 'subscription' && { borderColor: primaryColor }]}
+                  style={[styles.paymentSelectCard, { borderColor: primaryColor }]}
                 >
-                  {paymentOption === 'subscription' && (
-                    <View style={styles.cardCheckmark}>
-                      <Ionicons name="checkmark-circle" size={18} color={primaryColor} />
-                    </View>
-                  )}
-                  <Ionicons name="calendar-outline" size={24} color={paymentOption === 'subscription' ? primaryColor : '#4B5563'} style={styles.cardIcon} />
-                  <AppText weight="bold" style={styles.cardName}>Monthly subscription</AppText>
+                  <View style={styles.cardCheckmark}>
+                    <Ionicons name="checkmark-circle" size={18} color={primaryColor} />
+                  </View>
+                  <View style={styles.popularBadge}>
+                    <AppText weight="bold" style={styles.popularBadgeText}>Auto-Billing</AppText>
+                  </View>
+                  <Ionicons name="card-outline" size={24} color={primaryColor} style={styles.cardIcon} />
+                  <AppText weight="bold" style={styles.cardName}>Monthly Subscription (Razorpay)</AppText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -721,11 +583,19 @@ export default function RecurringBooking() {
             {/* Parameters list */}
             <View style={styles.summaryParamsList}>
               <View style={styles.summaryParamRow}>
+                <Ionicons name="sparkles-outline" size={18} color="#6B7280" style={styles.paramIcon} />
+                <View style={{ flex: 1 }}>
+                  <AppText size="small" color="textMuted">Selected Service</AppText>
+                  <AppText weight="bold" style={styles.paramValue}>{service.name}</AppText>
+                </View>
+              </View>
+
+              <View style={styles.summaryParamRow}>
                 <Ionicons name="calendar-outline" size={18} color="#6B7280" style={styles.paramIcon} />
                 <View>
                   <AppText size="small" color="textMuted">Frequency</AppText>
                   <AppText weight="bold" style={styles.paramValue}>
-                    {frequency === 'weekly' ? 'Every Week' : frequency === 'every-2-weeks' ? 'Every 2 Weeks' : frequency === 'monthly' ? 'Every Month' : 'Custom'}
+                    {frequency === 'everyday' ? 'Everyday (Mon - Sat)' : 'Custom Schedule'}
                   </AppText>
                 </View>
               </View>
@@ -733,13 +603,11 @@ export default function RecurringBooking() {
               <View style={styles.summaryParamRow}>
                 <Ionicons name="calendar" size={18} color="#6B7280" style={styles.paramIcon} />
                 <View>
-                  <AppText size="small" color="textMuted">Day</AppText>
+                  <AppText size="small" color="textMuted">Days</AppText>
                   <AppText weight="bold" style={styles.paramValue}>
-                    {frequency === 'monthly' 
-                      ? `Day ${selectedMonthDay} of Month` 
-                      : (frequency === 'custom' && customUnit === 'days') 
-                        ? `Every ${customInterval} Days`
-                        : selectedDays.join(', ')}
+                    {frequency === 'everyday' 
+                      ? 'Mon, Tue, Wed, Thu, Fri, Sat' 
+                      : selectedDays.join(', ')}
                   </AppText>
                 </View>
               </View>
@@ -763,8 +631,8 @@ export default function RecurringBooking() {
               <View style={styles.summaryParamRow}>
                 <Ionicons name="stop-outline" size={18} color="#6B7280" style={styles.paramIcon} />
                 <View>
-                  <AppText size="small" color="textMuted">Ends</AppText>
-                  <AppText weight="bold" style={styles.paramValue}>{endOption === 'never' ? 'Never' : `After ${endOption} cleanings`}</AppText>
+                  <AppText size="small" color="textMuted">Ends On</AppText>
+                  <AppText weight="bold" style={styles.paramValue}>{customEndDate}</AppText>
                 </View>
               </View>
 
@@ -779,8 +647,8 @@ export default function RecurringBooking() {
               <View style={styles.summaryParamRow}>
                 <Ionicons name="card-outline" size={18} color="#6B7280" style={styles.paramIcon} />
                 <View>
-                  <AppText size="small" color="textMuted">Payment</AppText>
-                  <AppText weight="bold" style={styles.paramValue}>{paymentOption === 'autopay' ? 'Auto-pay every visit' : 'Monthly subscription'}</AppText>
+                  <AppText size="small" color="textMuted">Payment Mode</AppText>
+                  <AppText weight="bold" style={styles.paramValue}>Monthly Subscription (Razorpay)</AppText>
                 </View>
               </View>
             </View>
@@ -837,20 +705,59 @@ export default function RecurringBooking() {
 
       <CalendarModal
         visible={showCalendar}
-        selectedDate={new Date()}
+        minDate={new Date()}
+        selectedDate={(() => {
+          try {
+            const clean = startDate.split(' (')[0];
+            const parsed = Date.parse(clean);
+            return !isNaN(parsed) ? new Date(parsed) : new Date();
+          } catch {
+            return new Date();
+          }
+        })()}
         onClose={() => setShowCalendar(false)}
         onSelect={(date) => {
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
           const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           const formatted = `${date.getDate().toString().padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()} (${days[date.getDay()]})`;
           setStartDate(formatted);
+
+          // If current customEndDate is before or equal to the new startDate, advance customEndDate by 1 month
+          try {
+            const cleanEnd = customEndDate.split(' (')[0];
+            const endParsed = Date.parse(cleanEnd);
+            if (isNaN(endParsed) || new Date(endParsed) <= date) {
+              const nextMonth = new Date(date);
+              nextMonth.setMonth(nextMonth.getMonth() + 1);
+              const nextFormatted = `${nextMonth.getDate().toString().padStart(2, '0')} ${months[nextMonth.getMonth()]} ${nextMonth.getFullYear()}`;
+              setCustomEndDate(nextFormatted);
+            }
+          } catch {}
+
           setShowCalendar(false);
         }}
       />
 
       <CalendarModal
         visible={showEndCalendar}
-        selectedDate={new Date()}
+        minDate={(() => {
+          try {
+            const clean = startDate.split(' (')[0];
+            const parsed = Date.parse(clean);
+            return !isNaN(parsed) ? new Date(parsed) : new Date();
+          } catch {
+            return new Date();
+          }
+        })()}
+        selectedDate={(() => {
+          try {
+            const clean = customEndDate.split(' (')[0];
+            const parsed = Date.parse(clean);
+            return !isNaN(parsed) ? new Date(parsed) : new Date();
+          } catch {
+            return new Date();
+          }
+        })()}
         onClose={() => setShowEndCalendar(false)}
         onSelect={(date) => {
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

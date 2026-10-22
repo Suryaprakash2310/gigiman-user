@@ -28,6 +28,7 @@ export default function CartScreen({ navigation }: any) {
   const {
     cartItems,
     totalPrice,
+    totalOriginalPrice,
     suggestions,
     isLoading,
     addToCart,
@@ -128,7 +129,7 @@ export default function CartScreen({ navigation }: any) {
       <View
         style={[
           styles.safe,
-          { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+          { paddingTop: insets.top },
         ]}
       >
         <AppHeader showBack onBackPress={handleBack} title="My Cart" />
@@ -143,7 +144,7 @@ export default function CartScreen({ navigation }: any) {
     <View
       style={[
         styles.safe,
-        { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+        { paddingTop: insets.top },
       ]}
     >
       <AppHeader showBack onBackPress={handleBack} title={`My Cart (${cartItems.length})`} />
@@ -200,8 +201,8 @@ export default function CartScreen({ navigation }: any) {
                   </View>
 
                   {/* Group Main Items */}
-                  {groupMainItems.map((item) => (
-                    <View key={item._id || item.serviceCategoryId} style={styles.cartCard}>
+                  {groupMainItems.map((item, itemIdx) => (
+                    <View key={`${item._id || item.serviceCategoryId || 'item'}-${itemIdx}`} style={styles.cartCard}>
                       {/* <Image
                         source={
                           item.domainService?.domainImage
@@ -226,9 +227,16 @@ export default function CartScreen({ navigation }: any) {
                           </View>
                         </View>
 
-                        <AppText weight="bold" color="primary" style={{ marginTop: 4 }}>
-                          ₹{item.price}
-                        </AppText>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                          <AppText weight="bold" color="primary">
+                            ₹{item.price}
+                          </AppText>
+                          {item.originalPrice != null && Number(item.originalPrice) > Number(item.price) && (
+                            <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                              ₹{item.originalPrice}
+                            </AppText>
+                          )}
+                        </View>
                       </View>
 
                       <View style={styles.rightActionsContainer}>
@@ -267,8 +275,8 @@ export default function CartScreen({ navigation }: any) {
                       <AppText weight="bold" size="caption" color="textMuted" style={styles.sectionTitle}>
                         Added Sub-Services
                       </AppText>
-                      {groupSubItems.map((sub) => (
-                        <View key={sub._id || sub.serviceCategoryId} style={styles.subServiceRow}>
+                      {groupSubItems.map((sub, subIdx) => (
+                        <View key={`${sub._id || sub.serviceCategoryId || 'sub'}-${subIdx}`} style={styles.subServiceRow}>
                           <View style={styles.subLeft}>
                             <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} style={{ marginTop: 2 }} />
                             <AppText weight="medium" style={{ marginLeft: 8, flex: 1 }}>
@@ -276,9 +284,16 @@ export default function CartScreen({ navigation }: any) {
                             </AppText>
                           </View>
                           <View style={styles.subRight}>
-                            <AppText weight="bold" color="primary" style={{ marginRight: 12 }}>
-                              ₹{sub.price}
-                            </AppText>
+                            <View style={{ alignItems: 'flex-end', marginRight: 12 }}>
+                              <AppText weight="bold" color="primary">
+                                ₹{sub.price}
+                              </AppText>
+                              {sub.originalPrice != null && Number(sub.originalPrice) > Number(sub.price) && (
+                                <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                                  ₹{sub.originalPrice}
+                                </AppText>
+                              )}
+                            </View>
                             <TouchableOpacity onPress={() => removeFromCart(sub.serviceCategoryId, true)}>
                               <Ionicons name="trash-outline" size={18} color={theme.colors.danger || '#FF3B30'} />
                             </TouchableOpacity>
@@ -300,7 +315,14 @@ export default function CartScreen({ navigation }: any) {
                             <Ionicons name="square-outline" size={20} color={theme.colors.textMuted} style={{ marginTop: 2 }} />
                             <View style={{ marginLeft: 12, flex: 1 }}>
                               <AppText weight="medium">{rec.serviceCategoryName}</AppText>
-                              <AppText size="caption" color="textMuted">₹{rec.price}</AppText>
+                              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                                <AppText size="caption" color="textMuted">₹{rec.price}</AppText>
+                                {rec.originalPrice != null && Number(rec.originalPrice) > Number(rec.price) && (
+                                  <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                                    ₹{rec.originalPrice}
+                                  </AppText>
+                                )}
+                              </View>
                             </View>
                           </View>
                           <TouchableOpacity
@@ -345,12 +367,26 @@ export default function CartScreen({ navigation }: any) {
           {/* 4. Sticky Bottom Checkout Summary */}
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
             <View style={styles.totalRow}>
-              <AppText size="body" color="textMuted">
-                Total
-              </AppText>
-              <AppText weight="bold" size="h2" color="primary">
-                ₹{totalPrice}
-              </AppText>
+              <View>
+                <AppText size="body" color="textMuted">
+                  Total
+                </AppText>
+                {totalOriginalPrice > totalPrice && (
+                  <AppText size="caption" style={{ color: '#16A34A', fontWeight: 'bold' }}>
+                    Saved ₹{totalOriginalPrice - totalPrice}
+                  </AppText>
+                )}
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                {totalOriginalPrice > totalPrice && (
+                  <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                    ₹{totalOriginalPrice}
+                  </AppText>
+                )}
+                <AppText weight="bold" size="h2" color="primary">
+                  ₹{totalPrice}
+                </AppText>
+              </View>
             </View>
 
             {isRegionAllowed ? (

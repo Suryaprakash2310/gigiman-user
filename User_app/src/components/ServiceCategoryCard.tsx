@@ -19,6 +19,8 @@ interface ServiceCategoryCardProps {
   title: string;
   subtitle?: string;
   amount?: string | number;
+  originalPrice?: string | number;
+  offerPrice?: string | number;
   onPress?: () => void;
   points?: string[];
 }
@@ -29,10 +31,19 @@ const ServiceCategoryCard: React.FC<ServiceCategoryCardProps> = ({
   title,
   subtitle,
   amount,
+  originalPrice,
+  offerPrice,
   onPress,
   points,
 }) => {
   const { theme } = useTheme();
+
+  const currentPrice = offerPrice != null ? Number(offerPrice) : (amount != null ? Number(amount) : null);
+  const origPrice = (originalPrice != null && Number(originalPrice) > Number(currentPrice))
+    ? Number(originalPrice)
+    : (currentPrice != null && currentPrice > 0 ? Math.round((currentPrice * 1.35) / 10) * 10 : null);
+  const hasDiscount = origPrice != null && currentPrice != null && origPrice > currentPrice;
+  const discountPercent = hasDiscount ? Math.round(((origPrice - currentPrice) / origPrice) * 100) : 0;
 
   return (
     <Pressable
@@ -93,10 +104,22 @@ const ServiceCategoryCard: React.FC<ServiceCategoryCardProps> = ({
 
       {/* Amount */}
       <View style={styles.amountContainer}>
-        {amount && (
-          <AppText weight="bold" size="body" color="primary">
-            ₹{amount}
-          </AppText>
+        {currentPrice != null && (
+          <View style={{ alignItems: 'flex-end' }}>
+            <AppText weight="bold" size="body" color="primary">
+              ₹{currentPrice}
+            </AppText>
+            {hasDiscount && (
+              <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through', fontSize: 11 }}>
+                ₹{origPrice}
+              </AppText>
+            )}
+            {hasDiscount && (
+              <AppText size="caption" weight="bold" color="success" style={{ fontSize: 10 }}>
+                {discountPercent}% OFF
+              </AppText>
+            )}
+          </View>
         )}
       </View>
 

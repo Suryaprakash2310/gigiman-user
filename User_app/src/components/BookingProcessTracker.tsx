@@ -298,6 +298,8 @@ export function getBookingProcessSteps(booking: BookingItem, compact: boolean = 
         ? "Service completed by technician"
         : status === "in_progress"
         ? "Service currently in progress"
+        : status === "otp_verified"
+        ? "OTP Verified • Service Started"
         : booking.otp
         ? `Share OTP: ${booking.otp} to start service`
         : "Pending OTP verification & start",

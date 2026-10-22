@@ -7,6 +7,8 @@ import { useTheme } from '@/src/theme/useTheme';
 interface ServiceHeaderProps {
   name: string;
   price: number;
+  originalPrice?: number;
+  offerPrice?: number;
   duration: number;
   image?: string;
 }
@@ -16,11 +18,26 @@ const { width } = Dimensions.get('window');
 const ServiceHeader: React.FC<ServiceHeaderProps> = ({
   name,
   price,
+  originalPrice,
+  offerPrice,
   duration,
   image,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+
+  const rawPrice = Number(price || 0);
+  const rawOfferPrice = offerPrice != null && Number(offerPrice) > 0 ? Number(offerPrice) : rawPrice;
+  const rawOriginalPrice = (originalPrice != null && Number(originalPrice) > rawOfferPrice)
+    ? Number(originalPrice)
+    : (rawOfferPrice > 0 ? Math.round((rawOfferPrice * 1.35) / 10) * 10 : rawOfferPrice);
+
+  const displayPrice = rawOfferPrice;
+  const origPrice = rawOriginalPrice;
+  const hasDiscount = origPrice > displayPrice;
+  const discountPercent = hasDiscount
+    ? Math.round(((origPrice - displayPrice) / origPrice) * 100)
+    : 0;
 
   return (
     <View style={styles.container}>
@@ -45,9 +62,26 @@ const ServiceHeader: React.FC<ServiceHeaderProps> = ({
               style={styles.priceBadge}
             >
               <AppText weight="bold" size="h3" style={{ color: '#fff' }}>
-                ₹{price}
+                ₹{displayPrice}
               </AppText>
             </LinearGradient>
+
+            {hasDiscount && (
+              <View style={styles.originalPriceContainer}>
+                <AppText
+                  weight="medium"
+                  size="body"
+                  style={styles.originalPriceText}
+                >
+                  ₹{origPrice}
+                </AppText>
+                <View style={styles.discountBadge}>
+                  <AppText weight="bold" style={styles.discountText}>
+                    {discountPercent}% OFF
+                  </AppText>
+                </View>
+              </View>
+            )}
 
             {/* Duration Badge */}
             <View
@@ -104,6 +138,8 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing.md,
+      flexWrap: 'wrap',
+      rowGap: 8,
     },
     priceBadge: {
       paddingHorizontal: theme.spacing.lg,
@@ -123,6 +159,25 @@ const createStyles = (theme: any) =>
       borderRadius: theme.radius.lg,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    originalPriceContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    originalPriceText: {
+      color: theme.colors.textMuted || '#94A3B8',
+      textDecorationLine: 'line-through',
+    },
+    discountBadge: {
+      backgroundColor: '#DCFCE7',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    discountText: {
+      color: '#166534',
+      fontSize: 11,
     },
   });
 

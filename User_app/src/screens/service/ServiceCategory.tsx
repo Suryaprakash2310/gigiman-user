@@ -25,6 +25,8 @@ interface CategoryItem {
   servicecategoryImage?: string;
   description?: string;
   price?: number;
+  originalPrice?: number;
+  offerPrice?: number;
   durationInMinutes?: number;
   employeeCount?: number;
   status?: string;
@@ -112,6 +114,7 @@ export default function ServiceCategory({ route, navigation }: any) {
       }
       navigation.navigate('Booking', {
         serviceCategoryId: item._id,
+        serviceData: item,
       });
     },
     [navigation]
@@ -212,6 +215,8 @@ export default function ServiceCategory({ route, navigation }: any) {
               title={item.serviceCategoryName}
               description={item.description}
               price={item.price}
+              originalPrice={item.originalPrice}
+              offerPrice={item.offerPrice}
               duration={item.durationInMinutes}
               employeeCount={item.employeeCount}
               status={item.status}

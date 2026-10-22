@@ -23,6 +23,10 @@ export type AuthUser = {
   profileCompleted?: boolean;
   isRegionAllowed?: boolean;
   regionAllowed?: boolean;
+  region?: string;
+  city?: string;
+  pincode?: string;
+  addresses?: any[];
   location?: {
     type: "Point";
     coordinates: [number, number]; // [lng, lat]
@@ -92,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const res = await ProfileAPI.getProfileAPI();
             if (res && res.success && res.user) {
               const parsedUser = savedUser ? JSON.parse(savedUser) : {};
+              const rawUser = res.user as any;
               const updatedUser: AuthUser = {
                 ...parsedUser,
                 _id: res.user._id || parsedUser._id || '',
@@ -101,8 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 avatar: res.user.avatar || parsedUser.avatar || undefined,
                 isVerified: true,
                 profileCompleted: true,
-                isRegionAllowed: (res.user as any).isRegionAllowed !== undefined ? (res.user as any).isRegionAllowed : (res.user as any).regionAllowed,
-                regionAllowed: (res.user as any).regionAllowed,
+                isRegionAllowed: rawUser.isRegionAllowed !== undefined ? rawUser.isRegionAllowed : rawUser.regionAllowed,
+                regionAllowed: rawUser.regionAllowed,
+                region: rawUser.region || parsedUser.region,
+                city: rawUser.city || parsedUser.city,
+                pincode: rawUser.pincode || rawUser.postalCode || parsedUser.pincode,
+                addresses: rawUser.addresses || parsedUser.addresses,
+                location: rawUser.location || parsedUser.location,
               };
               setUser(updatedUser);
               setAccessToken(savedAccess);

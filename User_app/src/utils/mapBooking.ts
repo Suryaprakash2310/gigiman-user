@@ -31,8 +31,29 @@ function normalizeStatus(booking: any): BookingStatus {
   if (assignment === "scheduled" || status === "scheduled") return "scheduled";
 
   // 4. Check for Active / In-Progress Statuses
-  if (status === "in_progress") return "in_progress";
-  if (status === "otp_verified") return "otp_verified";
+  if (
+    status === "in_progress" ||
+    status === "inprogress" ||
+    status === "in-progress" ||
+    status === "service_started" ||
+    status === "service-started" ||
+    status === "started" ||
+    status === "service_in_progress" ||
+    status === "service-in-progress" ||
+    status === "work_in_progress" ||
+    status === "ongoing" ||
+    status === "working"
+  ) {
+    return "in_progress";
+  }
+
+  if (
+    status === "otp_verified" ||
+    status === "otp-verified" ||
+    status === "otpverified"
+  ) {
+    return "otp_verified";
+  }
 
   // 5. Check for OTP Status
   if (status === "otp" || status === "start_service_otp") return "otp";
@@ -135,6 +156,8 @@ export function mapBookingToBookingItem(
               : String(item.serviceCategoryId || ""),
           serviceCategoryName: String(catName),
           price: Number(item.price ?? item.cost ?? item.amount ?? 0),
+          originalPrice: item.originalPrice != null ? Number(item.originalPrice) : undefined,
+          offerPrice: item.offerPrice != null ? Number(item.offerPrice) : undefined,
           durationInMinutes:
             item.durationInMinutes != null ? Number(item.durationInMinutes) : undefined,
           employeeCount:
@@ -211,13 +234,32 @@ export function mapBookingToBookingItem(
 
   // Parse customer coordinates
   let customerCoords: { latitude: number; longitude: number } | undefined;
+  const parsePair = (c1: any, c2: any) => {
+    const n1 = Number(c1);
+    const n2 = Number(c2);
+    if (!Number.isFinite(n1) || !Number.isFinite(n2) || (n1 === 0 && n2 === 0)) return undefined;
+    if (Math.abs(n1) > 90 && Math.abs(n2) <= 90) {
+      return { longitude: n1, latitude: n2 };
+    } else if (Math.abs(n2) > 90 && Math.abs(n1) <= 90) {
+      return { latitude: n1, longitude: n2 };
+    }
+    // Default GeoJSON convention: [longitude, latitude]
+    return { longitude: n1, latitude: n2 };
+  };
+
   if (booking.location?.coordinates && Array.isArray(booking.location.coordinates) && booking.location.coordinates.length >= 2) {
-    // MongoDB GeoJSON format: [longitude, latitude]
-    customerCoords = {
-      longitude: Number(booking.location.coordinates[0]),
-      latitude: Number(booking.location.coordinates[1]),
-    };
-  } else if (booking.customerCoordinates?.latitude && booking.customerCoordinates?.longitude) {
+    customerCoords = parsePair(booking.location.coordinates[0], booking.location.coordinates[1]);
+  } else if (booking.coordinates && Array.isArray(booking.coordinates) && booking.coordinates.length >= 2) {
+    customerCoords = parsePair(booking.coordinates[0], booking.coordinates.length > 1 ? booking.coordinates[1] : undefined);
+  } else if (booking.addressDetails?.coordinates && Array.isArray(booking.addressDetails.coordinates) && booking.addressDetails.coordinates.length >= 2) {
+    customerCoords = parsePair(booking.addressDetails.coordinates[0], booking.addressDetails.coordinates[1]);
+  } else if (booking.addressId?.location?.coordinates && Array.isArray(booking.addressId.location.coordinates) && booking.addressId.location.coordinates.length >= 2) {
+    customerCoords = parsePair(booking.addressId.location.coordinates[0], booking.addressId.location.coordinates[1]);
+  } else if (booking.addressId?.coordinates && Array.isArray(booking.addressId.coordinates) && booking.addressId.coordinates.length >= 2) {
+    customerCoords = parsePair(booking.addressId.coordinates[0], booking.addressId.coordinates[1]);
+  } else if (booking.userLocation?.coordinates && Array.isArray(booking.userLocation.coordinates) && booking.userLocation.coordinates.length >= 2) {
+    customerCoords = parsePair(booking.userLocation.coordinates[0], booking.userLocation.coordinates[1]);
+  } else if (booking.customerCoordinates?.latitude != null && booking.customerCoordinates?.longitude != null) {
     customerCoords = {
       latitude: Number(booking.customerCoordinates.latitude),
       longitude: Number(booking.customerCoordinates.longitude),
@@ -227,16 +269,30 @@ export function mapBookingToBookingItem(
       latitude: Number(booking.latitude),
       longitude: Number(booking.longitude),
     };
+  } else if (booking.lat != null && booking.lng != null) {
+    customerCoords = {
+      latitude: Number(booking.lat),
+      longitude: Number(booking.lng),
+    };
+  } else if (booking.addressDetails?.latitude != null && booking.addressDetails?.longitude != null) {
+    customerCoords = {
+      latitude: Number(booking.addressDetails.latitude),
+      longitude: Number(booking.addressDetails.longitude),
+    };
+  } else if (booking.address?.latitude != null && booking.address?.longitude != null) {
+    customerCoords = {
+      latitude: Number(booking.address.latitude),
+      longitude: Number(booking.address.longitude),
+    };
   }
 
   // Parse provider coordinates
   let providerCoords: { latitude: number; longitude: number } | undefined;
   if (booking.servicerLocation?.coordinates && Array.isArray(booking.servicerLocation.coordinates) && booking.servicerLocation.coordinates.length >= 2) {
-    providerCoords = {
-      longitude: Number(booking.servicerLocation.coordinates[0]),
-      latitude: Number(booking.servicerLocation.coordinates[1]),
-    };
-  } else if (booking.providerCoordinates?.latitude && booking.providerCoordinates?.longitude) {
+    providerCoords = parsePair(booking.servicerLocation.coordinates[0], booking.servicerLocation.coordinates[1]);
+  } else if (booking.servicerCoordinates && Array.isArray(booking.servicerCoordinates) && booking.servicerCoordinates.length >= 2) {
+    providerCoords = parsePair(booking.servicerCoordinates[0], booking.servicerCoordinates[1]);
+  } else if (booking.providerCoordinates?.latitude != null && booking.providerCoordinates?.longitude != null) {
     providerCoords = {
       latitude: Number(booking.providerCoordinates.latitude),
       longitude: Number(booking.providerCoordinates.longitude),
@@ -246,13 +302,21 @@ export function mapBookingToBookingItem(
       latitude: Number(booking.servicerLocation.latitude),
       longitude: Number(booking.servicerLocation.longitude),
     };
+  } else if (booking.technician?.location?.coordinates && Array.isArray(booking.technician.location.coordinates) && booking.technician.location.coordinates.length >= 2) {
+    providerCoords = parsePair(booking.technician.location.coordinates[0], booking.technician.location.coordinates[1]);
+  } else if (booking.primaryEmployee?.location?.coordinates && Array.isArray(booking.primaryEmployee.location.coordinates) && booking.primaryEmployee.location.coordinates.length >= 2) {
+    providerCoords = parsePair(booking.primaryEmployee.location.coordinates[0], booking.primaryEmployee.location.coordinates[1]);
   }
 
   return {
     _id: String(booking._id),
+    bookingCode: booking.bookingCode || booking.bookingReference || (booking.bookingId && !/^[0-9a-fA-F]{24}$/.test(String(booking.bookingId)) ? String(booking.bookingId) : (String(booking._id).startsWith('GGM-') ? String(booking._id) : undefined)),
 
     serviceCategoryName: serviceCatName,
     totalPrice: totalPrice,
+    originalPrice: booking.originalPrice != null ? Number(booking.originalPrice) : undefined,
+    offerPrice: booking.offerPrice != null ? Number(booking.offerPrice) : undefined,
+    serviceId: booking.serviceId || booking.serviceCategoryId || undefined,
 
     dateLabel: booking.scheduleDateTime
       ? new Date(booking.scheduleDateTime).toLocaleDateString(undefined, {
@@ -297,6 +361,26 @@ export function mapBookingToBookingItem(
       booking.primaryEmployee?.phoneNo ||
       booking.primaryEmployee?.phoneno ||
       booking.externalTechnicianPhone ||
+      booking.technicianPhone ||
+      booking.phone ||
+      undefined,
+    receiverPhone:
+      booking.receiverPhone ||
+      booking.addressDetails?.receiverPhone ||
+      booking.addressId?.receiverPhone ||
+      booking.contactPhone ||
+      booking.userPhone ||
+      booking.user?.phoneNo ||
+      booking.user?.phone ||
+      booking.phoneNo ||
+      booking.phoneNumber ||
+      undefined,
+    userPhone:
+      booking.userPhone ||
+      booking.user?.phoneNo ||
+      booking.user?.phone ||
+      booking.phoneNo ||
+      booking.phoneNumber ||
       undefined,
     eta: booking.eta || booking.location?.eta || undefined,
     customerCoordinates: customerCoords,
@@ -308,12 +392,21 @@ export function mapBookingToBookingItem(
     isScheduled: Boolean(booking.isScheduled),
     scheduleDateTime: booking.scheduledAt ?? booking.scheduleDateTime,
     createdAt: booking.createdAt,
-    durationInMinutes:
-      booking.durationInMinutes != null
-        ? Number(booking.durationInMinutes)
-        : booking.workingHours
-        ? Number(booking.workingHours)
-        : 0,
+    durationInMinutes: (() => {
+      if (booking.durationInMinutes != null && Number(booking.durationInMinutes) > 0) {
+        return Number(booking.durationInMinutes);
+      }
+      if (booking.workingHours != null && Number(booking.workingHours) > 0) {
+        const wh = Number(booking.workingHours);
+        return wh > 12 ? wh : wh * 60;
+      }
+      const cartDuration = rawCartItems.reduce(
+        (acc: number, it: any) => acc + (Number(it.durationInMinutes || 0) * Number(it.quantity || 1)),
+        0
+      );
+      if (cartDuration > 0) return cartDuration;
+      return 60;
+    })(),
     serviceStartTime:
       booking.serviceStartTime ||
       booking.startedAt ||

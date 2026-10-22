@@ -111,6 +111,8 @@ export default function NotificationScreen() {
     switch (type) {
       case "BOOKING":
         return "calendar";
+      case "RECURRING":
+        return "repeat";
       case "PROMO":
         return "gift";
       case "ALERT":
@@ -127,6 +129,8 @@ export default function NotificationScreen() {
     switch (type) {
       case "BOOKING":
         return theme.colors.success;
+      case "RECURRING":
+        return "#0F6A4B"; // Primary dark green
       case "PROMO":
         return "#c02bff";
       case "FAILED_BOOKING":
@@ -143,6 +147,37 @@ export default function NotificationScreen() {
     const iconName = getIconName(item.type);
     const iconColor = getIconColor(item.type);
     const bookingRef = item.metadata?.bookingReference || item.data?.bookingReference || item.bookingId;
+    const bookingCode =
+      (item as any).bookingCode ||
+      item.metadata?.bookingCode ||
+      item.data?.bookingCode ||
+      item.metadata?.bookingReference ||
+      item.data?.bookingReference;
+
+    const bookingObj = bookings.find(
+      b => String(b._id) === String(bookingRef) || (bookingCode && (b as any).bookingCode === bookingCode)
+    );
+
+    const displayBookingId =
+      (bookingCode && !/^[0-9a-fA-F]{24}$/.test(String(bookingCode)) ? String(bookingCode) : null) ||
+      (bookingObj as any)?.bookingCode ||
+      (bookingRef && !/^[0-9a-fA-F]{24}$/.test(String(bookingRef))
+        ? String(bookingRef)
+        : bookingRef
+        ? `GGM-${String(bookingRef).slice(-6).toUpperCase()}`
+        : null);
+
+    const cleanMessage = displayBookingId && item.message
+      ? item.message
+          .replace(/Booking\s*#?[0-9a-fA-F]{24}/gi, `Booking ${displayBookingId}`)
+          .replace(new RegExp(String(bookingRef), 'gi'), displayBookingId)
+      : item.message;
+
+    const cleanDesc = displayBookingId && item.description
+      ? item.description
+          .replace(/Booking\s*#?[0-9a-fA-F]{24}/gi, `Booking ${displayBookingId}`)
+          .replace(new RegExp(String(bookingRef), 'gi'), displayBookingId)
+      : item.description;
 
     return (
       <TouchableOpacity
@@ -152,7 +187,6 @@ export default function NotificationScreen() {
             markAsRead(item._id);
           }
           if (bookingRef) {
-            const bookingObj = bookings.find(b => String(b._id) === String(bookingRef));
             if (item.type === "FAILED_BOOKING" || bookingObj?.assignmentStatus === "FAILED" || bookingObj?.status === "manual_assign" || item.title === "Technician Assigned") {
               (navigation as any).navigate("BookingTab", {
                 screen: "BookingsMain",
@@ -195,20 +229,20 @@ export default function NotificationScreen() {
           </View>
 
           <AppText size="small" color="text" style={styles.cardMsg}>
-            {item.message}
+            {cleanMessage}
           </AppText>
 
-          {item.description && item.description !== item.message && (
+          {cleanDesc && cleanDesc !== cleanMessage && (
             <AppText size="small" color="textMuted" style={styles.cardDesc}>
-              {item.description}
+              {cleanDesc}
             </AppText>
           )}
 
-          {(item.serviceName || item.serviceDetails || bookingRef) && (
+          {(item.serviceName || item.serviceDetails || displayBookingId) && (
             <View style={[styles.bookingDetailsContainer, { backgroundColor: theme.colors.background }]}>
-              {bookingRef && (
+              {displayBookingId && (
                 <AppText size="small" weight="semibold" style={{ color: theme.colors.primary, marginBottom: 2 }}>
-                  Booking Ref: #{String(bookingRef).slice(-8).toUpperCase()}
+                  Booking ID: {displayBookingId}
                 </AppText>
               )}
               {item.serviceName && (

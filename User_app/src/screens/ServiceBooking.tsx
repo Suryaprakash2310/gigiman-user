@@ -33,6 +33,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { CouponAPI } from '@/src/api/coupon.api';
 import { ServiceAPI } from '@/src/api/service.api';
+import { getAddressesAPI } from '@/src/api/auth';
 import { useAuthContext } from '@/src/context/AuthContext';
 import { useBooking } from '@/src/context/BookingContext';
 import { useCartContext } from '@/src/context/CartContext';
@@ -55,9 +56,9 @@ import { isComingSoon } from '@/src/utils/serviceStatus';
 type Nav = BottomTabNavigationProp<AppTabsParamList, 'BookingTab'>;
 
 interface Props {
-  route: {
-    params: {
-      serviceCategoryId: string;
+  route?: {
+    params?: {
+      serviceCategoryId?: string;
       serviceData?: any;
       selectedAddress?: any;
       fromMain?: boolean;
@@ -70,6 +71,8 @@ interface ServiceCategory {
   _id: string;
   serviceCategoryName: string;
   price: number;
+  originalPrice?: number;
+  offerPrice?: number;
   durationInMinutes: number;
   servicecategoryImage?: string;
   description?: string;
@@ -80,7 +83,7 @@ interface ServiceCategory {
 const { width } = Dimensions.get('window');
 
 const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
-  const { serviceCategoryId, serviceData, fromMain, domainServiceId } = route.params || {};
+  const { serviceCategoryId, serviceData, fromMain, domainServiceId } = route?.params || {};
   const { user } = useAuthContext();
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -106,16 +109,37 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   }, [filteredCartItems]);
 
   // State management
-  const [category, setCategory] = useState<ServiceCategory | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState<ServiceCategory | null>(() => {
+    if (serviceData) {
+      return {
+        _id: serviceData._id,
+        serviceCategoryName: serviceData.serviceCategoryName || serviceData.name,
+        price: serviceData.offerPrice != null ? serviceData.offerPrice : (serviceData.price || 0),
+        originalPrice: serviceData.originalPrice || serviceData.price,
+        offerPrice: serviceData.offerPrice || serviceData.price,
+        durationInMinutes: serviceData.durationInMinutes || 60,
+        description: serviceData.description,
+        servicecategoryImage: serviceData.servicecategoryImage || serviceData.servicecategroyImage || serviceData.serviceImage,
+        domainService: serviceData.domainService,
+        status: serviceData.status,
+      };
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(!serviceData && !isCartCheckout);
   const [booking, setBooking] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [bookingMode, setBookingMode] = useState<'now' | 'schedule' | 'recurring'>('now');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string>("");
+  const [selectedSlotLabel, setSelectedSlotLabel] = useState<string>("");
   const [showCalendar, setShowCalendar] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [locatingAddress, setLocatingAddress] = useState(false);
 
   const isRegionAllowed = 
     user?.isRegionAllowed !== false && 
@@ -155,32 +179,96 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         domainService: domainServiceId || filteredCartItems[0]?.domainService?._id || filteredCartItems[0]?.domainService || '',
       });
       setLoading(false);
-    } else {
+    } else if (serviceCategoryId && serviceCategoryId !== 'undefined' && serviceCategoryId !== 'null' && serviceCategoryId !== 'cart') {
       loadService();
+    } else if (serviceData && !category) {
+      const formattedCategory: ServiceCategory = {
+        _id: serviceData._id,
+        serviceCategoryName: serviceData.serviceCategoryName || serviceData.name,
+        price: serviceData.offerPrice != null ? serviceData.offerPrice : (serviceData.price || 0),
+        originalPrice: serviceData.originalPrice || serviceData.price,
+        offerPrice: serviceData.offerPrice || serviceData.price,
+        durationInMinutes: serviceData.durationInMinutes || 60,
+        description: serviceData.description,
+        servicecategoryImage: serviceData.servicecategoryImage || serviceData.servicecategroyImage || serviceData.serviceImage,
+        domainService: serviceData.domainService,
+        status: serviceData.status,
+      };
+      setCategory(formattedCategory);
+      setLoading(false);
+    } else {
+      setLoading(false);
     }
   }, [serviceCategoryId, isCartCheckout, filteredCartItems, filteredCartTotalPrice, domainServiceId]);
 
+  const loadSavedAddressesList = async () => {
+    try {
+      const raw = await AsyncStorage.getItem('gigiman_saved_addresses');
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list) && list.length > 0) {
+          setSavedAddresses(list);
+        }
+      }
+      const res = await getAddressesAPI().catch(() => null);
+      if (res?.data?.addresses && Array.isArray(res.data.addresses) && res.data.addresses.length > 0) {
+        setSavedAddresses(res.data.addresses);
+        await AsyncStorage.setItem('gigiman_saved_addresses', JSON.stringify(res.data.addresses));
+      }
+    } catch (e) {
+      console.log('Error loading saved addresses:', e);
+    }
+  };
+
   useFocusEffect(
     React.useCallback(() => {
-      if (route.params?.selectedAddress) {
+      if (route?.params?.selectedAddress) {
         setSelectedAddress(route.params.selectedAddress);
       }
-    }, [route.params?.selectedAddress])
+      loadSavedAddressesList();
+    }, [route?.params?.selectedAddress])
   );
+
   useEffect(() => {
-    loadDefaultAddress();
-  }, []);
+    if (!route?.params?.selectedAddress) {
+      loadDefaultAddress();
+    }
+  }, [route?.params?.selectedAddress]);
 
   const loadDefaultAddress = async () => {
     try {
+      if (route?.params?.selectedAddress) return;
       const raw = await AsyncStorage.getItem('gigiman_saved_addresses');
-      if (!raw) return;
-
-      const list = JSON.parse(raw);
-      const defaultAddress = list.find((a: any) => a.isDefault);
-
-      if (defaultAddress) {
-        setSelectedAddress(defaultAddress);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list) && list.length > 0) {
+          setSavedAddresses(list);
+          const defaultAddress = list.find((a: any) => a.isDefault) || list[0];
+          if (defaultAddress && (defaultAddress.line1 || defaultAddress.address) && defaultAddress.line1 !== "Current Location") {
+            setSelectedAddress(defaultAddress);
+            return;
+          }
+        }
+      }
+      // If no saved addresses, automatically resolve device GPS location
+      try {
+        setLocatingAddress(true);
+        const location = await getCurrentLocation();
+        const resolvedAddress = await getAddressFromCoords(location.latitude, location.longitude);
+        setSelectedAddress((prev: any) => {
+          if (prev && prev.flatNo) return prev;
+          return {
+            line1: resolvedAddress,
+            address: resolvedAddress,
+            area: resolvedAddress,
+            latitude: location.latitude,
+            longitude: location.longitude,
+          };
+        });
+      } catch (e) {
+        console.log('Silent location detect failed', e);
+      } finally {
+        setLocatingAddress(false);
       }
     } catch (err) {
       console.log('Failed loading address', err);
@@ -189,41 +277,90 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
   const handleUseCurrentLocation = async () => {
     try {
+      setLocatingAddress(true);
       const location = await getCurrentLocation();
-      let resolvedAddress = "Current Location";
-      try {
-        resolvedAddress = await getAddressFromCoords(location.latitude, location.longitude);
-      } catch (e) {
-        console.warn("Geocoding failed:", e);
-      }
+      const resolvedAddress = await getAddressFromCoords(location.latitude, location.longitude);
 
-      setSelectedAddress({
-        line1: "Current Location",
-        latitude: location.latitude,
-        longitude: location.longitude
+      // Navigate to AddEditAddress to add mandatory Flat/House No, Building Name & optional fields
+      navigation.navigate("AddEditAddress", {
+        selectMode: true,
+        initialLocation: {
+          address: resolvedAddress,
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+        serviceCategoryId: serviceCategoryId || category?._id,
+        serviceData: category || serviceData,
+        domainServiceId,
+        fromMain,
       });
-
-    } catch (err) {
-      Alert.alert("Location Error", "Unable to get current location");
+    } catch (err: any) {
+      console.warn("Location Error:", err);
+      Alert.alert("Location Error", err?.message || "Unable to get current location. Please ensure location permissions are enabled.");
+    } finally {
+      setLocatingAddress(false);
     }
   };
 
+  const handleSelectSavedAddress = (addr: any) => {
+    setSelectedAddress(addr);
+    setShowAddressModal(false);
+  };
+
+  const handleOpenAddAddress = () => {
+    setShowAddressModal(false);
+    navigation.navigate("AddEditAddress", {
+      selectMode: true,
+      serviceCategoryId: serviceCategoryId || category?._id,
+      serviceData: category || serviceData,
+      domainServiceId,
+      fromMain,
+    });
+  };
+
+  const handleEditAddressItem = (addr: any) => {
+    setShowAddressModal(false);
+    navigation.navigate("AddEditAddress", {
+      selectMode: true,
+      addressId: addr._id || addr.id,
+      address: addr,
+      initialLocation: {
+        address: addr.line1 || addr.address,
+        latitude: addr.latitude || addr.location?.coordinates?.[1],
+        longitude: addr.longitude || addr.location?.coordinates?.[0],
+      },
+      serviceCategoryId: serviceCategoryId || category?._id,
+      serviceData: category || serviceData,
+      domainServiceId,
+      fromMain,
+    });
+  };
+
+
   const loadService = useCallback(async () => {
+    if (!serviceCategoryId || serviceCategoryId === 'undefined' || serviceCategoryId === 'null' || serviceCategoryId === 'cart') {
+      return;
+    }
     try {
       setLoading(true);
       const res = await ServiceAPI.getServiceCategoryByIdAPI(serviceCategoryId);
-      setCategory(res.serviceCategory);
+      if (res?.serviceCategory) {
+        setCategory(res.serviceCategory);
+      }
     } catch (err) {
       console.error('Load service error:', err);
       if (serviceData) {
         const formattedCategory: ServiceCategory = {
           _id: serviceData._id,
           serviceCategoryName: serviceData.serviceCategoryName || serviceData.name,
-          price: serviceData.price || 0,
+          price: serviceData.offerPrice != null ? serviceData.offerPrice : (serviceData.price || 0),
+          originalPrice: serviceData.originalPrice || serviceData.price,
+          offerPrice: serviceData.offerPrice || serviceData.price,
           durationInMinutes: serviceData.durationInMinutes || 60,
           description: serviceData.description,
-          servicecategoryImage: serviceData.servicecategroyImage || serviceData.serviceImage,
+          servicecategoryImage: serviceData.servicecategoryImage || serviceData.servicecategroyImage || serviceData.serviceImage,
           domainService: serviceData.domainService,
+          status: serviceData.status,
         };
         setCategory(formattedCategory);
       }
@@ -475,27 +612,52 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       }
     }
 
+    if (!selectedAddress || !selectedAddress.flatNo || !selectedAddress.apartmentName) {
+      Alert.alert(
+        "Address Details Required",
+        "Please add your House/Flat No. and Building Name to complete your booking address.",
+        [
+          {
+            text: "Add Details",
+            onPress: () => {
+              navigation.navigate("AddEditAddress", {
+                selectMode: true,
+                address: selectedAddress,
+                initialLocation: selectedAddress ? {
+                  address: selectedAddress.line1 || selectedAddress.address,
+                  latitude: selectedAddress.latitude,
+                  longitude: selectedAddress.longitude,
+                } : undefined,
+                serviceCategoryId: serviceCategoryId || category?._id,
+                serviceData: category || serviceData,
+                domainServiceId,
+                fromMain,
+              });
+            }
+          },
+          { text: "Cancel", style: "cancel" }
+        ]
+      );
+      return;
+    }
+
     try {
       setBooking(true);
 
-      let coordinates;
-      let addressText;
+      const coordinates = [
+        selectedAddress.longitude,
+        selectedAddress.latitude,
+      ];
 
-      if (selectedAddress) {
-        coordinates = [
-          selectedAddress.longitude,
-          selectedAddress.latitude,
-        ];
-        addressText = selectedAddress.line1;
-      } else {
-        const location = await getCurrentLocation();
-        coordinates = [location.longitude, location.latitude];
-        try {
-          addressText = await getAddressFromCoords(location.latitude, location.longitude);
-        } catch {
-          addressText = "Current Location";
-        }
-      }
+      const addressParts = [
+        selectedAddress.flatNo ? `Flat/House ${selectedAddress.flatNo}` : null,
+        selectedAddress.floor ? `Floor ${selectedAddress.floor}` : null,
+        selectedAddress.apartmentName || null,
+        selectedAddress.landmark ? `Near ${selectedAddress.landmark}` : null,
+        selectedAddress.area || selectedAddress.line1 || selectedAddress.address,
+      ].filter(Boolean);
+
+      const addressText = addressParts.length > 0 ? addressParts.join(", ") : (selectedAddress.line1 || selectedAddress.address);
 
       const scheduleDateTime =
         bookingMode === 'schedule'
@@ -511,10 +673,24 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       const payload: any = {
         userId: user._id,
         address: addressText,
+        addressTitle: selectedAddress?.title || "",
+        addressDetails: selectedAddress ? {
+          flatNo: selectedAddress.flatNo || "",
+          floor: selectedAddress.floor || "",
+          apartmentName: selectedAddress.apartmentName || "",
+          landmark: selectedAddress.landmark || "",
+          area: selectedAddress.area || selectedAddress.line1 || selectedAddress.address || "",
+          receiverPhone: selectedAddress.receiverPhone || "",
+          receiverName: selectedAddress.receiverName || "",
+          title: selectedAddress.title || "",
+        } : undefined,
         coordinates: coordinates,
         paymentType: paymentType,
         convenienceFee: convenienceFee,
+        slotId: selectedSlotId || undefined,
+        slotLabel: selectedSlotLabel || undefined,
       };
+
 
       if (!isCartCheckout) {
         payload.serviceCategoryName = category.serviceCategoryName;
@@ -655,6 +831,16 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     : require('../../assets/images/SampleService.png');
 
   const totalPrice = isCartCheckout ? filteredCartTotalPrice : (category.price * quantity);
+  const totalOriginalPrice = isCartCheckout
+    ? filteredCartItems.reduce((sum, item) => {
+        const itemOrig = (item.originalPrice != null && Number(item.originalPrice) > Number(item.price))
+          ? Number(item.originalPrice)
+          : Math.round((Number(item.price) * 1.35) / 10) * 10;
+        return sum + (itemOrig * item.quantity);
+      }, 0)
+    : ((category.originalPrice != null && Number(category.originalPrice) > Number(category.price))
+        ? Number(category.originalPrice) * quantity
+        : Math.round((Number(category.price) * 1.35) / 10) * 10 * quantity);
 
   return (
     <View
@@ -708,9 +894,16 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
                 <AppText weight="medium" style={{ flex: 1, color: theme.colors.text }}>
                   {item.serviceCategoryName} {item.quantity > 1 ? `(x${item.quantity})` : ''}
                 </AppText>
-                <AppText weight="bold" style={{ color: theme.colors.text }}>
-                  ₹{item.price * item.quantity}
-                </AppText>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <AppText weight="bold" style={{ color: theme.colors.text }}>
+                    ₹{item.price * item.quantity}
+                  </AppText>
+                  {item.originalPrice != null && Number(item.originalPrice) > Number(item.price) && (
+                    <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                      ₹{Number(item.originalPrice) * item.quantity}
+                    </AppText>
+                  )}
+                </View>
               </View>
             ))}
           </Animated.View>
@@ -727,9 +920,51 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               <ServiceHeader
                 name={category.serviceCategoryName}
                 price={category.price}
+                originalPrice={category.originalPrice}
+                offerPrice={category.offerPrice}
                 duration={category.durationInMinutes}
               />
             </Animated.View>
+
+            {/* Special Offer Alert Banner */}
+            {category && (
+              (() => {
+                const currentPrice = category.offerPrice != null ? Number(category.offerPrice) : Number(category.price || 0);
+                const origPrice = (category.originalPrice != null && Number(category.originalPrice) > currentPrice)
+                  ? Number(category.originalPrice)
+                  : Math.round((currentPrice * 1.35) / 10) * 10;
+                const hasDiscount = origPrice > currentPrice;
+                const discountPercent = hasDiscount ? Math.round(((origPrice - currentPrice) / origPrice) * 100) : 0;
+
+                if (!hasDiscount) return null;
+
+                return (
+                  <Animated.View entering={FadeInDown.delay(150).duration(400)} style={styles.offerBannerCard}>
+                    <View style={styles.offerBannerLeft}>
+                      <Ionicons name="pricetag" size={20} color="#16A34A" />
+                      <View style={{ marginLeft: 10, flex: 1 }}>
+                        <AppText weight="bold" style={{ color: "#166534", fontSize: 13 }}>
+                          Special Offer Available!
+                        </AppText>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
+                          <AppText size="small" weight="bold" style={{ color: "#15803D" }}>
+                            Offer: ₹{currentPrice}
+                          </AppText>
+                          <AppText size="small" style={{ color: "#86EFAC", textDecorationLine: "line-through" }}>
+                            Original: ₹{origPrice}
+                          </AppText>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.offerBannerBadge}>
+                      <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 11 }}>
+                        {discountPercent}% OFF
+                      </AppText>
+                    </View>
+                  </Animated.View>
+                );
+              })()
+            )}
 
             {/* Service Description */}
             {category.description && (
@@ -750,33 +985,72 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           </>
         )}
 
-        <View style={styles.locationCard}>
-          <Ionicons name="location-outline" size={20} color={theme.colors.primary} />
-
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <AppText weight="bold">Service Location</AppText>
-
-            <AppText size="small" color="textMuted">
-              {selectedAddress?.line1 ?? "Select address"}
-            </AppText>
+        {/* SERVICE LOCATION SELECTOR CARD */}
+        <TouchableOpacity
+          style={styles.locationCard}
+          onPress={() => setShowAddressModal(true)}
+          activeOpacity={0.88}
+        >
+          <View style={[styles.locationIconCircle, { backgroundColor: theme.colors.primary + '18' }]}>
+            <Ionicons name="location-sharp" size={20} color={theme.colors.primary} />
           </View>
 
-          <AppText
-            weight="bold"
-            style={{ color: theme.colors.primary, marginRight: 12 }}
-            onPress={handleUseCurrentLocation}
-          >
-            Use Current
-          </AppText>
+          <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <AppText weight="bold" style={{ fontSize: 14 }}>Service Location</AppText>
+              {selectedAddress?.title ? (
+                <View style={{ backgroundColor: theme.colors.primary + '20', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                  <AppText weight="bold" style={{ color: theme.colors.primary, fontSize: 10, textTransform: 'uppercase' }}>
+                    {selectedAddress.title}
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
 
-          <AppText
-            weight="bold"
-            style={{ color: theme.colors.primary }}
-            onPress={() => navigation.navigate("ProfileTab", { screen: "SavedAddressesScreen", params: { selectMode: true } } as any)}
-          >
-            Change
-          </AppText>
-        </View>
+            {locatingAddress ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <AppText size="small" style={{ color: theme.colors.primary }}>
+                  Detecting current location...
+                </AppText>
+              </View>
+            ) : selectedAddress ? (
+              <View style={{ marginTop: 3 }}>
+                {selectedAddress.flatNo || selectedAddress.apartmentName ? (
+                  <>
+                    <AppText size="small" weight="bold" numberOfLines={1} style={{ color: theme.colors.text }}>
+                      {[selectedAddress.flatNo ? `Flat/House ${selectedAddress.flatNo}` : '', selectedAddress.apartmentName].filter(Boolean).join(', ')}
+                    </AppText>
+                    <AppText size="caption" color="textMuted" numberOfLines={1} style={{ marginTop: 1 }}>
+                      {selectedAddress.landmark ? `Near ${selectedAddress.landmark}, ` : ''}{selectedAddress.area || selectedAddress.line1 || selectedAddress.address}
+                    </AppText>
+                  </>
+                ) : (
+                  <>
+                    <AppText size="small" color="textMuted" numberOfLines={1}>
+                      {selectedAddress.line1 || selectedAddress.address || "Current Location"}
+                    </AppText>
+                    <AppText size="caption" style={{ color: '#EA580C', fontWeight: '600', marginTop: 2 }}>
+                      ⚠️ Tap to add Flat & Building number
+                    </AppText>
+                  </>
+                )}
+              </View>
+            ) : (
+              <AppText size="small" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
+                Tap to select or add address
+              </AppText>
+            )}
+          </View>
+
+          <View style={styles.changeActionBtn}>
+            <AppText weight="bold" style={{ color: theme.colors.primary, fontSize: 13 }}>
+              Change
+            </AppText>
+            <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
+          </View>
+        </TouchableOpacity>
+
 
         {/* Booking Mode Selector */}
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
@@ -784,23 +1058,36 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             selectedMode={bookingMode}
             onModeChange={(mode: 'now' | 'schedule' | 'recurring') => {
               if (mode === 'recurring') {
-                // Prepopulate draft service in recurring store
-                const match = MOCK_SERVICES.find(s => 
-                  category?.serviceCategoryName?.toLowerCase().includes(s.name.toLowerCase()) ||
-                  s.name.toLowerCase().includes(category?.serviceCategoryName?.toLowerCase() || '')
-                );
-                const serviceToUse = match || MOCK_SERVICES[0];
+                const targetService: any = category || serviceData;
+                const actualPrice = targetService?.offerPrice != null 
+                  ? Number(targetService.offerPrice)
+                  : (targetService?.price != null ? Number(targetService.price) : 499);
+                
+                const serviceToUse = {
+                  id: targetService?._id || targetService?.id || serviceCategoryId || '1',
+                  name: targetService?.serviceCategoryName || targetService?.name || 'Service',
+                  icon: 'sparkles-outline',
+                  description: targetService?.description || '',
+                  pricePerVisit: actualPrice,
+                };
                 
                 const store = useRecurringStore.getState();
                 store.resetDraft();
                 store.updateDraft({ service: serviceToUse });
                 
-                navigation.navigate('HomeTab' as any, { 
-                  screen: 'RecurringPlans',
-                  params: {
-                    screen: 'RecurringBooking',
-                    params: { fromServiceBooking: true }
-                  }
+                navigation.navigate('RecurringBooking', {
+                  fromServiceBooking: true,
+                  serviceCategoryId: serviceCategoryId || targetService?._id,
+                  serviceData: {
+                    ...targetService,
+                    _id: serviceToUse.id,
+                    serviceCategoryName: serviceToUse.name,
+                    price: actualPrice,
+                    offerPrice: actualPrice,
+                    description: serviceToUse.description,
+                  },
+                  domainServiceId,
+                  fromMain,
                 });
               } else {
                 setBookingMode(mode);
@@ -812,13 +1099,22 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         </Animated.View>
 
         {/* Schedule Selector - Conditional */}
-        {bookingMode === 'schedule' && (
+        {(bookingMode === 'schedule' || bookingMode === 'now') && (
           <Animated.View entering={FadeInDown.duration(400)}>
             <ScheduleSelector
+              isInstant={bookingMode === 'now'}
+              serviceCategoryId={serviceCategoryId || category?._id}
+              domainServiceId={domainServiceId || (typeof category?.domainService === 'string' ? category.domainService : (category?.domainService as any)?._id?.toString() || '')}
               selectedDate={selectedDate}
               selectedTime={selectedTime}
               onDatePress={() => setShowCalendar(true)}
               onTimePress={() => setShowTimePicker(true)}
+              onSelectSlot={(date: Date, time: Date, slotId: string, slotLabel: string) => {
+                setSelectedDate(date);
+                setSelectedTime(time);
+                if (slotId) setSelectedSlotId(slotId);
+                if (slotLabel) setSelectedSlotLabel(slotLabel);
+              }}
             />
           </Animated.View>
         )}
@@ -842,7 +1138,14 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <AppText weight="bold">Pay Full Amount</AppText>
-              <AppText size="small" color="textMuted">Pay ₹{totalPrice - discountAmount} online now</AppText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AppText size="small" color="textMuted">Pay ₹{totalPrice - discountAmount} online now</AppText>
+                {totalOriginalPrice > (totalPrice - discountAmount) && (
+                  <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
+                    ₹{totalOriginalPrice}
+                  </AppText>
+                )}
+              </View>
             </View>
           </TouchableOpacity>
 
@@ -930,6 +1233,13 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
                   style={{ color: theme.colors.textMuted, textDecorationLine: 'line-through' }}
                 >
                   ₹{totalPrice}
+                </AppText>
+              ) : totalOriginalPrice > totalPrice ? (
+                <AppText
+                  size="small"
+                  style={{ color: theme.colors.textMuted, textDecorationLine: 'line-through' }}
+                >
+                  ₹{totalOriginalPrice}
                 </AppText>
               ) : null}
               <AppText
@@ -1038,6 +1348,149 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           )}
         </View>
       </Modal>
+
+      {/* ADDRESS SELECTION BOTTOM SHEET MODAL */}
+      <Modal
+        visible={showAddressModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAddressModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowAddressModal(false)}
+          />
+
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View>
+                <AppText weight="bold" style={styles.modalHeaderTitle}>
+                  Select Service Address
+                </AppText>
+                <AppText size="caption" color="textMuted" style={{ marginTop: 2 }}>
+                  Where should our professional arrive?
+                </AppText>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setShowAddressModal(false)}
+              >
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick Actions */}
+            <View style={styles.quickActionsRow}>
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => {
+                  setShowAddressModal(false);
+                  handleUseCurrentLocation();
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.quickActionIconBg, { backgroundColor: "#ECFDF5" }]}>
+                  <Ionicons name="navigate" size={18} color="#059669" />
+                </View>
+                <AppText weight="semibold" style={styles.quickActionText}>
+                  Use Current GPS
+                </AppText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={handleOpenAddAddress}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.quickActionIconBg, { backgroundColor: "#EFF6FF" }]}>
+                  <Ionicons name="add" size={20} color="#2563EB" />
+                </View>
+                <AppText weight="semibold" style={styles.quickActionText}>
+                  Add New Address
+                </AppText>
+              </TouchableOpacity>
+            </View>
+
+            {/* Saved Addresses List Header */}
+            <AppText weight="bold" size="small" color="textMuted" style={styles.savedAddressesTitle}>
+              Saved Addresses
+            </AppText>
+
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              {savedAddresses.length === 0 ? (
+                <View style={styles.emptyAddressBox}>
+                  <Ionicons name="location-outline" size={36} color="#94A3B8" />
+                  <AppText size="small" color="textMuted" style={{ marginTop: 8, textAlign: "center" }}>
+                    No saved addresses found. You can add a new address or use current GPS location above.
+                  </AppText>
+                </View>
+              ) : (
+                savedAddresses.map((addr: any, idx: number) => {
+                  const isSelected =
+                    (selectedAddress?._id && (selectedAddress._id === addr._id || selectedAddress._id === addr.id)) ||
+                    (selectedAddress?.id && (selectedAddress.id === addr.id || selectedAddress.id === addr._id)) ||
+                    (selectedAddress?.line1 && selectedAddress.line1 === (addr.line1 || addr.address));
+
+                  const titleTag = addr.title || (idx === 0 ? "Home" : "Address");
+
+                  return (
+                    <TouchableOpacity
+                      key={addr._id || addr.id || idx}
+                      style={[
+                        styles.addressItemCard,
+                        isSelected && styles.addressItemCardActive,
+                      ]}
+                      onPress={() => handleSelectSavedAddress(addr)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ marginRight: 12, marginTop: 2 }}>
+                        <Ionicons
+                          name={isSelected ? "radio-button-on" : "radio-button-off"}
+                          size={20}
+                          color={isSelected ? theme.colors.primary : "#94A3B8"}
+                        />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <AppText weight="bold" style={{ fontSize: 14, color: isSelected ? theme.colors.primary : "#0F172A" }}>
+                            {titleTag}
+                          </AppText>
+                          {addr.isDefault && (
+                            <View style={styles.defaultChip}>
+                              <AppText style={styles.defaultChipText}>Default</AppText>
+                            </View>
+                          )}
+                        </View>
+
+                        {addr.flatNo || addr.apartmentName ? (
+                          <AppText size="small" weight="medium" style={{ color: "#334155", marginTop: 2 }} numberOfLines={1}>
+                            {[addr.flatNo ? `Flat ${addr.flatNo}` : '', addr.apartmentName].filter(Boolean).join(', ')}
+                          </AppText>
+                        ) : null}
+
+                        <AppText size="caption" color="textMuted" numberOfLines={2} style={{ marginTop: 2 }}>
+                          {addr.landmark ? `Near ${addr.landmark}, ` : ''}{addr.area || addr.line1 || addr.address}
+                        </AppText>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.addressEditBtn}
+                        onPress={() => handleEditAddressItem(addr)}
+                      >
+                        <Ionicons name="pencil" size={16} color="#64748B" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1114,9 +1567,145 @@ const createStyles = (theme: any) =>
       padding: 16,
       backgroundColor: theme.colors.surface,
       marginHorizontal: 16,
-      marginTop: 12,
-      borderRadius: 12,
+      marginTop: 14,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 2,
     },
+    locationIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    changeActionBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.colors.primary + "15",
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      gap: 3,
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    modalBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    modalSheet: {
+      backgroundColor: "#FFFFFF",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingTop: 20,
+      paddingHorizontal: 18,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 10,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: "#F1F5F9",
+    },
+    modalHeaderTitle: {
+      fontSize: 18,
+      color: "#0F172A",
+    },
+    modalCloseBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "#F1F5F9",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    quickActionsRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 14,
+    },
+    quickActionBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#F8FAFC",
+      borderRadius: 12,
+      padding: 10,
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+      gap: 8,
+    },
+    quickActionIconBg: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    quickActionText: {
+      fontSize: 12,
+      color: "#1E293B",
+      flex: 1,
+    },
+    savedAddressesTitle: {
+      marginTop: 16,
+      marginBottom: 10,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    emptyAddressBox: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 28,
+      paddingHorizontal: 16,
+    },
+    addressItemCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 14,
+      backgroundColor: "#F8FAFC",
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: "#E2E8F0",
+      marginBottom: 10,
+    },
+    addressItemCardActive: {
+      borderColor: theme.colors.primary || "#047857",
+      backgroundColor: "#F0FDF4",
+    },
+    defaultChip: {
+      backgroundColor: "#ECFDF5",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: "#A7F3D0",
+    },
+    defaultChipText: {
+      fontSize: 10,
+      color: "#059669",
+      fontWeight: "700",
+    },
+    addressEditBtn: {
+      padding: 6,
+      borderRadius: 8,
+      marginLeft: 8,
+    },
+
     referralCard: {
       padding: 16,
       backgroundColor: theme.colors.surface,
@@ -1144,6 +1733,11 @@ const createStyles = (theme: any) =>
       marginBottom: 16,
       borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    couponSectionApplied: {
+      backgroundColor: "#FFFFFF",
+      borderLeftWidth: 4,
+      borderLeftColor: theme.colors.success,
     },
     couponInputContainer: {
       flex: 1,
@@ -1328,6 +1922,30 @@ const createStyles = (theme: any) =>
     },
     cancelConfirmBtnFill: {
       borderWidth: 0,
+    },
+    offerBannerCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#DCFCE7',
+      borderColor: '#86EFAC',
+      borderWidth: 1,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginHorizontal: theme.spacing.lg || 16,
+      marginBottom: 16,
+    },
+    offerBannerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    offerBannerBadge: {
+      backgroundColor: '#16A34A',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
     },
   });
 

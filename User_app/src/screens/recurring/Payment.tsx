@@ -18,15 +18,11 @@ export default function Payment() {
   const editPlanId = route.params?.editPlanId;
 
   const { draft, updateDraft } = useRecurringStore();
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('razorpay');
 
   useEffect(() => {
-    if (draft.paymentMethod) {
-      setSelectedMethod(draft.paymentMethod);
-    } else {
-      setSelectedMethod('upi'); // default choice
-    }
-  }, [draft.paymentMethod]);
+    setSelectedMethod('razorpay');
+  }, []);
 
   const getPricePerVisit = () => {
     return draft.service?.pricePerVisit || 499;
@@ -35,16 +31,22 @@ export default function Payment() {
   const getEstimatedMonthlyCost = () => {
     const price = getPricePerVisit();
     const freq = draft.frequency;
-    if (freq === 'weekly') return price * 4;
-    if (freq === 'every-2-weeks') return price * 2;
+    if (freq === 'everyday') return price * 26; // Mon-Sat approx 26 visits
+    if (freq === 'weekly') return price * (draft.schedule?.weekdays?.length || 1) * 4;
+    if (freq === 'every-2-weeks') return price * (draft.schedule?.weekdays?.length || 1) * 2;
     if (freq === 'monthly') return price * 1;
-    return price * 4; // custom
+    return price * (draft.schedule?.weekdays?.length || 1) * 4; // custom
+  };
+
+  const getVisitsSummaryText = () => {
+    if (draft.frequency === 'everyday') return 'Calculated based on ~26 visits/month (Monday - Saturday)';
+    const dayCount = draft.schedule?.weekdays?.length || 1;
+    return `Calculated based on ${dayCount * 4} visits per month (${dayCount} day${dayCount > 1 ? 's' : ''}/week)`;
   };
 
   const handleContinue = () => {
-    if (!selectedMethod) return;
     updateDraft({ 
-      paymentMethod: selectedMethod,
+      paymentMethod: 'razorpay',
       pricePerVisit: getPricePerVisit(),
       estimatedMonthlyCost: getEstimatedMonthlyCost()
     });
@@ -80,14 +82,14 @@ export default function Payment() {
       >
         <View style={styles.container}>
           <SectionHeader 
-            title="Setup AutoPay"
-            subtitle="Enable automatic payments for a seamless cleaning routine."
+            title="Monthly Subscription"
+            subtitle="Automated monthly subscription via Razorpay for seamless recurring cleanings."
           />
 
           {/* Pricing Estimation Card */}
           <View style={styles.pricingCard}>
             <AppText weight="bold" style={styles.pricingHeader}>
-              Pricing Summary
+              Subscription Pricing Summary
             </AppText>
             
             <View style={styles.pricingRow}>
@@ -100,10 +102,10 @@ export default function Payment() {
             <View style={styles.divider} />
 
             <View style={styles.pricingRow}>
-              <View>
-                <AppText style={styles.pricingLabel}>Estimated Monthly Cost</AppText>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <AppText style={styles.pricingLabel}>Monthly Subscription Cost</AppText>
                 <AppText style={styles.pricingSublabel}>
-                  Calculated based on {draft.frequency === 'weekly' ? '4 visits' : draft.frequency === 'every-2-weeks' ? '2 visits' : '1 visit'} per month
+                  {getVisitsSummaryText()}
                 </AppText>
               </View>
               <AppText weight="bold" style={styles.pricingTotalValue}>
@@ -114,45 +116,27 @@ export default function Payment() {
 
           {/* AutoPay Methods Selection */}
           <AppText weight="bold" style={styles.selectionTitle}>
-            Choose AutoPay Method
+            Payment Method
           </AppText>
 
           <View style={styles.methodsContainer}>
             <SelectionCard
-              selected={selectedMethod === 'upi'}
-              onPress={() => setSelectedMethod('upi')}
-              style={styles.card}
-            >
-              <View style={styles.cardContent}>
-                <View style={[styles.iconBg, selectedMethod === 'upi' && styles.iconBgSelected]}>
-                  <Ionicons name="flash-outline" size={24} color={selectedMethod === 'upi' ? '#0F6A4B' : '#4B5563'} />
-                </View>
-                <View style={styles.textContainer}>
-                  <AppText weight="bold" style={styles.methodTitle}>
-                    UPI AutoPay (Recommended)
-                  </AppText>
-                  <AppText style={styles.methodSubtitle}>
-                    Authorize once via GPay, PhonePe, or Paytm. 1-tap secure setup.
-                  </AppText>
-                </View>
-              </View>
-            </SelectionCard>
-
-            <SelectionCard
-              selected={selectedMethod === 'razorpay'}
+              selected={true}
               onPress={() => setSelectedMethod('razorpay')}
               style={styles.card}
             >
               <View style={styles.cardContent}>
-                <View style={[styles.iconBg, selectedMethod === 'razorpay' && styles.iconBgSelected]}>
-                  <Ionicons name="shield-checkmark-outline" size={24} color={selectedMethod === 'razorpay' ? '#0F6A4B' : '#4B5563'} />
+                <View style={[styles.iconBg, styles.iconBgSelected]}>
+                  <Ionicons name="card-outline" size={24} color="#0F6A4B" />
                 </View>
                 <View style={styles.textContainer}>
-                  <AppText weight="bold" style={styles.methodTitle}>
-                    Razorpay Subscriptions
-                  </AppText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <AppText weight="bold" style={styles.methodTitle}>
+                      Monthly Subscription (Razorpay)
+                    </AppText>
+                  </View>
                   <AppText style={styles.methodSubtitle}>
-                    Use Credit Card, Debit Card or Netbanking for automated payments.
+                    Automatic recurring monthly subscription. Supports Cards, Netbanking, UPI & Wallets.
                   </AppText>
                 </View>
               </View>
@@ -161,8 +145,8 @@ export default function Payment() {
 
           {/* Information Card */}
           <InfoCard
-            text="Payment will automatically happen after every scheduled visit. No advance deductions."
-            iconName="shield-outline"
+            text="Subscription is charged on a monthly cycle based on your scheduled cleaning dates. You can pause or cancel at any time."
+            iconName="shield-checkmark-outline"
             style={styles.info}
           />
         </View>
@@ -171,9 +155,9 @@ export default function Payment() {
       {/* Sticky Bottom Actions */}
       <View style={styles.bottomBar}>
         <PrimaryButton
-          title="Continue"
+          title="Continue to Review"
           onPress={handleContinue}
-          disabled={!selectedMethod}
+          disabled={false}
           iconName="arrow-forward"
           style={styles.continueBtn}
         />

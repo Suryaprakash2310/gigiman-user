@@ -4,8 +4,9 @@ import AppText from "@/src/components/ui/AppText";
 import { BookingItem } from "@/src/context/BookingContext";
 import { useTheme } from "@/src/theme/useTheme";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 
 interface Props {
   booking: BookingItem;
@@ -171,9 +172,16 @@ export default function BookingListCard({ booking, onPress, onReviewPress }: Pro
     <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
       <AppCard style={styles.card}>
         <View style={styles.rowTop}>
-          <AppText weight="bold" style={styles.serviceName}>
-            {booking.serviceCategoryName}
-          </AppText>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <AppText weight="bold" style={styles.serviceName}>
+              {booking.serviceCategoryName}
+            </AppText>
+            {(booking.bookingCode || (booking._id && String(booking._id).startsWith('GGM-'))) ? (
+              <AppText size="caption" style={{ color: theme.colors.primary, fontWeight: '700', marginTop: 1 }}>
+                #{booking.bookingCode || String(booking._id)}
+              </AppText>
+            ) : null}
+          </View>
 
           {booking.totalPrice && (
             <View style={{ alignItems: "flex-end" }}>
@@ -247,19 +255,25 @@ export default function BookingListCard({ booking, onPress, onReviewPress }: Pro
 
         {/* ⏱️ LIVE SYNCHRONIZED JOB SERVICE TIMER IN ONGOING TAB */}
         {isInProgress && liveRemaining != null && (
-          <View style={styles.ongoingTimerCard}>
+          <LinearGradient
+            colors={['#06231B', '#0D382B']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.ongoingTimerCard}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <View style={styles.timerPulseDot} />
-              <Ionicons name="timer-outline" size={16} color="#047857" />
-              <AppText weight="bold" size="small" style={{ color: "#065F46" }}>
-                Job Service Timer
+              <Ionicons name="time" size={14} color="#34D399" />
+              <AppText weight="bold" size="small" style={{ color: "#34D399", fontSize: 12, letterSpacing: 0.5 }}>
+                ACTIVE TIMER
               </AppText>
             </View>
             <AppText weight="bold" style={styles.ongoingTimerDigits}>
               {formatMinSec(liveRemaining)}
             </AppText>
-          </View>
+          </LinearGradient>
         )}
+
 
         <View style={styles.rowMid}>
           <AppText size="small" color="textMuted" numberOfLines={1}>
@@ -317,11 +331,16 @@ export default function BookingListCard({ booking, onPress, onReviewPress }: Pro
             )}
           </View>
 
-          {booking.name &&
+          {Boolean(booking.name || booking.phone) &&
             ![ "searching", "cancelled" ].includes(booking.status) && (
-              <AppText size="small" color="textMuted">
-                {booking.status === "completed" ? "By" : "With"} {booking.name}
-              </AppText>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                <AppText size="small" color="textMuted">
+                  {booking.status === "completed" ? "By" : "With"} {booking.name || "Technician"}
+                </AppText>
+                {booking.phone ? (
+                  <Ionicons name="call-outline" size={12} color="#0D9488" style={{ marginLeft: 2 }} />
+                ) : null}
+              </View>
             )}
         </View>
 
@@ -407,25 +426,27 @@ const createStyles = (theme: any) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: "#ECFDF5",
-      borderWidth: 1.5,
-      borderColor: "#10B981",
       borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "rgba(16, 185, 129, 0.4)",
       paddingHorizontal: 12,
       paddingVertical: 8,
       marginBottom: 10,
     },
     timerPulseDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
       backgroundColor: "#10B981",
     },
     ongoingTimerDigits: {
       fontSize: 16,
-      color: "#065F46",
-      letterSpacing: 1,
+      fontWeight: "800",
+      color: "#FFFFFF",
+      letterSpacing: 1.2,
+      fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     },
+
     rowMid: {
       marginBottom: 8,
     },

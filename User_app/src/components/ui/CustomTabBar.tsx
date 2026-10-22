@@ -62,10 +62,15 @@ export default function CustomTabBar({
                   : "Profile";
 
           const onPress = () => {
-            if (!isFocused) {
+            if (route.name === "BookingTab") {
+              navigation.navigate("BookingTab", { screen: "BookingsMain" });
+            } else if (route.name === "ServiceTab") {
+              navigation.navigate("ServiceTab", { screen: "MainServiceScreen" });
+            } else if (!isFocused) {
               navigation.navigate(route.name);
             }
           };
+
 
           return (
             <TouchableOpacity

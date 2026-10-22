@@ -85,9 +85,9 @@ export default function ProfileScreen() {
 
         {/* MAIN MENU */}
         <View style={styles.menuBlock}>
-          {PROFILE_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; screen: string; }) => (
+          {PROFILE_MENU.map((item, index) => (
             <ProfileMenuItem
-              key={item.id}
+              key={item.id ?? `profile-menu-${index}`}
               label={item.label}
               icon={item.icon}
               onPress={() => handlePress(item.screen)}
@@ -97,9 +97,9 @@ export default function ProfileScreen() {
 
         {/* SUPPORT MENU */}
         <View style={styles.menuBlock}>
-          {SUPPORT_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; screen: string; url?: string; }) => (
+          {SUPPORT_MENU.map((item, index) => (
             <ProfileMenuItem
-              key={item.id}
+              key={item.id ?? `support-menu-${index}`}
               label={item.label}
               icon={item.icon}
               onPress={() => handlePress(item.screen, item.url)}
@@ -117,9 +117,9 @@ export default function ProfileScreen() {
 
         {/* LOGOUT */}
         <View style={styles.menuBlock}>
-          {LOGOUT_MENU.map((item: { id: React.Key | null | undefined; label: string; icon: string; }) => (
+          {LOGOUT_MENU.map((item, index) => (
             <ProfileMenuItem
-              key={item.id}
+              key={item.id ?? `logout-menu-${index}`}
               label={item.label}
               icon={item.icon}
               isDestructive

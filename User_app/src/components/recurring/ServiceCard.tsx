@@ -10,6 +10,7 @@ interface ServiceCardProps {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
   pricePerVisit: number;
+  originalPricePerVisit?: number;
   selected: boolean;
   onPress: () => void;
   style?: ViewStyle;
@@ -20,6 +21,7 @@ export default function ServiceCard({
   description,
   icon,
   pricePerVisit,
+  originalPricePerVisit,
   selected,
   onPress,
   style,
@@ -42,6 +44,11 @@ export default function ServiceCard({
             <AppText weight="bold" style={styles.priceValue}>
               ₹{pricePerVisit}
             </AppText>
+            {originalPricePerVisit != null && Number(originalPricePerVisit) > Number(pricePerVisit) && (
+              <AppText style={[styles.priceLabel, { textDecorationLine: 'line-through', marginLeft: 6 }]}>
+                ₹{originalPricePerVisit}
+              </AppText>
+            )}
           </View>
         </View>
       </View>

@@ -20,6 +20,7 @@ export default function ScheduleCard({
 }: ScheduleCardProps) {
   const { theme } = useTheme();
   const primaryColor = theme.colors.primary || '#f97316';
+  const isEveryday = frequency === 'everyday';
   const isWeekly = frequency === 'weekly';
   const isMonthly = frequency === 'monthly';
   const isEvery2Weeks = frequency === 'every-2-weeks';
@@ -31,6 +32,7 @@ export default function ScheduleCard({
   };
 
   const getFrequencyText = () => {
+    if (isEveryday) return 'Everyday (Mon - Sat)';
     if (isWeekly) return 'Weekly';
     if (isEvery2Weeks) return 'Every 2 Weeks';
     if (isMonthly) return 'Monthly';
@@ -47,6 +49,12 @@ export default function ScheduleCard({
             {getFrequencyText()}
           </AppText>
           
+          {isEveryday && (
+            <AppText style={styles.detailText}>
+              Everyday from Monday to Saturday (Sundays excluded)
+            </AppText>
+          )}
+
           {isWeekly && (
             <AppText style={styles.detailText}>
               Every {formatWeekdays(schedule.weekdays)}
@@ -71,9 +79,11 @@ export default function ScheduleCard({
 
           {isCustom && (
             <AppText style={styles.detailText}>
-              {schedule.customInterval
-                ? `Repeating every ${schedule.customInterval} ${schedule.customInterval === 1 ? schedule.customUnit?.slice(0, -1) : schedule.customUnit}${schedule.customUnit === 'weeks' && schedule.weekdays ? ` on ${formatWeekdays(schedule.weekdays)}` : ''}${schedule.customUnit === 'months' && schedule.monthlyDay ? ` on Day ${schedule.monthlyDay}` : ''}`
-                : 'Custom schedule setup'}
+              {schedule.weekdays && schedule.weekdays.length > 0
+                ? `Repeating on ${formatWeekdays(schedule.weekdays)}`
+                : (schedule.customInterval
+                  ? `Repeating every ${schedule.customInterval} ${schedule.customInterval === 1 ? schedule.customUnit?.slice(0, -1) : schedule.customUnit}`
+                  : 'Custom schedule setup')}
             </AppText>
           )}
         </View>

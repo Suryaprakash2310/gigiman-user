@@ -30,7 +30,7 @@ export function createStore<T>(
 
   state = initialStateCreator(set, get);
 
-  const useStore = <U>(selector: (state: T) => U = (s => s as any)): U => {
+  const useStore = <U = T>(selector: (state: T) => U = (s => s as any)): U => {
     const [, forceUpdate] = useState(0);
 
     useEffect(() => {
@@ -138,7 +138,7 @@ export interface RecurringStore {
   // Actions
   updateDraft: (updates: Partial<RecurringPlan>) => void;
   resetDraft: () => void;
-  createPlan: () => Promise<void>;
+  createPlan: () => Promise<any>;
   fetchPlans: () => Promise<void>;
   
   pausePlan: (planId: string) => Promise<void>;
@@ -220,9 +220,17 @@ export const useRecurringStore = createStore<RecurringStore>((set, get) => ({
 
     const basePrice = draft.service.pricePerVisit;
     let multiplier = 1;
-    if (draft.frequency === 'weekly') multiplier = 4;
-    else if (draft.frequency === 'every-2-weeks') multiplier = 2;
-    else if (draft.frequency === 'monthly') multiplier = 1;
+    if (draft.frequency === 'everyday') {
+      multiplier = 26; // Mon-Sat approx 26 days per month
+    } else if (draft.frequency === 'weekly') {
+      multiplier = (draft.schedule.weekdays?.length || 1) * 4;
+    } else if (draft.frequency === 'every-2-weeks') {
+      multiplier = (draft.schedule.weekdays?.length || 1) * 2;
+    } else if (draft.frequency === 'monthly') {
+      multiplier = 1;
+    } else if (draft.frequency === 'custom') {
+      multiplier = (draft.schedule.weekdays?.length || 1) * 4;
+    }
 
     const pricePerVisit = Math.round(basePrice * 0.9);
     const estimatedMonthlyCost = pricePerVisit * multiplier;
@@ -231,17 +239,19 @@ export const useRecurringStore = createStore<RecurringStore>((set, get) => ({
       service: draft.service.id,
       frequency: draft.frequency,
       schedule: {
-        weekdays: draft.schedule.weekdays || [],
-        time: draft.schedule.time || '10 AM-12 PM',
-        startDate: draft.schedule.startDate || '08 Aug 2026',
-        isNoEndDate: draft.schedule.isNoEndDate !== false,
-        endDate: draft.schedule.endDate || null,
+        weekdays: draft.frequency === 'everyday'
+          ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+          : (draft.schedule.weekdays || []),
+        time: draft.schedule.time || '10:00 AM',
+        startDate: draft.schedule.startDate || new Date().toISOString().split('T')[0],
+        isNoEndDate: false,
+        endDate: draft.schedule.endDate || '',
         monthlyDay: draft.schedule.monthlyDay || null,
         customInterval: draft.schedule.customInterval || null,
         customUnit: draft.schedule.customUnit || null,
       },
       cleanerPreference: draft.cleanerPreference || 'same-cleaner',
-      paymentMethod: draft.paymentMethod || 'upi',
+      paymentMethod: draft.paymentMethod || 'razorpay',
       pricePerVisit,
       estimatedMonthlyCost,
       reminders: draft.reminders || { notify1Day: true, notify1Hour: true }
@@ -264,20 +274,22 @@ export const useRecurringStore = createStore<RecurringStore>((set, get) => ({
 
     // Fallback: create locally
     const startDate = draft.schedule.startDate || new Date().toISOString().split('T')[0];
-    const visitTime = draft.schedule.time || '10 AM-12 PM';
+    const visitTime = draft.schedule.time || '10:00 AM';
     const newPlan: RecurringPlan = {
       id: `plan_${Date.now()}`,
       service: draft.service,
       frequency: draft.frequency,
       schedule: {
-        weekdays: draft.schedule.weekdays || [],
+        weekdays: draft.frequency === 'everyday'
+          ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+          : (draft.schedule.weekdays || []),
         time: visitTime,
         startDate: startDate,
-        endDate: draft.schedule.endDate,
-        isNoEndDate: draft.schedule.isNoEndDate,
+        endDate: draft.schedule.endDate || '',
+        isNoEndDate: false,
       },
       cleanerPreference: draft.cleanerPreference || 'best-available',
-      paymentMethod: draft.paymentMethod || 'upi',
+      paymentMethod: draft.paymentMethod || 'razorpay',
       pricePerVisit,
       estimatedMonthlyCost,
       status: 'active',

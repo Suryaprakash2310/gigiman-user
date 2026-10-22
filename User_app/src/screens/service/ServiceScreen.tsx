@@ -24,6 +24,8 @@ import ServiceSearchBar from "@/src/components/service/ServiceSearchBar";
 import SubServiceList from "@/src/components/service/SubServiceList";
 import { sortServicesByAvailability } from "@/src/utils/serviceStatus";
 
+import { useAuthContext } from "@/src/context/AuthContext";
+
 interface ServiceState {
   services: DomainService[];
   loading: boolean;
@@ -39,6 +41,7 @@ interface SubServiceState {
 const { width } = Dimensions.get("window");
 
 export default function ServicesScreen({ navigation }: any) {
+  const { user } = useAuthContext();
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
@@ -50,6 +53,12 @@ export default function ServicesScreen({ navigation }: any) {
     loading: true,
     error: null,
   });
+
+  const [regionInfo, setRegionInfo] = useState<{
+    currentRegion?: string;
+    isBookingAllowed?: boolean;
+    isRegionRestricted?: boolean;
+  }>({});
 
   const [subServiceState, setSubServiceState] = useState<SubServiceState>({
     services: [],
@@ -64,12 +73,29 @@ export default function ServicesScreen({ navigation }: any) {
   // Load services on mount
   useEffect(() => {
     loadServices();
-  }, []);
+  }, [user]);
 
   const loadServices = useCallback(async () => {
     try {
       setServiceState((prev) => ({ ...prev, loading: true, error: null }));
-      const res = await ServiceAPI.getServicesAPI();
+      const defaultAddr = (user as any)?.addresses?.find((a: any) => a.isDefault) || (user as any)?.addresses?.[0];
+      const userRegion = (user as any)?.region || (user as any)?.city || defaultAddr?.city || defaultAddr?.region || "";
+      const userPincode = (user as any)?.pincode || (user as any)?.postalCode || defaultAddr?.pincode || defaultAddr?.postalCode || "";
+      const lat = (user as any)?.location?.coordinates?.[1] || defaultAddr?.location?.coordinates?.[1];
+      const lng = (user as any)?.location?.coordinates?.[0] || defaultAddr?.location?.coordinates?.[0];
+
+      const res = await ServiceAPI.getServicesAPI(userRegion, userPincode, lat, lng);
+      if (res) {
+        const regStr = typeof res.currentRegion === "object" && res.currentRegion !== null
+          ? (res.currentRegion.name || res.currentRegion.code || "")
+          : String(res.currentRegion || "");
+
+        setRegionInfo({
+          currentRegion: regStr,
+          isBookingAllowed: res.isBookingAllowed,
+          isRegionRestricted: res.isRegionRestricted,
+        });
+      }
       const servicesList = sortServicesByAvailability(res.services || []);
       setServiceState({
         services: servicesList as DomainService[],
@@ -84,7 +110,7 @@ export default function ServicesScreen({ navigation }: any) {
         error: "Failed to load services. Please try again.",
       }));
     }
-  }, []);
+  }, [user]);
 
   const loadSubServices = useCallback(
     async (domainName: string, domainId: string) => {
@@ -422,5 +448,41 @@ const createStyles = (theme: any) =>
     errorWrapperText: {
       marginTop: theme.spacing.md,
       textAlign: "center",
+    },
+    regionAlertBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#FEF3C7",
+      borderWidth: 1,
+      borderColor: "#FDE68A",
+      borderRadius: theme.radius.md,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginHorizontal: theme.spacing.lg,
+      marginBottom: 12,
+      gap: 8,
+    },
+    regionAlertText: {
+      color: "#92400E",
+      fontSize: 12,
+      lineHeight: 16,
+      flex: 1,
+    },
+    regionBadgeBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#ECFDF5",
+      borderWidth: 1,
+      borderColor: "#A7F3D0",
+      borderRadius: theme.radius.md,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      marginHorizontal: theme.spacing.lg,
+      marginBottom: 12,
+      gap: 6,
+    },
+    regionBadgeText: {
+      color: "#065F46",
+      fontSize: 12,
     },
   });

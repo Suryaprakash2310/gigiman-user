@@ -13,6 +13,13 @@ export interface Address {
   title: string;
   line1?: string;
   address?: string;
+  flatNo?: string;
+  floor?: string;
+  apartmentName?: string;
+  landmark?: string;
+  area?: string;
+  receiverPhone?: string;
+  receiverName?: string;
   city?: string;
   pincode?: string;
   isDefault?: boolean;
@@ -21,6 +28,7 @@ export interface Address {
   isRegionAllowed?: boolean;
   regionAllowed?: boolean;
 }
+
 
 interface Props {
   address: Address;

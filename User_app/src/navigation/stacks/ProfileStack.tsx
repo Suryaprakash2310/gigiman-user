@@ -32,8 +32,13 @@ export default function ProfileStack() {
       <Stack.Screen name="PersonalDetailsPage" component={PersonalDetailsPage} />
       <Stack.Screen name="PaymentHistoryPage" component={PaymentHistoryPage} />
       <Stack.Screen name="HelpCenterPage" component={HelpCenterPage} />
-       <Stack.Screen name="SavedAddressesScreen" component={SavedAddressesScreen} />
-       <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+      <Stack.Screen name="SavedAddressesScreen" component={SavedAddressesScreen} />
+      <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
+      <Stack.Screen name="Addresses" component={SavedAddressesScreen} />
+      <Stack.Screen name="Address" component={SavedAddressesScreen} />
+      <Stack.Screen name="AddressScreen" component={SavedAddressesScreen} />
+      <Stack.Screen name="ProfileAddress" component={SavedAddressesScreen} />
+      <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
       <Stack.Screen name="AboutPage" component={AboutPage} />
       <Stack.Screen name="TermsAndConditionsPage" component={TermsAndConditionsPage} />
       <Stack.Screen name="AddEditAddress" component={AddEditAddressScreen} />

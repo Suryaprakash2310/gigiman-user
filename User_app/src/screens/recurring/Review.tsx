@@ -39,10 +39,7 @@ export default function Review() {
   };
 
   const getPaymentLabel = () => {
-    const pay = draft.paymentMethod;
-    if (pay === 'upi') return 'UPI AutoPay (GPay/PhonePe)';
-    if (pay === 'razorpay') return 'Razorpay Subscription';
-    return 'UPI AutoPay';
+    return 'Monthly Subscription (Razorpay)';
   };
 
   return (
@@ -126,11 +123,11 @@ export default function Review() {
           <View style={styles.card}>
             <View style={styles.sectionHeaderRow}>
               <Ionicons name="card-outline" size={18} color="#0F6A4B" />
-              <AppText weight="bold" style={styles.sectionTitle}>Payment & Cost Estimation</AppText>
+              <AppText weight="bold" style={styles.sectionTitle}>Payment & Subscription</AppText>
             </View>
             
             <View style={styles.paymentRow}>
-              <AppText style={styles.paymentLabel}>AutoPay Method</AppText>
+              <AppText style={styles.paymentLabel}>Payment Mode</AppText>
               <AppText weight="semibold" style={styles.paymentValue}>{getPaymentLabel()}</AppText>
             </View>
 
@@ -142,13 +139,13 @@ export default function Review() {
             </View>
 
             <View style={styles.paymentRow}>
-              <AppText style={styles.paymentLabel}>Est. Monthly Cost</AppText>
+              <AppText style={styles.paymentLabel}>Monthly Subscription Cost</AppText>
               <AppText weight="bold" style={styles.monthlyPrice}>₹{draft.estimatedMonthlyCost}</AppText>
             </View>
           </View>
 
           <AppText style={styles.agreementText}>
-            By creating this recurring plan, you authorize Gigiman to verify your AutoPay credentials and automatically charge your account after each completed visit.
+            By creating this recurring plan, you authorize Gigiman to activate your monthly subscription and automatically schedule your regular cleaning visits.
           </AppText>
         </View>
       </ScrollView>
@@ -156,7 +153,7 @@ export default function Review() {
       {/* Sticky Bottom Actions */}
       <View style={styles.bottomBar}>
         <PrimaryButton
-          title={editPlanId ? 'Update Subscription' : 'Create Plan & Setup AutoPay'}
+          title={editPlanId ? 'Update Subscription' : 'Activate Monthly Subscription'}
           onPress={handleCreatePlan}
           iconName="lock-closed"
           style={styles.createBtn}

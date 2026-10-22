@@ -28,32 +28,36 @@ export default function SavedAddressesScreen() {
     if (!Array.isArray(rawList)) return [];
     return rawList.map((a: any) => ({
       id: a._id || a.id,
+      _id: a._id || a.id,
       title: a.title || '',
       line1: a.address || a.line1 || '',
+      address: a.address || a.line1 || '',
+      flatNo: a.flatNo || '',
+      floor: a.floor || '',
+      apartmentName: a.apartmentName || '',
+      landmark: a.landmark || '',
+      area: a.area || '',
+      receiverPhone: a.receiverPhone || '',
+      receiverName: a.receiverName || '',
       latitude: a.location?.coordinates?.[1] ?? a.latitude,
       longitude: a.location?.coordinates?.[0] ?? a.longitude,
       isDefault: a.isDefault || a.is_default || false,
       isRegionAllowed: a.isRegionAllowed !== undefined ? a.isRegionAllowed : a.regionAllowed,
       regionAllowed: a.regionAllowed,
     }));
+
   };
 
-  const MOCK_ADDRESS: Address = {
-    id: "mock-home-1",
-    title: "home",
-    line1: "Nawab Garden Street 15a, 620003 Tiruchirappalli, India",
-    latitude: 10.805,
-    longitude: 78.6856,
-    isDefault: true,
-  };
-
-  // Load from local cache
+  // Load from local cache and API
   const loadAddresses = async () => {
     let cachedList: Address[] = [];
     try {
       const cached = await AsyncStorage.getItem(STORAGE_KEY);
       if (cached) {
         cachedList = JSON.parse(cached);
+        if (Array.isArray(cachedList) && cachedList.length > 0) {
+          setAddresses(cachedList);
+        }
       }
     } catch (cacheErr) {
       console.log("Failed to load cached addresses", cacheErr);
@@ -61,27 +65,19 @@ export default function SavedAddressesScreen() {
 
     try {
       const res = await getAddressesAPI();
-      const formatted = formatAddresses(res.data.addresses);
+      const formatted = formatAddresses(res.data?.addresses);
       if (formatted.length > 0) {
         setAddresses(formatted);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
-      } else {
-        if (cachedList.length > 0) {
-          setAddresses(cachedList);
-        } else {
-          const defaultList = [MOCK_ADDRESS];
-          setAddresses(defaultList);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultList));
-        }
-      }
-    } catch (err) {
-      console.log("Failed to load addresses", err);
-      if (cachedList.length > 0) {
+      } else if (cachedList.length > 0) {
         setAddresses(cachedList);
       } else {
-        const defaultList = [MOCK_ADDRESS];
-        setAddresses(defaultList);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultList));
+        setAddresses([]);
+      }
+    } catch (err) {
+      console.log("Failed to load addresses from API", err);
+      if (cachedList.length > 0) {
+        setAddresses(cachedList);
       }
     } finally {
       setLoading(false);
@@ -106,21 +102,37 @@ export default function SavedAddressesScreen() {
   const handleSelectAddress = (address: Address) => {
     if (!selectMode) return;
 
-    navigation.navigate("ServiceTab", {
-      screen: "Booking",
-      params: {
-        selectedAddress: address
-      }
+    navigation.navigate("Booking", {
+      selectedAddress: address,
+      ...(route.params?.serviceCategoryId ? { serviceCategoryId: route.params.serviceCategoryId } : {}),
+      ...(route.params?.serviceData ? { serviceData: route.params.serviceData } : {}),
+      ...(route.params?.domainServiceId ? { domainServiceId: route.params.domainServiceId } : {}),
+      ...(route.params?.fromMain ? { fromMain: route.params.fromMain } : {}),
     });
   };
 
   const handleAddAddress = () => {
-    navigation.navigate('AddEditAddress'); // Screen you’ll create
+    navigation.navigate('AddEditAddress', {
+      selectMode,
+      serviceCategoryId: route.params?.serviceCategoryId,
+      serviceData: route.params?.serviceData,
+      domainServiceId: route.params?.domainServiceId,
+      fromMain: route.params?.fromMain,
+    });
   };
 
   const handleEditAddress = (address: Address) => {
-    navigation.navigate('AddEditAddress', { addressId: address.id, address: address });
+    navigation.navigate('AddEditAddress', {
+      addressId: address.id || address._id,
+      address: address,
+      selectMode,
+      serviceCategoryId: route.params?.serviceCategoryId,
+      serviceData: route.params?.serviceData,
+      domainServiceId: route.params?.domainServiceId,
+      fromMain: route.params?.fromMain,
+    });
   };
+
 
   const handleDeleteAddress = async (addressId: string) => {
     try {
@@ -141,7 +153,24 @@ export default function SavedAddressesScreen() {
     saveAddresses(updated);
   };
   const handleBack = () => {
-    navigation.navigate('ProfileTab');
+    if (selectMode) {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("Booking", {
+          ...(route.params?.serviceCategoryId ? { serviceCategoryId: route.params.serviceCategoryId } : {}),
+          ...(route.params?.serviceData ? { serviceData: route.params.serviceData } : {}),
+          ...(route.params?.domainServiceId ? { domainServiceId: route.params.domainServiceId } : {}),
+          ...(route.params?.fromMain ? { fromMain: route.params.fromMain } : {}),
+        });
+      }
+    } else {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("ProfileScreen");
+      }
+    }
   };
 
   const renderItem = ({ item }: { item: Address }) => (
@@ -156,8 +185,7 @@ export default function SavedAddressesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* <AppHeader title="Saved Addresses" /> */}
-      <AppHeader showBack/>
+      <AppHeader title="Saved Addresses" showBack onBackPress={handleBack} />
 
       <View style={styles.body}>
         {/* Top text */}
@@ -187,7 +215,7 @@ export default function SavedAddressesScreen() {
         {/* List */}
         <FlatList
           data={addresses}
-          keyExtractor={(item) => item.id ? String(item.id) : ''}
+          keyExtractor={(item, index) => item.id ? String(item.id) : (item._id ? String(item._id) : `address-${index}`)}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}

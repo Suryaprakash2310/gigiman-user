@@ -260,7 +260,9 @@ export default function GlobalBookingListener() {
     socket.on("start-service-otp", onOtpGenerated);
     socket.on("booking-otp", onOtpGenerated);
     socket.on("otp-verified", onOtpVerified);
+    socket.on("otp_verified", onOtpVerified);
     socket.on("service-started", onServiceStarted);
+    socket.on("service_started", onServiceStarted);
     socket.on("in-progress", onServiceStarted);
     socket.on("service-in-progress", onServiceStarted);
     socket.on("service-timer-started", onGlobalTimerStatus);
@@ -308,7 +310,9 @@ export default function GlobalBookingListener() {
       socket.off("start-service-otp", onOtpGenerated);
       socket.off("booking-otp", onOtpGenerated);
       socket.off("otp-verified", onOtpVerified);
+      socket.off("otp_verified", onOtpVerified);
       socket.off("service-started", onServiceStarted);
+      socket.off("service_started", onServiceStarted);
       socket.off("in-progress", onServiceStarted);
       socket.off("service-in-progress", onServiceStarted);
       socket.off("service-timer-started", onGlobalTimerStatus);

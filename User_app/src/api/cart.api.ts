@@ -5,6 +5,8 @@ export interface CartItem {
   serviceCategoryId: string;
   serviceCategoryName: string;
   price: number;
+  originalPrice?: number;
+  offerPrice?: number;
   durationInMinutes: number;
   employeeCount: number;
   quantity: number;
@@ -19,6 +21,7 @@ export interface CartResponse {
     user: string;
     items: CartItem[];
     totalPrice: number;
+    totalOriginalPrice?: number;
     createdAt?: string;
     updatedAt?: string;
   };
@@ -36,6 +39,8 @@ export interface SuggestionResponse {
       description?: string;
       servicecategoryImage?: string;
       price: number;
+      originalPrice?: number;
+      offerPrice?: number;
       durationInMinutes: number;
       employeeCount: number;
     }>;
