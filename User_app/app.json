@@ -47,6 +47,7 @@
       "favicon": "./assets/images/logogigi.png"
     },
     "plugins": [
+      "@react-native-firebase/app",
       "expo-router",
       [
         "expo-splash-screen",
