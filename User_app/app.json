@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gigiman",
     "slug": "gigi-user",
-    "version": "1.0.2",
+    "version": "1.0.1", // android vs is 2 and ios vs is 1
     "orientation": "portrait",
     "icon": "./assets/images/logogigi.png",
     "notification": {
