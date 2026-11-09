@@ -48,6 +48,7 @@
     },
     "plugins": [
       "@react-native-firebase/app",
+      "./plugins/withIosNonModularHeaders",
       "expo-router",
       [
         "expo-splash-screen",
