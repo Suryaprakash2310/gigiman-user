@@ -48,7 +48,6 @@
     },
     "plugins": [
       "@react-native-firebase/app",
-      "./plugins/withIosNonModularHeaders",
       "expo-router",
       [
         "expo-splash-screen",
@@ -68,7 +67,12 @@
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBMessaging"
+            ]
           }
         }
       ]
