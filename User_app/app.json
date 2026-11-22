@@ -17,7 +17,14 @@
       "bundleIdentifier": "com.suryaprakash23.gigiuser",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "app-1-909756007187-ios-b067d6736ebdafbe6e10e6"
+            ]
+          }
+        ]
       }
     },
     "android": {
@@ -48,6 +55,7 @@
     },
     "plugins": [
       "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       "expo-router",
       [
         "expo-splash-screen",
