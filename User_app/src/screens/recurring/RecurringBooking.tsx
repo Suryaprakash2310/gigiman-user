@@ -13,7 +13,7 @@ import CalendarModal from '../../components/ui/CalendarModal';
 import apiClient from '@/src/api/client';
 import { useAuthContext } from '@/src/context/AuthContext';
 import { injectRazorpayData } from '@/src/utils/razorpayInjector';
-import { razorpayHTML } from '@/src/utils/razorpayTemplate';
+import { razorpayHTML, handlePaymentShouldStartLoadWithRequest } from '@/src/utils/razorpayTemplate';
 import { useTheme } from '../../theme/useTheme';
 
 export default function RecurringBooking() {
@@ -804,11 +804,19 @@ export default function RecurringBooking() {
           {paymentHtml && (
             <WebView
               originWhitelist={["*"]}
-              source={{ html: paymentHtml }}
-              javaScriptEnabled
-              domStorageEnabled
+              source={{ html: paymentHtml, baseUrl: "https://api.razorpay.com" }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
               onMessage={handleWebViewMessage}
-              startInLoadingState
+              onShouldStartLoadWithRequest={handlePaymentShouldStartLoadWithRequest}
+              javaScriptCanOpenWindowsAutomatically={true}
+              setSupportMultipleWindows={false}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
+              sharedCookiesEnabled={true}
+              thirdPartyCookiesEnabled={true}
+              mixedContentMode="always"
+              startInLoadingState={true}
               renderLoading={() => (
                 <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#ffffff' }}>
                   <ActivityIndicator size="large" color={primaryColor} />

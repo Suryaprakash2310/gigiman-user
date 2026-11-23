@@ -382,7 +382,7 @@ export default function MapPinLocationScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider="google"
+        provider={Platform.OS === "android" ? "google" : undefined}
         initialRegion={initialRegion}
         showsUserLocation={true}
         showsMyLocationButton={false}

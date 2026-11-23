@@ -13,6 +13,7 @@ import {
   FlatList,
   Platform,
   RefreshControl,
+  StatusBar,
   StyleSheet,
   TouchableOpacity,
   View
@@ -44,6 +45,7 @@ export default function ServiceCategory({ route, navigation }: any) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
+  const safeTop = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 20);
 
   const { cartItems, addToCart, fetchCart } = useCartContext();
 
@@ -199,10 +201,20 @@ export default function ServiceCategory({ route, navigation }: any) {
     <View
       style={[
         styles.safe,
-        { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+        { paddingTop: safeTop },
       ]}
     >
-      <AppHeader showBack onBackPress={() => navigation.navigate('MainServiceScreen')} title={serviceName} />
+      <AppHeader
+        showBack
+        onBackPress={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('MainServiceScreen');
+          }
+        }}
+        title={serviceName}
+      />
       <View style={{ flex: 1 }}>
         <FlatList
           style={{ flex: 1 }}

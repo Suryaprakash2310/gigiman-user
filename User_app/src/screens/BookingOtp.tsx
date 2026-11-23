@@ -27,7 +27,7 @@ import Animated, {
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { WebView } from 'react-native-webview';
-import { razorpayHTML } from "@/src/utils/razorpayTemplate";
+import { razorpayHTML, handlePaymentShouldStartLoadWithRequest } from "@/src/utils/razorpayTemplate";
 import { injectRazorpayData } from "@/src/utils/razorpayInjector";
 
 import { ServiceAPI, CategoryService } from "@/src/api/service.api";
@@ -366,13 +366,21 @@ export default function BookingOtp() {
         keyId,
         amountPaise: amount,
         orderId,
+        serviceName: booking?.serviceCategoryName || "Remaining Balance Payment",
+        itemTotal: Math.round(amount / 100),
         prefillName: user?.fullName,
         prefillEmail: user?.email,
         prefillContact: user?.phone,
       });
 
+      // Dismiss the balance payment sheet first to allow iOS to present the Razorpay modal
+      setShowPaymentSheet(false);
+      resetPaymentSheetFields();
+
       setPaymentHtml(html);
-      setShowWebViewModal(true);
+      setTimeout(() => {
+        setShowWebViewModal(true);
+      }, Platform.OS === 'ios' ? 350 : 50);
     } catch (err: any) {
       console.error('Payment error:', err);
       Alert.alert(
@@ -2296,11 +2304,19 @@ export default function BookingOtp() {
           {paymentHtml && (
             <WebView
               originWhitelist={["*"]}
-              source={{ html: paymentHtml }}
-              javaScriptEnabled
-              domStorageEnabled
+              source={{ html: paymentHtml, baseUrl: "https://api.razorpay.com" }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
               onMessage={handleWebViewMessage}
-              startInLoadingState
+              onShouldStartLoadWithRequest={handlePaymentShouldStartLoadWithRequest}
+              javaScriptCanOpenWindowsAutomatically={true}
+              setSupportMultipleWindows={false}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
+              sharedCookiesEnabled={true}
+              thirdPartyCookiesEnabled={true}
+              mixedContentMode="always"
+              startInLoadingState={true}
               renderLoading={() => (
                 <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#ffffff' }}>
                   <ActivityIndicator size="large" color="#f97316" />

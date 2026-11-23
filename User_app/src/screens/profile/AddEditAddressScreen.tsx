@@ -283,7 +283,7 @@ export default function AddEditAddressScreen() {
     });
   };
 
-  const isFormValid = flatNo.trim().length > 0 && apartmentName.trim().length > 0 && locality.trim().length > 0 && receiverPhone.trim().length >= 10;
+  const isFormValid = flatNo.trim().length > 0 && apartmentName.trim().length > 0 && locality.trim().length > 0;
 
   const handleSaveAddress = async () => {
     if (!flatNo.trim()) {
@@ -296,10 +296,6 @@ export default function AddEditAddressScreen() {
     }
     if (!locality.trim() || !coordinates) {
       Alert.alert("Required Field", "Please select a valid area / locality.");
-      return;
-    }
-    if (!receiverPhone.trim() || receiverPhone.trim().length < 10) {
-      Alert.alert("Required Field", "Please enter a valid 10-digit phone number.");
       return;
     }
 
@@ -317,6 +313,11 @@ export default function AddEditAddressScreen() {
 
       const fullAddressString = addressParts.join(", ");
 
+      const fallbackPhone = (user as any)?.phone || (user as any)?.phoneNo || "";
+      const fallbackName = user?.fullName || "User";
+      const finalPhone = receiverPhone?.trim() || fallbackPhone;
+      const finalName = receiverName?.trim() || fallbackName;
+
       const payload = {
         title: addressTag,
         address: fullAddressString,
@@ -325,8 +326,8 @@ export default function AddEditAddressScreen() {
         apartmentName: apartmentName.trim(),
         landmark: landmark.trim(),
         area: locality.trim(),
-        receiverPhone: receiverPhone.startsWith("+91") ? receiverPhone : `+91 ${receiverPhone.trim()}`,
-        receiverName: receiverName.trim() || user?.fullName || "User",
+        receiverPhone: finalPhone ? (finalPhone.startsWith("+91") ? finalPhone : `+91 ${finalPhone.trim()}`) : "",
+        receiverName: finalName,
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
       };
@@ -574,57 +575,6 @@ export default function AddEditAddressScreen() {
                   Change
                 </AppText>
               </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* SECTION 3: RECEIVER DETAILS */}
-          <View style={styles.card}>
-            <AppText weight="bold" style={styles.cardTitle}>
-              Receiver details
-            </AppText>
-            <AppText size="small" color="textMuted" style={{ marginBottom: 14 }}>
-              Our professional will reach out to you on this number.
-            </AppText>
-
-            {/* Receiver Phone */}
-            <View style={styles.inputGroup}>
-              <View style={styles.floatingLabelWrap}>
-                <AppText size="caption" style={styles.floatingLabel}>
-                  Receiver's phone number*
-                </AppText>
-              </View>
-              <View style={styles.phoneInputRow}>
-                <View style={styles.countryCodeBox}>
-                  <AppText weight="bold" style={styles.countryCodeText}>
-                    +91
-                  </AppText>
-                </View>
-                <TextInput
-                  style={[styles.textInput, styles.phoneTextInput]}
-                  placeholder="Enter 10-digit number"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={receiverPhone}
-                  onChangeText={setReceiverPhone}
-                />
-              </View>
-            </View>
-
-            {/* Receiver Name */}
-            <View style={styles.inputGroup}>
-              <View style={styles.floatingLabelWrap}>
-                <AppText size="caption" style={styles.floatingLabel}>
-                  Receiver's name*
-                </AppText>
-              </View>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter full name"
-                placeholderTextColor="#94A3B8"
-                value={receiverName}
-                onChangeText={setReceiverName}
-              />
             </View>
           </View>
         </ScrollView>

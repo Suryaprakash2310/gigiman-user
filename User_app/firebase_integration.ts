@@ -33,14 +33,31 @@ export const registerUserFcmToken = async (userAuthToken: string, API_BASE_URL: 
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
     if (enabled) {
-      // 📱 iOS APNs registration is required before retrieving FCM token
+      // 📱 iOS APNs registration: check if device is registered before requesting
       if (Platform.OS === 'ios') {
-        await messaging().registerDeviceForRemoteMessages();
+        try {
+          if (!messaging().isDeviceRegisteredForRemoteMessages) {
+            await messaging().registerDeviceForRemoteMessages();
+          }
+        } catch (apnsErr) {
+          console.warn("APNs remote registration notice:", apnsErr);
+        }
       }
 
-      // 2. Get FCM Device Token
-      const fcmToken = await messaging().getToken();
-      // console.log("User FCM Token:", fcmToken);
+      // 2. Get FCM Device Token with graceful handling for development/simulators
+      let fcmToken: string | null = null;
+      try {
+        fcmToken = await messaging().getToken();
+      } catch (tokenErr: any) {
+        if (tokenErr?.message?.includes("aps-environment")) {
+          console.warn("FCM registration requires APNs entitlement (active on physical iOS device builds).");
+        } else {
+          console.warn("Could not retrieve FCM token:", tokenErr?.message);
+        }
+      }
+
+      if (!fcmToken) return;
+
       // 3. Register FCM token with backend
       const endpoint = API_BASE_URL.endsWith('/api')
         ? `${API_BASE_URL}/notifications/user/fcm-token`

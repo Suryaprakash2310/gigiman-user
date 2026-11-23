@@ -50,6 +50,8 @@ export default function AppHeader({
         {showBack && (
           <TouchableOpacity
             onPress={onBackPress || (() => navigation.goBack())}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
             style={[
               styles.iconBtn,
               {
@@ -82,6 +84,8 @@ export default function AppHeader({
         {rightIcon && (
           <TouchableOpacity
             onPress={onRightPress}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
             style={[
               styles.iconBtn,
               {

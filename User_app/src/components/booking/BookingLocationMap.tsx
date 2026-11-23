@@ -177,7 +177,7 @@ export default function BookingLocationMap({
             <>
               <MapView
                 ref={mapRef}
-                provider="google"
+                provider={Platform.OS === "android" ? "google" : undefined}
                 style={StyleSheet.absoluteFillObject}
                 initialRegion={{
                   latitude: coordinates.latitude,

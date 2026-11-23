@@ -1,8 +1,56 @@
+import { Linking } from 'react-native';
+
+export const handlePaymentShouldStartLoadWithRequest = (request: { url: string }) => {
+  const { url } = request;
+  if (!url) return true;
+
+  // Standard web protocols
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('about:') ||
+    url.startsWith('data:') ||
+    url.startsWith('blob:')
+  ) {
+    return true;
+  }
+
+  // Handle external UPI and deep link schemes on iOS (iPhone) and Android
+  if (
+    url.startsWith('upi://') ||
+    url.startsWith('gpay://') ||
+    url.startsWith('phonepe://') ||
+    url.startsWith('paytmmp://') ||
+    url.startsWith('credpay://') ||
+    url.startsWith('bhim://') ||
+    url.startsWith('tez://') ||
+    url.startsWith('intent://') ||
+    url.startsWith('tel:') ||
+    url.startsWith('mailto:')
+  ) {
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url).catch(() => {});
+        } else {
+          Linking.openURL(url).catch(() => {});
+        }
+      })
+      .catch(() => {
+        Linking.openURL(url).catch(() => {});
+      });
+    return false; // Prevent WebView from trying to load custom scheme as a web page
+  }
+
+  return true;
+};
+
 export const razorpayHTML = `
 <!DOCTYPE html>
 <html>
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob: gap: https://ssl.gstatic.com; script-src * 'unsafe-inline' 'unsafe-eval' blob: https://checkout.razorpay.com https://*.razorpay.com; connect-src * https://api.razorpay.com https://*.razorpay.com wss:; frame-src * https://api.razorpay.com https://checkout.razorpay.com https://*.razorpay.com; style-src * 'unsafe-inline';">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
       * { box-sizing: border-box; }
@@ -165,24 +213,42 @@ export const razorpayHTML = `
         },
 
         handler: function (response) {
-          document.getElementById('pay-btn').style.display = 'none';
-          document.getElementById('loader').style.display = 'block';
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            success: true,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_signature: response.razorpay_signature
-          }));
+          try {
+            document.getElementById('pay-btn').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+            var rn = window.ReactNativeWebView || (window.parent && window.parent.ReactNativeWebView);
+            if (rn && rn.postMessage) {
+              rn.postMessage(JSON.stringify({
+                success: true,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
+              }));
+            }
+          } catch (err) {
+            console.error("Handler postMessage error:", err);
+          }
         },
 
         modal: {
+          backdropclose: false,
+          escape: false,
+          handleback: true,
+          confirm_close: true,
           ondismiss: function () {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('pay-btn').style.display = 'block';
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              success: false,
-              reason: "dismissed"
-            }));
+            try {
+              document.getElementById('loader').style.display = 'none';
+              document.getElementById('pay-btn').style.display = 'block';
+              var rn = window.ReactNativeWebView || (window.parent && window.parent.ReactNativeWebView);
+              if (rn && rn.postMessage) {
+                rn.postMessage(JSON.stringify({
+                  success: false,
+                  reason: "dismissed"
+                }));
+              }
+            } catch (err) {
+              console.error("Dismiss postMessage error:", err);
+            }
           }
         },
         theme: {
@@ -194,11 +260,24 @@ export const razorpayHTML = `
         if (typeof Razorpay === 'undefined') {
           document.getElementById('pay-btn').style.display = 'none';
           document.getElementById('loader').style.display = 'block';
-          setTimeout(startPayment, 300);
+          setTimeout(startPayment, 250);
           return;
         }
         try {
           var rzp = new Razorpay(options);
+          rzp.on('payment.failed', function (resp) {
+            try {
+              var rn = window.ReactNativeWebView || (window.parent && window.parent.ReactNativeWebView);
+              if (rn && rn.postMessage) {
+                rn.postMessage(JSON.stringify({
+                  success: false,
+                  reason: resp.error ? resp.error.description : "payment_failed"
+                }));
+              }
+            } catch (err) {
+              console.error("Failed postMessage error:", err);
+            }
+          });
           rzp.open();
         } catch (e) {
           document.getElementById('loader').style.display = 'none';
@@ -210,6 +289,15 @@ export const razorpayHTML = `
       document.getElementById('pay-btn').onclick = function() {
         startPayment();
       };
+
+      // Auto-trigger on page load
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(startPayment, 150);
+      } else {
+        window.addEventListener('DOMContentLoaded', function() {
+          setTimeout(startPayment, 150);
+        });
+      }
     </script>
   </body>
 </html>

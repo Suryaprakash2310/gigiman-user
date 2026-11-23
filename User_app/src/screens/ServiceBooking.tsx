@@ -1,6 +1,6 @@
 import { socket } from '@/src/socket/socket';
 import { injectRazorpayData } from '@/src/utils/razorpayInjector';
-import { razorpayHTML } from '@/src/utils/razorpayTemplate';
+import { razorpayHTML, handlePaymentShouldStartLoadWithRequest } from '@/src/utils/razorpayTemplate';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -90,6 +90,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const styles = createStyles(theme);
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const safeTop = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 20);
+  const safeBottom = Math.max(insets.bottom, 16);
   const { upsertBooking } = useBooking();
   const convenienceFee = FEES.CONVENIENCE_FEE;
 
@@ -769,10 +771,12 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   }, [user, category, bookingMode, selectedDate, selectedTime, quantity, appliedCoupon, navigation, upsertBooking, paymentType, selectedAddress]);
 
   const handleBack = useCallback(() => {
-
-    navigation.goBack();
-
-  }, [fromMain, navigation]);
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('MainServiceScreen');
+    }
+  }, [navigation]);
 
   // Loading state
   if (loading) {
@@ -780,7 +784,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       <View
         style={[
           styles.safe,
-          { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+          { paddingTop: safeTop },
         ]}
       >
         <AppHeader showBack onBackPress={handleBack} title="Service Details" />
@@ -800,7 +804,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
       <View
         style={[
           styles.safe,
-          { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+          { paddingTop: safeTop },
         ]}
       >
         <AppHeader showBack onBackPress={handleBack} title="Service Details" />
@@ -842,14 +846,14 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     <View
       style={[
         styles.safe,
-        { paddingTop: Platform.OS === 'android' ? insets.top : 0 },
+        { paddingTop: safeTop },
       ]}
     >
       <AppHeader showBack onBackPress={handleBack} title={isCartCheckout ? "Checkout" : "Service Details"} />
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: safeBottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {isComingSoon(category?.status) && (
@@ -1173,7 +1177,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         <View style={styles.spacer} />
 
         {/* Bottom Action Bar */}
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
 
           {/* Coupon Input Section */}
           <View style={styles.couponSection}>
@@ -1330,11 +1334,19 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           {paymentHtml && (
             <WebView
               originWhitelist={["*"]}
-              source={{ html: paymentHtml }}
-              javaScriptEnabled
-              domStorageEnabled
+              source={{ html: paymentHtml, baseUrl: "https://api.razorpay.com" }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
               onMessage={handleWebViewMessage}
-              startInLoadingState
+              onShouldStartLoadWithRequest={handlePaymentShouldStartLoadWithRequest}
+              javaScriptCanOpenWindowsAutomatically={true}
+              setSupportMultipleWindows={false}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
+              sharedCookiesEnabled={true}
+              thirdPartyCookiesEnabled={true}
+              mixedContentMode="always"
+              startInLoadingState={true}
               renderLoading={() => (
                 <View style={{ ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: '#ffffff' }}>
                   <ActivityIndicator size="large" color="#f97316" />

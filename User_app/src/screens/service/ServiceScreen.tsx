@@ -6,6 +6,7 @@ import {
   Dimensions,
   FlatList,
   Platform,
+  StatusBar,
   StyleSheet,
   View,
 } from "react-native";
@@ -45,6 +46,7 @@ export default function ServicesScreen({ navigation }: any) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
+  const safeTop = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 20);
   const sheetRef = useRef<AppBottomSheetRef>(null);
 
   // State management
@@ -195,10 +197,20 @@ export default function ServicesScreen({ navigation }: any) {
       <View
         style={[
           styles.safe,
-          { paddingTop: Platform.OS === "android" ? insets.top : 0 },
+          { paddingTop: safeTop },
         ]}
       >
-        <AppHeader title="Services" showBack onBackPress={() => navigation.navigate('HomeTab')} />
+        <AppHeader
+          title="Services"
+          showBack
+          onBackPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate('HomeTab');
+            }
+          }}
+        />
         <View style={styles.loadingContainer}>
           <AppLoader visible={true} text="Loading services..." />
         </View>
@@ -210,10 +222,20 @@ export default function ServicesScreen({ navigation }: any) {
     <View
       style={[
         styles.safe,
-        { paddingTop: Platform.OS === "android" ? insets.top : 0 },
+        { paddingTop: safeTop },
       ]}
     >
-      <AppHeader title="Services" showBack onBackPress={() => navigation.navigate('HomeTab')} />
+      <AppHeader
+        title="Services"
+        showBack
+        onBackPress={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('HomeTab');
+          }
+        }}
+      />
 
       <View style={styles.container}>
         {/* Header */}

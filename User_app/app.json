@@ -18,6 +18,15 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "upi",
+          "gpay",
+          "phonepe",
+          "paytmmp",
+          "credpay",
+          "bhim",
+          "tez"
+        ],
         "NSLocationWhenInUseUsageDescription": "Gigiman needs your location to find nearby services, assign technicians, and provide live tracking.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Gigiman needs your location for seamless service tracking and accurate technician dispatch.",
         "NSPhotoLibraryUsageDescription": "Gigiman needs access to your photos to upload profile avatars and attach issue screenshots to support tickets.",

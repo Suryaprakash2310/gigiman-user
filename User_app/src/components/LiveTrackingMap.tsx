@@ -279,7 +279,7 @@ export default function LiveTrackingMap({
     <View style={[styles.container, { height }]}>
       <MapView
         ref={mapRef}
-        provider="google"
+        provider={Platform.OS === "android" ? "google" : undefined}
         style={StyleSheet.absoluteFillObject}
         initialRegion={{
           latitude: initialLat,
