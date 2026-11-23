@@ -23,7 +23,7 @@ import Animated, {
   withDelay,
   withSpring,
 } from "react-native-reanimated";
-import CryptoJS from "crypto-js";
+// Removed unused CryptoJS import and client-side payment signing helper for security
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { WebView } from 'react-native-webview';
@@ -300,12 +300,6 @@ export default function BookingOtp() {
   useEffect(() => {
     bookingRef.current = booking;
   }, [booking]);
-
-  const generateSignature = (orderId: string, paymentId: string) => {
-    const secret = '0L67Y5DD4Ai3Ksr9xgT6bfas';
-    const body = orderId + '|' + paymentId;
-    return CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex);
-  };
 
   const resetPaymentSheetFields = () => {
     setCardNumber('');

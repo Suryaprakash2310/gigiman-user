@@ -4,7 +4,7 @@ import { razorpayHTML } from '@/src/utils/razorpayTemplate';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import CryptoJS from 'crypto-js';
+// Removed unused CryptoJS import and client-side payment signing helper for security
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -435,12 +435,6 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     setDiscountAmount(0);
     setCouponSuccess('');
     setCouponError('');
-  };
-
-  const generateSignature = (orderId: string, paymentId: string) => {
-    const secret = '0L67Y5DD4Ai3Ksr9xgT6bfas';
-    const body = orderId + '|' + paymentId;
-    return CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex);
   };
 
   const resetPaymentFields = () => {
