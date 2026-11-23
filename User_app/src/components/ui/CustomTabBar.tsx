@@ -7,9 +7,17 @@ import {
   Platform,
 } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/useTheme";
+
+const MAIN_TAB_ROOT_SCREENS = [
+  "Home",
+  "MainServiceScreen",
+  "BookingsMain",
+  "ProfileScreen",
+];
 
 export default function CustomTabBar({
   state,
@@ -18,6 +26,19 @@ export default function CustomTabBar({
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { theme, mode } = useTheme();
+
+  const currentTabRoute = state.routes[state.index];
+  const focusedChildName = getFocusedRouteNameFromRoute(currentTabRoute);
+
+  // Hide bottom tab bar if we have navigated deeper into any stack screen (e.g., AddEditAddress, MapPinLocation)
+  if (focusedChildName && !MAIN_TAB_ROOT_SCREENS.includes(focusedChildName)) {
+    return null;
+  }
+
+  const tabBarStyle = descriptors[currentTabRoute.key]?.options?.tabBarStyle as any;
+  if (tabBarStyle?.display === "none") {
+    return null;
+  }
 
   const isDark = mode === "dark"; // if you don’t have mode, this is still ok with any
 

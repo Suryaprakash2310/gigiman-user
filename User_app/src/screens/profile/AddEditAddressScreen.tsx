@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -23,6 +23,69 @@ import { useAuthContext } from "@/src/context/AuthContext";
 
 const STORAGE_KEY = "gigiman_saved_addresses";
 
+// Temporary in-memory draft to preserve user input across map location changes
+let tempFormDraft: {
+  flatNo?: string;
+  floor?: string;
+  apartmentName?: string;
+  landmark?: string;
+  addressTag?: "Home" | "Other" | "Work";
+  receiverPhone?: string;
+  receiverName?: string;
+  locality?: string;
+  coordinates?: { latitude: number; longitude: number } | null;
+} | null = null;
+
+const parseAddressObject = (addr: any) => {
+  if (!addr) return null;
+  let flatNo = addr.flatNo || "";
+  let floor = addr.floor || "";
+  let apartmentName = addr.apartmentName || "";
+  let landmark = addr.landmark || "";
+  let area = addr.area || "";
+  let receiverPhone = addr.receiverPhone || "";
+  let receiverName = addr.receiverName || "";
+  const fullStr = addr.line1 || addr.address || "";
+
+  if ((!flatNo || !apartmentName || !area) && fullStr) {
+    const flatMatch = fullStr.match(/Flat\/House\s+([^,]+)/i);
+    const floorMatch = fullStr.match(/Floor\s+([^,]+)/i);
+    const nearMatch = fullStr.match(/Near\s+([^,]+)/i);
+
+    if (flatMatch && !flatNo) flatNo = flatMatch[1].trim();
+    if (floorMatch && !floor) floor = floorMatch[1].trim();
+    if (nearMatch && !landmark) landmark = nearMatch[1].trim();
+
+    const rawParts = fullStr.split(",").map((p: string) => p.trim()).filter(Boolean);
+    const cleanParts = rawParts.filter(
+      (p: string) =>
+        !p.toLowerCase().startsWith("flat/house") &&
+        !p.toLowerCase().startsWith("floor") &&
+        !p.toLowerCase().startsWith("near")
+    );
+
+    if (!apartmentName && cleanParts.length > 1) {
+      apartmentName = cleanParts[0];
+      if (!area) area = cleanParts.slice(1).join(", ");
+    } else if (!area) {
+      area = cleanParts.join(", ") || fullStr;
+    }
+  }
+
+  return {
+    flatNo,
+    floor,
+    apartmentName,
+    landmark,
+    area: area || fullStr,
+    receiverPhone: receiverPhone ? receiverPhone.replace("+91", "").trim() : "",
+    receiverName,
+    latitude: addr.latitude || addr.location?.coordinates?.[1],
+    longitude: addr.longitude || addr.location?.coordinates?.[0],
+    addressTag: (addr.title === "Work" ? "Work" : addr.title === "Other" ? "Other" : "Home") as "Home" | "Other" | "Work",
+  };
+};
+
 export default function AddEditAddressScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
@@ -35,19 +98,74 @@ export default function AddEditAddressScreen() {
   const isEdit = !!addressId;
   const selectMode = route.params?.selectMode ?? false;
 
-  // Form States
-  const [addressTag, setAddressTag] = useState<"Home" | "Other" | "Work">("Home");
-  const [flatNo, setFlatNo] = useState("");
-  const [floor, setFloor] = useState("");
-  const [apartmentName, setApartmentName] = useState("");
-  const [landmark, setLandmark] = useState("");
-  const [locality, setLocality] = useState("");
+  const initialAddressData = useMemo(() => {
+    return parseAddressObject(route.params?.address);
+  }, [route.params?.address]);
+
+  // Form States - restored from draft or navigation params if returning from map, or initial address if editing
+  const [addressTag, setAddressTag] = useState<"Home" | "Other" | "Work">(
+    () => route.params?.preservedFormData?.addressTag || tempFormDraft?.addressTag || initialAddressData?.addressTag || "Home"
+  );
+  const [flatNo, setFlatNo] = useState(
+    () => route.params?.preservedFormData?.flatNo ?? tempFormDraft?.flatNo ?? initialAddressData?.flatNo ?? ""
+  );
+  const [floor, setFloor] = useState(
+    () => route.params?.preservedFormData?.floor ?? tempFormDraft?.floor ?? initialAddressData?.floor ?? ""
+  );
+  const [apartmentName, setApartmentName] = useState(
+    () => route.params?.preservedFormData?.apartmentName ?? tempFormDraft?.apartmentName ?? initialAddressData?.apartmentName ?? ""
+  );
+  const [landmark, setLandmark] = useState(
+    () => route.params?.preservedFormData?.landmark ?? tempFormDraft?.landmark ?? initialAddressData?.landmark ?? ""
+  );
+  const [locality, setLocality] = useState<string>(
+    () =>
+      route.params?.selectedAddressFromMap?.line1 ||
+      route.params?.selectedAddressFromMap?.address ||
+      route.params?.initialLocation?.address ||
+      route.params?.initialLocation?.line1 ||
+      route.params?.preservedFormData?.locality ||
+      tempFormDraft?.locality ||
+      initialAddressData?.area ||
+      ""
+  );
   const userPhone = (user as any)?.phone || (user as any)?.phoneNo || "";
   const [receiverPhone, setReceiverPhone] = useState(
-    userPhone ? String(userPhone).replace("+91", "").replace(/\s+/g, "") : ""
+    () =>
+      route.params?.preservedFormData?.receiverPhone ??
+      tempFormDraft?.receiverPhone ??
+      initialAddressData?.receiverPhone ??
+      (userPhone ? String(userPhone).replace("+91", "").replace(/\s+/g, "") : "")
   );
-  const [receiverName, setReceiverName] = useState(user?.fullName || "");
-  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [receiverName, setReceiverName] = useState(
+    () =>
+      route.params?.preservedFormData?.receiverName ??
+      tempFormDraft?.receiverName ??
+      initialAddressData?.receiverName ??
+      (user?.fullName || "")
+  );
+  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(() => {
+    if (route.params?.selectedAddressFromMap?.latitude && route.params?.selectedAddressFromMap?.longitude) {
+      return {
+        latitude: Number(route.params.selectedAddressFromMap.latitude),
+        longitude: Number(route.params.selectedAddressFromMap.longitude),
+      };
+    }
+    if (route.params?.initialLocation?.latitude && route.params?.initialLocation?.longitude) {
+      return {
+        latitude: Number(route.params.initialLocation.latitude),
+        longitude: Number(route.params.initialLocation.longitude),
+      };
+    }
+    if (tempFormDraft?.coordinates) return tempFormDraft.coordinates;
+    if (initialAddressData?.latitude && initialAddressData?.longitude) {
+      return {
+        latitude: Number(initialAddressData.latitude),
+        longitude: Number(initialAddressData.longitude),
+      };
+    }
+    return null;
+  });
 
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,6 +183,18 @@ export default function AddEditAddressScreen() {
       if (addr.latitude && addr.longitude) {
         setCoordinates({ latitude: Number(addr.latitude), longitude: Number(addr.longitude) });
       }
+
+      // Preserve previously typed house/apartment/etc input values
+      const preserved = route.params?.preservedFormData || tempFormDraft;
+      if (preserved) {
+        if (preserved.flatNo !== undefined) setFlatNo(preserved.flatNo);
+        if (preserved.floor !== undefined) setFloor(preserved.floor);
+        if (preserved.apartmentName !== undefined) setApartmentName(preserved.apartmentName);
+        if (preserved.landmark !== undefined) setLandmark(preserved.landmark);
+        if (preserved.addressTag) setAddressTag(preserved.addressTag);
+        if (preserved.receiverPhone) setReceiverPhone(preserved.receiverPhone);
+        if (preserved.receiverName) setReceiverName(preserved.receiverName);
+      }
       return;
     }
 
@@ -72,17 +202,23 @@ export default function AddEditAddressScreen() {
     if (route.params?.address && !isInitializedRef.current) {
       isInitializedRef.current = true;
       cancelGpsDetectionRef.current = true;
-      const addr = route.params.address;
-      setAddressTag(addr.title === "Work" ? "Work" : addr.title === "Other" ? "Other" : "Home");
-      setFlatNo(addr.flatNo || "");
-      setFloor(addr.floor || "");
-      setApartmentName(addr.apartmentName || "");
-      setLandmark(addr.landmark || "");
-      setLocality(addr.area || addr.line1 || addr.address || "");
-      setReceiverPhone(addr.receiverPhone ? addr.receiverPhone.replace("+91", "").trim() : String(userPhone).replace("+91", "").trim());
-      setReceiverName(addr.receiverName || user?.fullName || "");
-      if (addr.latitude && addr.longitude) {
-        setCoordinates({ latitude: Number(addr.latitude), longitude: Number(addr.longitude) });
+      const parsed = parseAddressObject(route.params.address);
+      if (parsed) {
+        setAddressTag(parsed.addressTag);
+        setFlatNo(parsed.flatNo);
+        setFloor(parsed.floor);
+        setApartmentName(parsed.apartmentName);
+        setLandmark(parsed.landmark);
+        setLocality(parsed.area);
+        if (parsed.receiverPhone) {
+          setReceiverPhone(parsed.receiverPhone);
+        } else if (userPhone) {
+          setReceiverPhone(String(userPhone).replace("+91", "").trim());
+        }
+        if (parsed.receiverName) setReceiverName(parsed.receiverName);
+        if (parsed.latitude && parsed.longitude) {
+          setCoordinates({ latitude: Number(parsed.latitude), longitude: Number(parsed.longitude) });
+        }
       }
       return;
     }
@@ -104,7 +240,7 @@ export default function AddEditAddressScreen() {
       isInitializedRef.current = true;
       detectCurrentLocation();
     }
-  }, [route.params?.selectedAddressFromMap, route.params?.address, route.params?.initialLocation]);
+  }, [route.params?.selectedAddressFromMap, route.params?.address, route.params?.initialLocation, route.params?.preservedFormData]);
 
   const detectCurrentLocation = async () => {
     try {
@@ -127,10 +263,23 @@ export default function AddEditAddressScreen() {
 
   const handleOpenMap = () => {
     cancelGpsDetectionRef.current = true;
+    const currentForm = {
+      flatNo,
+      floor,
+      apartmentName,
+      landmark,
+      addressTag,
+      receiverPhone,
+      receiverName,
+      locality,
+      coordinates,
+    };
+    tempFormDraft = currentForm;
     navigation.navigate("MapPinLocation", {
       latitude: coordinates?.latitude,
       longitude: coordinates?.longitude,
       address: locality,
+      formData: currentForm,
     });
   };
 
@@ -208,22 +357,48 @@ export default function AddEditAddressScreen() {
         console.log("Failed to sync new address to AsyncStorage:", storageErr);
       }
 
-      // 2. Server API call
+      // 2. Server API call to store all details in the backend
       try {
-        if (isEdit) {
-          await updateAddressAPI(addressId, payload);
+        const isRealMongoId = isEdit && addressId && !String(addressId).startsWith("local-");
+        let serverRes: any = null;
+        if (isRealMongoId) {
+          serverRes = await updateAddressAPI(addressId, payload);
         } else {
-          const res = await addAddressAPI(payload);
-          if (res.data?.address?._id) {
-            finalAddressObj.id = res.data.address._id;
-            finalAddressObj._id = res.data.address._id;
-          }
+          serverRes = await addAddressAPI(payload);
+        }
+
+        if (serverRes?.data?.address?._id) {
+          finalAddressObj.id = serverRes.data.address._id;
+          finalAddressObj._id = serverRes.data.address._id;
+        }
+
+        // Sync backend returned addresses with full details into local cache
+        if (Array.isArray(serverRes?.data?.addresses) && serverRes.data.addresses.length > 0) {
+          const mapped = serverRes.data.addresses.map((a: any) => ({
+            id: a._id || a.id,
+            _id: a._id || a.id,
+            title: a.title || "",
+            line1: a.address || a.line1 || "",
+            address: a.address || a.line1 || "",
+            flatNo: a.flatNo || "",
+            floor: a.floor || "",
+            apartmentName: a.apartmentName || "",
+            landmark: a.landmark || "",
+            area: a.area || "",
+            receiverPhone: a.receiverPhone || "",
+            receiverName: a.receiverName || "",
+            latitude: a.location?.coordinates?.[1] ?? a.latitude,
+            longitude: a.location?.coordinates?.[0] ?? a.longitude,
+            isDefault: a.isDefault || false,
+          }));
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
         }
       } catch (apiErr) {
-        console.warn("Address API call notice:", apiErr);
+        console.warn("Backend address sync note:", apiErr);
       }
 
       // 3. Return to previous screen
+      tempFormDraft = null;
       if (selectMode) {
         navigation.navigate("Booking", {
           selectedAddress: finalAddressObj,
@@ -244,6 +419,7 @@ export default function AddEditAddressScreen() {
   };
 
   const handleBack = () => {
+    tempFormDraft = null;
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else if (selectMode) {
@@ -261,7 +437,7 @@ export default function AddEditAddressScreen() {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top > 0 ? insets.top + 8 : (Platform.OS === "android" ? 28 : 14) }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={handleBack}
@@ -455,7 +631,7 @@ export default function AddEditAddressScreen() {
       </KeyboardAvoidingView>
 
       {/* STICKY BOTTOM SAVE BUTTON */}
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         <TouchableOpacity
           style={[
             styles.saveBtn,
@@ -483,13 +659,12 @@ const createStyles = (theme: any, insets: any) =>
     container: {
       flex: 1,
       backgroundColor: "#F8FAFC",
-      paddingTop: insets.top,
     },
     header: {
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingBottom: 14,
       backgroundColor: "#FFFFFF",
       borderBottomWidth: 1,
       borderBottomColor: "#F1F5F9",

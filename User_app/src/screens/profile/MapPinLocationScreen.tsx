@@ -1,32 +1,72 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
 import axios from "axios";
-import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  ActivityIndicator,
+  TextInput,
+  FlatList,
+  Keyboard,
+  Platform,
+} from "react-native";
 import MapView, { Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import AppButton from "@/src/components/ui/AppButton";
-import AppHeader from "@/src/components/ui/AppHeader";
 import AppText from "@/src/components/ui/AppText";
 import { useTheme } from "@/src/theme/useTheme";
 import { getCurrentLocation, getAddressFromCoords } from "@/src/utils/location";
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 
+interface SearchResult {
+  id: string;
+  title: string;
+  subtitle: string;
+  latitude: number;
+  longitude: number;
+}
+
 export default function MapPinLocationScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, insets);
 
   const mapRef = useRef<MapView>(null);
   const debounceRef = useRef<any>(null);
+  const searchDebounceRef = useRef<any>(null);
   const selectedCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [address, setAddress] = useState<string>("");
   const [loadingAddress, setLoadingAddress] = useState<boolean>(false);
   const [locatingCurrent, setLocatingCurrent] = useState<boolean>(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
+  const [bottomCardHeight, setBottomCardHeight] = useState<number>(175);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const initLocation = async () => {
     try {
@@ -36,8 +76,8 @@ export default function MapPinLocationScreen() {
         const regionData: Region = {
           latitude: lat,
           longitude: lng,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
         };
 
         selectedCoordsRef.current = { latitude: lat, longitude: lng };
@@ -52,8 +92,8 @@ export default function MapPinLocationScreen() {
         const regionData: Region = {
           latitude: location.latitude,
           longitude: location.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
         };
 
         selectedCoordsRef.current = { latitude: location.latitude, longitude: location.longitude };
@@ -62,15 +102,14 @@ export default function MapPinLocationScreen() {
       }
     } catch (error) {
       console.log("Location init error:", error);
-      // Fallback default coordinates if location fails
       const fallbackLat = 10.805;
       const fallbackLng = 78.6856;
       selectedCoordsRef.current = { latitude: fallbackLat, longitude: fallbackLng };
       setInitialRegion({
         latitude: fallbackLat,
         longitude: fallbackLng,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
       });
       reverseGeocode(fallbackLat, fallbackLng);
     }
@@ -79,29 +118,32 @@ export default function MapPinLocationScreen() {
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
       setLoadingAddress(true);
-      const res = await axios.get(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`,
-        {
-          params: {
-            access_token: MAPBOX_TOKEN,
-            limit: 1,
-          },
-          headers: {
-            "User-Agent": "gigi-user-app",
-          },
-          timeout: 5000,
-        }
-      );
+      if (MAPBOX_TOKEN) {
+        const res = await axios.get(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`,
+          {
+            params: {
+              access_token: MAPBOX_TOKEN,
+              limit: 1,
+            },
+            headers: {
+              "User-Agent": "gigi-user-app",
+            },
+            timeout: 5000,
+          }
+        );
 
-      const place = res.data?.features?.[0];
-      if (place?.place_name) {
-        setAddress(place.place_name);
-      } else {
-        const fallback = await getAddressFromCoords(lat, lng);
-        setAddress(fallback);
+        const place = res.data?.features?.[0];
+        if (place?.place_name) {
+          setAddress(place.place_name);
+          return;
+        }
       }
+
+      const fallback = await getAddressFromCoords(lat, lng);
+      setAddress(fallback);
     } catch (err) {
-      console.log("Mapbox reverse geocode error, using fallback:", err);
+      console.log("Reverse geocode error, using fallback:", err);
       try {
         const fallback = await getAddressFromCoords(lat, lng);
         setAddress(fallback);
@@ -138,8 +180,8 @@ export default function MapPinLocationScreen() {
       const newRegion: Region = {
         latitude: location.latitude,
         longitude: location.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
       };
 
       mapRef.current?.animateToRegion(newRegion, 600);
@@ -149,6 +191,123 @@ export default function MapPinLocationScreen() {
     } finally {
       setLocatingCurrent(false);
     }
+  };
+
+  // Search places via Mapbox autocomplete & OSM Nominatim fallback
+  const searchPlaces = async (query: string) => {
+    if (!query.trim() || query.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      if (MAPBOX_TOKEN) {
+        try {
+          const res = await axios.get(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`,
+            {
+              params: {
+                access_token: MAPBOX_TOKEN,
+                autocomplete: true,
+                limit: 5,
+              },
+              headers: { "User-Agent": "gigi-user-app" },
+              timeout: 4000,
+            }
+          );
+          if (res.data?.features && res.data.features.length > 0) {
+            const mapped: SearchResult[] = res.data.features.map((f: any) => {
+              const full = f.place_name || "";
+              const parts = full.split(",");
+              return {
+                id: f.id || String(Math.random()),
+                title: f.text || parts[0]?.trim() || query,
+                subtitle: parts.slice(1).join(",").trim() || full,
+                latitude: f.center[1],
+                longitude: f.center[0],
+              };
+            });
+            setSearchResults(mapped);
+            return;
+          }
+        } catch (mapboxErr) {
+          console.warn("Mapbox geocoding error:", mapboxErr);
+        }
+      }
+
+      // Fallback to OpenStreetMap Nominatim Search
+      const osmRes = await axios.get(
+        `https://nominatim.openstreetmap.org/search`,
+        {
+          params: {
+            format: "json",
+            q: query,
+            limit: 5,
+            addressdetails: 1,
+          },
+          headers: {
+            "Accept": "application/json",
+            "User-Agent": "GigiManUserApp/1.0",
+          },
+          timeout: 5000,
+        }
+      );
+
+      if (Array.isArray(osmRes.data) && osmRes.data.length > 0) {
+        const mapped: SearchResult[] = osmRes.data.map((item: any) => {
+          const parts = item.display_name.split(",");
+          return {
+            id: String(item.place_id || Math.random()),
+            title: item.name || parts[0]?.trim() || query,
+            subtitle: parts.slice(1).join(",").trim() || item.display_name,
+            latitude: parseFloat(item.lat),
+            longitude: parseFloat(item.lon),
+          };
+        });
+        setSearchResults(mapped);
+        return;
+      }
+
+      setSearchResults([]);
+    } catch (err) {
+      console.warn("Search places error:", err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    if (!text.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      searchPlaces(text);
+    }, 400);
+  };
+
+  const handleSelectSearchResult = (item: SearchResult) => {
+    Keyboard.dismiss();
+    setSearchResults([]);
+    setSearchQuery("");
+    selectedCoordsRef.current = {
+      latitude: item.latitude,
+      longitude: item.longitude,
+    };
+    const newRegion: Region = {
+      latitude: item.latitude,
+      longitude: item.longitude,
+      latitudeDelta: 0.008,
+      longitudeDelta: 0.008,
+    };
+    mapRef.current?.animateToRegion(newRegion, 600);
+    reverseGeocode(item.latitude, item.longitude);
   };
 
   const confirmLocation = () => {
@@ -163,6 +322,7 @@ export default function MapPinLocationScreen() {
           latitude: coords.latitude,
           longitude: coords.longitude,
         },
+        preservedFormData: route.params?.formData,
       },
       merge: true,
     });
@@ -172,10 +332,30 @@ export default function MapPinLocationScreen() {
     initLocation();
   }, []);
 
+  const splitAddress = useMemo(() => {
+    if (!address) {
+      return {
+        title: "Selected Location",
+        subtitle: "Drag map or search to choose location",
+      };
+    }
+    const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length <= 1) {
+      return {
+        title: parts[0] || address,
+        subtitle: address,
+      };
+    }
+    return {
+      title: parts[0],
+      subtitle: parts.slice(1).join(", "),
+    };
+  }, [address]);
+
   if (!initialRegion) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color="#059669" />
         <AppText style={{ marginTop: 12 }}>Loading map...</AppText>
       </View>
     );
@@ -183,7 +363,21 @@ export default function MapPinLocationScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Select Location" showBack={true} onBackPress={() => navigation.goBack()} />
+      {/* HEADER WITH PROPER SAFE AREA PADDING */}
+      <View style={[styles.headerContainer, { paddingTop: styles.safeTop }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.headerBackBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <AppText weight="bold" style={styles.headerTitle}>
+            Confirm your location
+          </AppText>
+        </View>
+      </View>
 
       <MapView
         ref={mapRef}
@@ -195,61 +389,189 @@ export default function MapPinLocationScreen() {
         onRegionChangeComplete={onRegionChangeComplete}
       />
 
-      {/* CENTER PIN */}
-      <View pointerEvents="none" style={styles.pinContainer}>
-        <Ionicons name="location" size={40} color="#DC2626" />
-        <View style={styles.pinDot} />
+      {/* FLOATING SEARCH BAR & AUTOCOMPLETE LIST */}
+      <View style={styles.searchBarContainer}>
+        <View style={styles.searchInputWrapper}>
+          <Ionicons name="search" size={20} color="#059669" style={{ marginRight: 10 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search locality, sector, area"
+            placeholderTextColor="#94A3B8"
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoCorrect={false}
+          />
+          {isSearching ? (
+            <ActivityIndicator size="small" color="#059669" />
+          ) : searchQuery.length > 0 ? (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery("");
+                setSearchResults([]);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* AUTOCOMPLETE SUGGESTIONS DROPDOWN */}
+        {searchResults.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.suggestionItem}
+                  onPress={() => handleSelectSearchResult(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.suggestionIconBg}>
+                    <Ionicons name="location-sharp" size={16} color="#059669" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText weight="bold" numberOfLines={1} style={styles.suggestionTitle}>
+                      {item.title}
+                    </AppText>
+                    {item.subtitle ? (
+                      <AppText size="caption" color="textMuted" numberOfLines={1} style={{ marginTop: 2 }}>
+                        {item.subtitle}
+                      </AppText>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
       </View>
 
-      {/* ADDRESS BOX AT TOP */}
-      <View style={styles.addressBox}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Ionicons name="navigate-circle" size={20} color={theme.colors.primary} />
-          <AppText weight="bold" size="small" style={{ color: theme.colors.primary }}>
-            Selected Area
-          </AppText>
-        </View>
-        <View style={{ marginTop: 4 }}>
-          {loadingAddress ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-              <AppText size="small" color="textMuted">Fetching address details...</AppText>
-            </View>
-          ) : (
-            <AppText numberOfLines={2} weight="medium" style={styles.addressText}>
-              {address || "Drag map to select location"}
-            </AppText>
-          )}
-        </View>
-      </View>
-
-      {/* LOCATE ME FLOATING BUTTON */}
+      {/* TOP-RIGHT SQUARE LOCATE BUTTON */}
       <TouchableOpacity
-        style={styles.locateMeBtn}
+        style={styles.topLocateBtn}
         onPress={handleLocateMe}
         disabled={locatingCurrent}
         activeOpacity={0.8}
       >
         {locatingCurrent ? (
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color="#059669" />
         ) : (
-          <Ionicons name="locate" size={24} color={theme.colors.primary} />
+          <Ionicons name="locate" size={22} color="#334155" />
         )}
       </TouchableOpacity>
 
-      {/* CONFIRM BUTTON */}
-      <View style={styles.bottom}>
-        <AppButton title="Confirm Location" onPress={confirmLocation} />
+      {/* CENTER PIN WITH TOOLTIP BUBBLE */}
+      <View pointerEvents="none" style={styles.pinContainer}>
+        {/* Tooltip bubble above pin */}
+        <View style={styles.tooltipBubble}>
+          <AppText style={styles.tooltipSubtext}>Set this as your location</AppText>
+          <AppText weight="bold" numberOfLines={1} style={styles.tooltipTitle}>
+            {loadingAddress ? "Locating..." : splitAddress.title}
+          </AppText>
+        </View>
+        <View style={styles.tooltipArrow} />
+
+        {/* Pin Icon */}
+        <View style={styles.pinIconWrapper}>
+          <Ionicons name="location" size={38} color="#059669" />
+        </View>
+        <View style={styles.pinDot} />
+      </View>
+
+      {/* "GO TO CURRENT LOCATION" FLOATING PILL */}
+      {!isKeyboardVisible && (
+        <TouchableOpacity
+          style={[styles.goToCurrentBtn, { bottom: bottomCardHeight + 14 }]}
+          onPress={handleLocateMe}
+          disabled={locatingCurrent}
+          activeOpacity={0.85}
+        >
+          {locatingCurrent ? (
+            <ActivityIndicator size="small" color="#059669" />
+          ) : (
+            <Ionicons name="navigate-circle" size={18} color="#059669" />
+          )}
+          <AppText weight="bold" style={styles.goToCurrentText}>
+            Go to current location
+          </AppText>
+        </TouchableOpacity>
+      )}
+
+      {/* BOTTOM CARD WITH SELECTED ADDRESS & CONFIRM BUTTON */}
+      <View
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 60) {
+            setBottomCardHeight(h);
+          }
+        }}
+        style={[
+          styles.bottomCard,
+          { paddingBottom: styles.safeBottom + 8 },
+          isKeyboardVisible && Platform.OS === "android" && { display: "none" },
+        ]}
+      >
+        <View style={styles.locationDetailsRow}>
+          <View style={styles.locationIconCircle}>
+            <Ionicons name="location" size={22} color="#059669" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText weight="bold" style={styles.bottomCardTitle} numberOfLines={1}>
+              {loadingAddress ? "Fetching location details..." : splitAddress.title}
+            </AppText>
+            <AppText size="small" color="textMuted" numberOfLines={2} style={styles.bottomCardSubtitle}>
+              {loadingAddress ? "Please wait..." : splitAddress.subtitle}
+            </AppText>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.confirmBtn}
+          onPress={confirmLocation}
+          activeOpacity={0.88}
+        >
+          <AppText weight="bold" style={styles.confirmBtnText}>
+            Confirm location
+          </AppText>
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any, insets: any) => {
+  const safeTop = insets.top > 0 ? insets.top : (Platform.OS === "android" ? 28 : 16);
+  const safeBottom = Math.max(insets.bottom, 16);
+
+  return StyleSheet.create({
+    safeTop: safeTop as any,
+    safeBottom: safeBottom as any,
     container: {
       flex: 1,
       backgroundColor: "#F8FAFC",
+    },
+    headerContainer: {
+      backgroundColor: "#FFFFFF",
+      borderBottomWidth: 1,
+      borderBottomColor: "#F1F5F9",
+      zIndex: 10,
+    },
+    headerRow: {
+      height: 54,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+    },
+    headerBackBtn: {
+      marginRight: 12,
+      padding: 4,
+    },
+    headerTitle: {
+      fontSize: 18,
+      color: "#0F172A",
     },
     map: {
       flex: 1,
@@ -260,65 +582,222 @@ const createStyles = (theme: any) =>
       alignItems: "center",
       backgroundColor: "#F8FAFC",
     },
-    pinContainer: {
+    searchBarContainer: {
       position: "absolute",
-      top: "50%",
-      left: "50%",
-      marginLeft: -20,
-      marginTop: -40,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    pinDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: "rgba(0,0,0,0.3)",
-      marginTop: -2,
-    },
-    addressBox: {
-      position: "absolute",
-      top: 90,
+      top: safeTop + 62,
       left: 16,
       right: 16,
-      padding: 14,
+      zIndex: 30,
+    },
+    searchInputWrapper: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#FFFFFF",
       borderRadius: 14,
-      backgroundColor: "white",
+      paddingHorizontal: 14,
+      paddingVertical: Platform.OS === "ios" ? 12 : 8,
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 4,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: "#0F172A",
+      paddingVertical: 4,
+    },
+    suggestionsContainer: {
+      marginTop: 6,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 14,
+      maxHeight: 220,
       borderWidth: 1,
       borderColor: "#E2E8F0",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
+      elevation: 6,
+      overflow: "hidden",
     },
-    addressText: {
-      fontSize: 13,
+    suggestionItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: "#F1F5F9",
+    },
+    suggestionIconBg: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: "#ECFDF5",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    },
+    suggestionTitle: {
+      fontSize: 14,
       color: "#0F172A",
-      lineHeight: 18,
     },
-    locateMeBtn: {
+    topLocateBtn: {
       position: "absolute",
-      bottom: 95,
+      top: safeTop + 124,
       right: 16,
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 44,
+      height: 44,
+      borderRadius: 10,
       backgroundColor: "#FFFFFF",
       alignItems: "center",
       justifyContent: "center",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 6,
-      elevation: 5,
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 4,
       borderWidth: 1,
       borderColor: "#E2E8F0",
+      zIndex: 20,
     },
-    bottom: {
+    pinContainer: {
       position: "absolute",
-      bottom: 24,
-      left: 16,
-      right: 16,
+      top: "50%",
+      left: "50%",
+      marginLeft: -110,
+      width: 220,
+      marginTop: -86,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    tooltipBubble: {
+      backgroundColor: "#1E293B",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 10,
+      alignItems: "center",
+      maxWidth: 210,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    tooltipSubtext: {
+      color: "#94A3B8",
+      fontSize: 11,
+      textAlign: "center",
+    },
+    tooltipTitle: {
+      color: "#FFFFFF",
+      fontSize: 13,
+      marginTop: 2,
+      textAlign: "center",
+    },
+    tooltipArrow: {
+      width: 0,
+      height: 0,
+      borderLeftWidth: 6,
+      borderRightWidth: 6,
+      borderTopWidth: 6,
+      borderLeftColor: "transparent",
+      borderRightColor: "transparent",
+      borderTopColor: "#1E293B",
+      marginBottom: -2,
+    },
+    pinIconWrapper: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    pinDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: "#059669",
+      marginTop: -5,
+      borderWidth: 1.5,
+      borderColor: "#FFFFFF",
+    },
+    goToCurrentBtn: {
+      position: "absolute",
+      alignSelf: "center",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: "#FFFFFF",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      elevation: 4,
+      zIndex: 20,
+    },
+    goToCurrentText: {
+      color: "#059669",
+      fontSize: 13,
+    },
+    bottomCard: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: "#FFFFFF",
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -3 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 10,
+      borderTopWidth: 1,
+      borderTopColor: "#F1F5F9",
+      zIndex: 25,
+    },
+    locationDetailsRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 16,
+    },
+    locationIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "#ECFDF5",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+      marginTop: 2,
+    },
+    bottomCardTitle: {
+      fontSize: 16,
+      color: "#0F172A",
+    },
+    bottomCardSubtitle: {
+      marginTop: 2,
+      lineHeight: 18,
+      color: "#64748B",
+    },
+    confirmBtn: {
+      backgroundColor: "#059669",
+      borderRadius: 14,
+      height: 48,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    confirmBtnText: {
+      color: "#FFFFFF",
+      fontSize: 16,
     },
   });
+};

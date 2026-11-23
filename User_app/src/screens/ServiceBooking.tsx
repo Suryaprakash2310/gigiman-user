@@ -27,6 +27,7 @@ import { WebView } from 'react-native-webview';
 import apiClient from '@/src/api/client';
 import AppButton from '@/src/components/ui/AppButton';
 import AppHeader from '@/src/components/ui/AppHeader';
+import AppSearchBar from '@/src/components/ui/AppSearchbar';
 import AppText from '@/src/components/ui/AppText';
 import CalendarModal from '@/src/components/ui/CalendarModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -139,6 +140,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [addressSearchQuery, setAddressSearchQuery] = useState("");
   const [locatingAddress, setLocatingAddress] = useState(false);
 
   const isRegionAllowed = 
@@ -1419,7 +1421,17 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               Saved Addresses
             </AppText>
 
-            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+            {savedAddresses.length > 0 && (
+              <AppSearchBar
+                value={addressSearchQuery}
+                onChangeText={setAddressSearchQuery}
+                placeholder="Search saved addresses..."
+                onClear={() => setAddressSearchQuery("")}
+                containerStyle={{ marginBottom: 10, marginHorizontal: 0, paddingVertical: 8 }}
+              />
+            )}
+
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {savedAddresses.length === 0 ? (
                 <View style={styles.emptyAddressBox}>
                   <Ionicons name="location-outline" size={36} color="#94A3B8" />
@@ -1427,8 +1439,51 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
                     No saved addresses found. You can add a new address or use current GPS location above.
                   </AppText>
                 </View>
+              ) : savedAddresses.filter((addr: any) => {
+                  if (!addressSearchQuery.trim()) return true;
+                  const q = addressSearchQuery.toLowerCase().trim();
+                  const title = (addr.title || "").toLowerCase();
+                  const line1 = (addr.line1 || addr.address || "").toLowerCase();
+                  const area = (addr.area || "").toLowerCase();
+                  const landmark = (addr.landmark || "").toLowerCase();
+                  const apartment = (addr.apartmentName || "").toLowerCase();
+                  const flatNo = (addr.flatNo || "").toLowerCase();
+                  return (
+                    title.includes(q) ||
+                    line1.includes(q) ||
+                    area.includes(q) ||
+                    landmark.includes(q) ||
+                    apartment.includes(q) ||
+                    flatNo.includes(q)
+                  );
+                }).length === 0 ? (
+                <View style={styles.emptyAddressBox}>
+                  <Ionicons name="search-outline" size={32} color="#94A3B8" />
+                  <AppText size="small" color="textMuted" style={{ marginTop: 8, textAlign: "center" }}>
+                    No saved address matches "{addressSearchQuery}".
+                  </AppText>
+                </View>
               ) : (
-                savedAddresses.map((addr: any, idx: number) => {
+                savedAddresses
+                  .filter((addr: any) => {
+                    if (!addressSearchQuery.trim()) return true;
+                    const q = addressSearchQuery.toLowerCase().trim();
+                    const title = (addr.title || "").toLowerCase();
+                    const line1 = (addr.line1 || addr.address || "").toLowerCase();
+                    const area = (addr.area || "").toLowerCase();
+                    const landmark = (addr.landmark || "").toLowerCase();
+                    const apartment = (addr.apartmentName || "").toLowerCase();
+                    const flatNo = (addr.flatNo || "").toLowerCase();
+                    return (
+                      title.includes(q) ||
+                      line1.includes(q) ||
+                      area.includes(q) ||
+                      landmark.includes(q) ||
+                      apartment.includes(q) ||
+                      flatNo.includes(q)
+                    );
+                  })
+                  .map((addr: any, idx: number) => {
                   const isSelected =
                     (selectedAddress?._id && (selectedAddress._id === addr._id || selectedAddress._id === addr.id)) ||
                     (selectedAddress?.id && (selectedAddress.id === addr.id || selectedAddress.id === addr._id)) ||

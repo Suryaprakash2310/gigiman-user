@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/src/theme/useTheme';
 import AppButton from '@/src/components/ui/AppButton';
@@ -10,6 +11,7 @@ import AppText from '@/src/components/ui/AppText';
 import { getCurrentLocation } from "@/src/utils/location";
 import AddressCard, { Address } from '@/src/components/AddressCard';
 import AppHeader from '@/src/components/ui/AppHeader';
+import AppSearchBar from '@/src/components/ui/AppSearchbar';
 import { deleteAddressAPI, getAddressesAPI } from '@/src/api/auth';
 
 const STORAGE_KEY = 'gigiman_saved_addresses';
@@ -23,6 +25,7 @@ export default function SavedAddressesScreen() {
   const selectMode = route.params?.selectMode ?? false;
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const formatAddresses = (rawList: any[]): Address[] => {
     if (!Array.isArray(rawList)) return [];
@@ -173,6 +176,32 @@ export default function SavedAddressesScreen() {
     }
   };
 
+  const filteredAddresses = useMemo(() => {
+    if (!searchQuery.trim()) return addresses;
+    const q = searchQuery.toLowerCase().trim();
+    return addresses.filter((item) => {
+      const title = (item.title || '').toLowerCase();
+      const line1 = (item.line1 || item.address || '').toLowerCase();
+      const area = (item.area || '').toLowerCase();
+      const landmark = (item.landmark || '').toLowerCase();
+      const apartment = (item.apartmentName || '').toLowerCase();
+      const flatNo = (item.flatNo || '').toLowerCase();
+      const receiverName = (item.receiverName || '').toLowerCase();
+      const receiverPhone = (item.receiverPhone || '').toLowerCase();
+
+      return (
+        title.includes(q) ||
+        line1.includes(q) ||
+        area.includes(q) ||
+        landmark.includes(q) ||
+        apartment.includes(q) ||
+        flatNo.includes(q) ||
+        receiverName.includes(q) ||
+        receiverPhone.includes(q)
+      );
+    });
+  }, [addresses, searchQuery]);
+
   const renderItem = ({ item }: { item: Address }) => (
     <AddressCard
       address={item}
@@ -193,7 +222,18 @@ export default function SavedAddressesScreen() {
           Choose your default address and manage locations for faster bookings.
         </AppText>
 
-        {/* Empty state */}
+        {/* Search Bar */}
+        {(addresses.length > 0 || searchQuery.length > 0) && (
+          <AppSearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search saved addresses..."
+            onClear={() => setSearchQuery('')}
+            containerStyle={{ marginBottom: 12 }}
+          />
+        )}
+
+        {/* Empty state when no addresses saved */}
         {!loading && addresses.length === 0 && (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon} />
@@ -210,15 +250,40 @@ export default function SavedAddressesScreen() {
           </View>
         )}
 
-        
+        {/* Search returned no matches */}
+        {!loading && addresses.length > 0 && filteredAddresses.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="search-outline" size={44} color={theme.colors.textMuted} />
+            <AppText weight="bold" size="h3" style={{ marginTop: 12 }}>
+              No addresses found
+            </AppText>
+            <AppText
+              size="small"
+              color="textMuted"
+              style={{ marginTop: 4, textAlign: 'center', width: '80%' }}
+            >
+              No saved address matches "{searchQuery}".
+            </AppText>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearSearchBtn}
+              activeOpacity={0.8}
+            >
+              <AppText size="small" weight="semibold" style={{ color: theme.colors.primary }}>
+                Clear Search
+              </AppText>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* List */}
         <FlatList
-          data={addresses}
+          data={filteredAddresses}
           keyExtractor={(item, index) => item.id ? String(item.id) : (item._id ? String(item._id) : `address-${index}`)}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         />
       </View>
 
@@ -259,5 +324,13 @@ const createStyles = (theme: any, insets: any) =>
       backgroundColor: theme.colors.surface,
       opacity: 0.6,
     },
-    
+    clearSearchBtn: {
+      marginTop: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
   });
