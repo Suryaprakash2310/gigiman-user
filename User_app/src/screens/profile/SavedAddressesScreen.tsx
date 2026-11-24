@@ -105,13 +105,26 @@ export default function SavedAddressesScreen() {
   const handleSelectAddress = (address: Address) => {
     if (!selectMode) return;
 
-    navigation.navigate("Booking", {
+    const bookingParams = {
       selectedAddress: address,
       ...(route.params?.serviceCategoryId ? { serviceCategoryId: route.params.serviceCategoryId } : {}),
       ...(route.params?.serviceData ? { serviceData: route.params.serviceData } : {}),
       ...(route.params?.domainServiceId ? { domainServiceId: route.params.domainServiceId } : {}),
       ...(route.params?.fromMain ? { fromMain: route.params.fromMain } : {}),
-    });
+    };
+
+    const routes = navigation.getState()?.routes || [];
+    const hasBooking = routes.some((r: any) => r.name === "Booking");
+
+    if (hasBooking && typeof (navigation as any).popTo === "function") {
+      (navigation as any).popTo("Booking", bookingParams, { merge: true });
+    } else if (hasBooking) {
+      navigation.navigate({ name: "Booking", params: bookingParams, merge: true });
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("Booking", bookingParams);
+    }
   };
 
   const handleAddAddress = () => {
@@ -157,7 +170,12 @@ export default function SavedAddressesScreen() {
   };
   const handleBack = () => {
     if (selectMode) {
-      if (navigation.canGoBack()) {
+      const routes = navigation.getState()?.routes || [];
+      const hasBooking = routes.some((r: any) => r.name === "Booking");
+
+      if (hasBooking && typeof (navigation as any).popTo === "function") {
+        (navigation as any).popTo("Booking");
+      } else if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
         navigation.navigate("Booking", {

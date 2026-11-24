@@ -170,6 +170,7 @@ export default function AddEditAddressScreen() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const isSavingRef = useRef<boolean>(false);
   const isInitializedRef = useRef(false);
   const cancelGpsDetectionRef = useRef(false);
 
@@ -280,12 +281,22 @@ export default function AddEditAddressScreen() {
       longitude: coordinates?.longitude,
       address: locality,
       formData: currentForm,
+      selectMode,
+      addressId,
+      existingAddress: route.params?.address,
+      serviceCategoryId: route.params?.serviceCategoryId,
+      serviceData: route.params?.serviceData,
+      domainServiceId: route.params?.domainServiceId,
+      fromMain: route.params?.fromMain,
+      returnTo: route.params?.returnTo,
     });
   };
 
   const isFormValid = flatNo.trim().length > 0 && apartmentName.trim().length > 0 && locality.trim().length > 0;
 
   const handleSaveAddress = async () => {
+    if (isSavingRef.current || saving) return;
+
     if (!flatNo.trim()) {
       Alert.alert("Required Field", "Please enter Flat / House No.");
       return;
@@ -300,6 +311,7 @@ export default function AddEditAddressScreen() {
     }
 
     try {
+      isSavingRef.current = true;
       setSaving(true);
 
       // Build full formatted address string
@@ -401,17 +413,47 @@ export default function AddEditAddressScreen() {
       // 3. Return to previous screen
       tempFormDraft = null;
       if (selectMode) {
-        navigation.navigate("Booking", {
+        const bookingParams = {
           selectedAddress: finalAddressObj,
           ...(route.params?.serviceCategoryId ? { serviceCategoryId: route.params.serviceCategoryId } : {}),
           ...(route.params?.serviceData ? { serviceData: route.params.serviceData } : {}),
           ...(route.params?.domainServiceId ? { domainServiceId: route.params.domainServiceId } : {}),
           ...(route.params?.fromMain ? { fromMain: route.params.fromMain } : {}),
-        });
+        };
+
+        const routes = navigation.getState()?.routes || [];
+        const hasBooking = routes.some((r: any) => r.name === "Booking");
+
+        if (hasBooking && typeof (navigation as any).popTo === "function") {
+          (navigation as any).popTo("Booking", bookingParams, { merge: true });
+        } else if (hasBooking) {
+          navigation.navigate({ name: "Booking", params: bookingParams, merge: true });
+        } else if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate("Booking", bookingParams);
+        }
       } else {
-        navigation.navigate("SavedAddressesScreen");
+        const routes = navigation.getState()?.routes || [];
+        const savedAddressesRoute = routes.slice().reverse().find((r: any) => 
+          r.name === "SavedAddressesScreen" || 
+          r.name === "SavedAddresses" || 
+          r.name === "Addresses" ||
+          r.name === "Address" ||
+          r.name === "AddressScreen" ||
+          r.name === "ProfileAddress"
+        );
+
+        if (savedAddressesRoute && typeof (navigation as any).popTo === "function") {
+          (navigation as any).popTo(savedAddressesRoute.name);
+        } else if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate("SavedAddressesScreen");
+        }
       }
     } catch (err: any) {
+      isSavingRef.current = false;
       console.error("Save address error:", err);
       Alert.alert("Error", err?.message || "Failed to save address. Please try again.");
     } finally {
@@ -421,17 +463,39 @@ export default function AddEditAddressScreen() {
 
   const handleBack = () => {
     tempFormDraft = null;
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else if (selectMode) {
-      navigation.navigate("Booking", {
-        ...(route.params?.serviceCategoryId ? { serviceCategoryId: route.params.serviceCategoryId } : {}),
-        ...(route.params?.serviceData ? { serviceData: route.params.serviceData } : {}),
-        ...(route.params?.domainServiceId ? { domainServiceId: route.params.domainServiceId } : {}),
-        ...(route.params?.fromMain ? { fromMain: route.params.fromMain } : {}),
-      });
+    const routes = navigation.getState()?.routes || [];
+
+    if (selectMode) {
+      const hasBooking = routes.some((r: any) => r.name === "Booking");
+      if (hasBooking && typeof (navigation as any).popTo === "function") {
+        (navigation as any).popTo("Booking");
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("Booking", {
+          ...(route.params?.serviceCategoryId ? { serviceCategoryId: route.params.serviceCategoryId } : {}),
+          ...(route.params?.serviceData ? { serviceData: route.params.serviceData } : {}),
+          ...(route.params?.domainServiceId ? { domainServiceId: route.params.domainServiceId } : {}),
+          ...(route.params?.fromMain ? { fromMain: route.params.fromMain } : {}),
+        });
+      }
     } else {
-      navigation.navigate("SavedAddressesScreen");
+      const savedAddressesRoute = routes.slice().reverse().find((r: any) => 
+        r.name === "SavedAddressesScreen" || 
+        r.name === "SavedAddresses" || 
+        r.name === "Addresses" ||
+        r.name === "Address" ||
+        r.name === "AddressScreen" ||
+        r.name === "ProfileAddress"
+      );
+
+      if (savedAddressesRoute && typeof (navigation as any).popTo === "function") {
+        (navigation as any).popTo(savedAddressesRoute.name);
+      } else if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("SavedAddressesScreen");
+      }
     }
   };
 

@@ -1,6 +1,6 @@
 import { socket } from '@/src/socket/socket';
 import { injectRazorpayData } from '@/src/utils/razorpayInjector';
-import { razorpayHTML, handlePaymentShouldStartLoadWithRequest } from '@/src/utils/razorpayTemplate';
+import { handlePaymentShouldStartLoadWithRequest, razorpayHTML } from '@/src/utils/razorpayTemplate';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -9,7 +9,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Modal,
   Platform,
@@ -32,9 +31,9 @@ import AppText from '@/src/components/ui/AppText';
 import CalendarModal from '@/src/components/ui/CalendarModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+import { getAddressesAPI } from '@/src/api/auth';
 import { CouponAPI } from '@/src/api/coupon.api';
 import { ServiceAPI } from '@/src/api/service.api';
-import { getAddressesAPI } from '@/src/api/auth';
 import { useAuthContext } from '@/src/context/AuthContext';
 import { useBooking } from '@/src/context/BookingContext';
 import { useCartContext } from '@/src/context/CartContext';
@@ -45,11 +44,11 @@ import { getAddressFromCoords, getCurrentLocation } from '@/src/utils/location';
 
 import BookingModeSelector from '@/src/components/booking/BookingModeSelector';
 import QuantitySelector from '@/src/components/booking/QuantitySelector';
-import { useRecurringStore, MOCK_SERVICES } from '@/src/store/recurringStore';
 import ScheduleSelector from '@/src/components/booking/ScheduleSelector';
 import ServiceDescription from '@/src/components/booking/ServiceDescription';
 import ServiceHeader from '@/src/components/booking/ServiceHeader';
 import { AppTabsParamList } from '@/src/navigation/AppStack';
+import { useRecurringStore } from '@/src/store/recurringStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { isComingSoon } from '@/src/utils/serviceStatus';
@@ -81,8 +80,6 @@ interface ServiceCategory {
   status?: string;
 }
 
-const { width } = Dimensions.get('window');
-
 const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const { serviceCategoryId, serviceData, fromMain, domainServiceId } = route?.params || {};
   const { user } = useAuthContext();
@@ -91,7 +88,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const safeTop = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 20);
-  const safeBottom = Math.max(insets.bottom, 16);
+  const safeBottom = Math.max(insets.bottom, 12);
   const { upsertBooking } = useBooking();
   const convenienceFee = FEES.CONVENIENCE_FEE;
 
@@ -846,14 +843,14 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
     <View
       style={[
         styles.safe,
-        { paddingTop: safeTop },
+        { paddingTop: safeTop, paddingLeft: insets.left, paddingRight: insets.right },
       ]}
     >
       <AppHeader showBack onBackPress={handleBack} title={isCartCheckout ? "Checkout" : "Service Details"} />
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: safeBottom + 24 }]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {isComingSoon(category?.status) && (
@@ -864,8 +861,9 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               borderColor: '#FFEDD5',
               borderWidth: 1,
               borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
+              padding: 12,
+              marginHorizontal: 16,
+              marginBottom: 12,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 12,
@@ -946,11 +944,11 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
                         <AppText weight="bold" style={{ color: "#166534", fontSize: 13 }}>
                           Special Offer Available!
                         </AppText>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 2 }}>
                           <AppText size="small" weight="bold" style={{ color: "#15803D" }}>
                             Offer: ₹{currentPrice}
                           </AppText>
-                          <AppText size="small" style={{ color: "#86EFAC", textDecorationLine: "line-through" }}>
+                          <AppText size="small" style={{ color: "#166534", textDecorationLine: "line-through" }}>
                             Original: ₹{origPrice}
                           </AppText>
                         </View>
@@ -992,15 +990,15 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           activeOpacity={0.88}
         >
           <View style={[styles.locationIconCircle, { backgroundColor: theme.colors.primary + '18' }]}>
-            <Ionicons name="location-sharp" size={20} color={theme.colors.primary} />
+            <Ionicons name="location-sharp" size={18} color={theme.dark ? theme.colors.primaryDark : theme.colors.primary} />
           </View>
 
-          <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
               <AppText weight="bold" style={{ fontSize: 14 }}>Service Location</AppText>
               {selectedAddress?.title ? (
                 <View style={{ backgroundColor: theme.colors.primary + '20', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
-                  <AppText weight="bold" style={{ color: theme.colors.primary, fontSize: 10, textTransform: 'uppercase' }}>
+                  <AppText weight="bold" style={{ color: theme.dark ? theme.colors.text : theme.colors.primary, fontSize: 10, textTransform: 'uppercase' }}>
                     {selectedAddress.title}
                   </AppText>
                 </View>
@@ -1044,10 +1042,10 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           </View>
 
           <View style={styles.changeActionBtn}>
-            <AppText weight="bold" style={{ color: theme.colors.primary, fontSize: 13 }}>
+            <AppText weight="semibold" style={{ color: theme.dark ? theme.colors.text : theme.colors.primary, fontSize: 12 }}>
               Change
             </AppText>
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
+            <Ionicons name="chevron-forward" size={14} color={theme.dark ? theme.colors.text : theme.colors.primary} />
           </View>
         </TouchableOpacity>
 
@@ -1121,7 +1119,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
 
         {/* Payment Options Section */}
         <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.paymentOptionsCard}>
-          <AppText weight="bold" style={{ marginBottom: 12 }}>Payment Options</AppText>
+          <AppText weight="bold" style={{ marginBottom: 8 }}>Payment Options</AppText>
 
           <TouchableOpacity
             style={[
@@ -1133,13 +1131,13 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           >
             <Ionicons
               name={paymentType === 'FULL' ? 'radio-button-on' : 'radio-button-off'}
-              size={20}
-              color={paymentType === 'FULL' ? theme.colors.primary : theme.colors.textMuted}
+              size={18}
+              color={paymentType === 'FULL' ? (theme.dark ? theme.colors.primaryDark : theme.colors.primary) : theme.colors.textMuted}
             />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <AppText weight="bold">Pay Full Amount</AppText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <AppText size="small" color="textMuted">Pay ₹{totalPrice - discountAmount} online now</AppText>
+            <View style={{ flex: 1, gap: 2 }}>
+              <AppText weight="semibold" size="small">Pay Amount</AppText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>
+                <AppText size="small" color="textMuted" style={{ flexShrink: 1 }}>Pay <AppText size="small" weight="bold" style={styles.paymentAmount}>₹{totalPrice - discountAmount}</AppText> online now</AppText>
                 {totalOriginalPrice > (totalPrice - discountAmount) && (
                   <AppText size="caption" color="textMuted" style={{ textDecorationLine: 'line-through' }}>
                     ₹{totalOriginalPrice}
@@ -1149,6 +1147,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
             </View>
           </TouchableOpacity>
 
+          {/*
           <TouchableOpacity
             style={[
               styles.paymentOptionRow,
@@ -1159,17 +1158,20 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           >
             <Ionicons
               name={paymentType === 'ADVANCE' ? 'radio-button-on' : 'radio-button-off'}
-              size={20}
-              color={paymentType === 'ADVANCE' ? theme.colors.primary : theme.colors.textMuted}
+              size={18}
+              color={paymentType === 'ADVANCE' ? (theme.dark ? theme.colors.primaryDark : theme.colors.primary) : theme.colors.textMuted}
             />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <AppText weight="bold">Pay 18% Advance Amount</AppText>
+            
+            <View style={{ flex: 1, gap: 2 }}>
+              <AppText weight="semibold" size="small">Pay 18% Advance Amount</AppText>
               <AppText size="small" color="textMuted">
-                Pay ₹{Math.round((totalPrice - discountAmount) * 0.18)} now, remaining ₹{Math.round((totalPrice - discountAmount) * 0.82) + convenienceFee} collected after completion
+                Pay <AppText size="small" weight="bold" style={styles.paymentAmount}>₹{Math.round((totalPrice - discountAmount) * 0.18)}</AppText> now, remaining <AppText size="small" weight="semibold" style={styles.paymentAmount}>₹{Math.round((totalPrice - discountAmount) * 0.82) + convenienceFee}</AppText> collected after completion
               </AppText>
             </View>
-          </TouchableOpacity>
+            
+          </TouchableOpacity>  */}
         </Animated.View>
+        
 
 
 
@@ -1177,7 +1179,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
         <View style={styles.spacer} />
 
         {/* Bottom Action Bar */}
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+        <View style={[styles.bottomBar, { paddingBottom: safeBottom }]}>
 
           {/* Coupon Input Section */}
           <View style={styles.couponSection}>
@@ -1204,7 +1206,7 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
                     autoCapitalize="characters"
                   />
                   <TouchableOpacity
-                    style={styles.applyButton}
+                    style={[styles.applyButton, !couponLoading && !couponCode.trim() && styles.applyButtonDisabled]}
                     onPress={applyCoupon}
                     disabled={couponLoading || !couponCode.trim()}
                   >
@@ -1223,10 +1225,10 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
           </View>
 
           <View style={styles.priceDisplay}>
-            <AppText size="body" color="textMuted">
+            <AppText size="body" weight="semibold" style={{ flexShrink: 1 }}>
               {paymentType === 'ADVANCE' ? 'Advance to Pay:' : 'Total:'}
             </AppText>
-            <View style={{ alignItems: 'flex-end' }}>
+            <View style={{ alignItems: 'flex-end', flexShrink: 1 }}>
               {discountAmount > 0 ? (
                 <AppText
                   size="small"
@@ -1244,8 +1246,8 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
               ) : null}
               <AppText
                 weight="bold"
-                size="h2"
-                style={{ color: theme.colors.primary }}
+                size="h1"
+                style={styles.totalAmount}
               >
                 ₹{paymentType === 'ADVANCE' ? Math.round((totalPrice - discountAmount) * 0.18) : (totalPrice - discountAmount)}
               </AppText>
@@ -1260,14 +1262,15 @@ const ServiceBookingScreen: React.FC<Props> = ({ route }) => {
                   : (booking || paying)
                     ? 'Processing Payment...'
                     : bookingMode === 'schedule'
-                      ? (paymentType === 'ADVANCE' ? 'Pay Advance & Schedule' : 'Pay Full & Schedule')
-                      : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay Full & Book')
+                      ? (paymentType === 'ADVANCE' ? 'Pay Advance & Schedule' : 'Pay & Schedule')
+                      : (paymentType === 'ADVANCE' ? 'Pay Advance & Book' : 'Pay & Book')
               }
               disabled={isComingSoon(category?.status) || booking || paying || (bookingMode === 'schedule' && (!selectedDate || !selectedTime))}
               onPress={handleBookNow}
               loading={booking || paying}
               variant="primary"
               style={styles.bookButton}
+              textStyle={styles.bookButtonText}
             />
           ) : (
             <View style={styles.unavailableContainer}>
@@ -1567,7 +1570,6 @@ const createStyles = (theme: any) =>
     },
     scrollContent: {
       flexGrow: 1,
-      paddingBottom: 24,
     },
     loadingContainer: {
       flex: 1,
@@ -1597,51 +1599,59 @@ const createStyles = (theme: any) =>
       fontSize: 14,
     },
     heroImage: {
-      width: width,
-      height: 280,
+      width: '100%',
+      aspectRatio: 1.85,
+      maxHeight: 240,
       backgroundColor: theme.colors.surface,
     },
     spacer: {
-      height: theme.spacing.xl,
+      height: 12,
     },
     bottomBar: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.lg,
+      paddingHorizontal: 16,
+      paddingTop: 12,
       backgroundColor: theme.colors.surface,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
-      marginTop: 20,
     },
     priceDisplay: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: theme.spacing.md,
+      marginBottom: 10,
+      gap: 8,
+    },
+    totalAmount: {
+      color: theme.dark ? theme.colors.text : theme.colors.primary,
+      fontVariant: ['tabular-nums'],
+      textAlign: 'right',
     },
     bookButton: {
-      borderRadius: theme.radius.lg,
+      minHeight: 50,
+      paddingHorizontal: 12,
+      borderRadius: theme.radius.md,
+    },
+    bookButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      textAlign: 'center',
     },
     locationCard: {
       flexDirection: "row",
       alignItems: "center",
-      padding: 16,
+      padding: 12,
       backgroundColor: theme.colors.surface,
       marginHorizontal: 16,
-      marginTop: 14,
-      borderRadius: 16,
-      borderWidth: 1.5,
+      marginBottom: 12,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
       borderColor: theme.colors.border,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
-      elevation: 2,
+      gap: 8,
     },
     locationIconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 32,
+      height: 32,
+      borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1649,10 +1659,10 @@ const createStyles = (theme: any) =>
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: theme.colors.primary + "15",
-      paddingVertical: 7,
-      paddingHorizontal: 12,
-      borderRadius: 10,
-      gap: 3,
+      paddingVertical: 6,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+      gap: 2,
     },
     modalOverlay: {
       flex: 1,
@@ -1788,10 +1798,10 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     couponSection: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.background,
       borderRadius: theme.radius.md,
-      padding: 12,
-      marginBottom: 16,
+      padding: 8,
+      marginBottom: 10,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
@@ -1807,7 +1817,10 @@ const createStyles = (theme: any) =>
     },
     couponInput: {
       flex: 1,
-      height: 36,
+      minWidth: 0,
+      minHeight: 44,
+      paddingVertical: 6,
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
       borderRadius: theme.radius.sm,
@@ -1818,33 +1831,43 @@ const createStyles = (theme: any) =>
     },
     applyButton: {
       backgroundColor: theme.colors.primary,
-      paddingHorizontal: 16,
-      height: 36,
+      minWidth: 60,
+      paddingHorizontal: 10,
+      minHeight: 44,
       borderRadius: theme.radius.sm,
       justifyContent: 'center',
       alignItems: 'center',
     },
+    applyButtonDisabled: {
+      opacity: 0.55,
+    },
     paymentOptionsCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 12,
+      borderRadius: theme.radius.md,
       marginHorizontal: 16,
-      marginTop: 12,
-      padding: 16,
+      padding: 12,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     paymentOptionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      minHeight: 44,
+      gap: 8,
       borderWidth: 1,
       borderColor: theme.colors.border,
       borderRadius: 8,
-      marginVertical: 6,
+      marginTop: 6,
+    },
+    paymentAmount: {
+      fontVariant: ['tabular-nums'],
+      color: theme.dark ? theme.colors.text : theme.colors.primary,
     },
     paymentOptionActive: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primary + '10',
+      borderColor: theme.dark ? theme.colors.primaryDark : theme.colors.primary,
+      backgroundColor: theme.colors.primary + '14',
     },
     paymentSheetOverlay: {
       flex: 1,
@@ -1898,8 +1921,8 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.surface,
       borderRadius: 12,
       marginHorizontal: 16,
-      marginTop: 16,
-      padding: 16,
+      marginVertical: 12,
+      padding: 12,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
@@ -1988,14 +2011,15 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: '#DCFCE7',
-      borderColor: '#86EFAC',
+      backgroundColor: '#ECFDF5',
+      borderColor: '#BBF7D0',
       borderWidth: 1,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      marginHorizontal: theme.spacing.lg || 16,
-      marginBottom: 16,
+      borderRadius: theme.radius.md,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      gap: 8,
     },
     offerBannerLeft: {
       flexDirection: 'row',
@@ -2003,8 +2027,8 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     offerBannerBadge: {
-      backgroundColor: '#16A34A',
-      paddingHorizontal: 10,
+      backgroundColor: '#26413C',
+      paddingHorizontal: 8,
       paddingVertical: 4,
       borderRadius: 12,
     },

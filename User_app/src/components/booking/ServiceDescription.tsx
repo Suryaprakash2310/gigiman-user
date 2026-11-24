@@ -243,14 +243,13 @@ const ServiceDescription: React.FC<ServiceDescriptionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      marginVertical: theme.spacing.sm,
-      marginHorizontal: theme.spacing.lg,
+      marginBottom: 12,
+      marginHorizontal: 16,
       gap: theme.spacing.md,
     },
     card: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.lg,
-      borderRadius: theme.radius.lg,
+      padding: 12,
+      borderRadius: theme.radius.md,
       borderWidth: 1,
     },
     includesCard: {
@@ -264,13 +263,13 @@ const createStyles = (theme: any) =>
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: theme.spacing.md,
+      marginBottom: 8,
       gap: theme.spacing.sm,
     },
     headerIconContainer: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -281,7 +280,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.dark ? '#7F1D1D60' : '#FEE2E2',
     },
     title: {
-      fontSize: 16,
+      fontSize: 14,
       flex: 1,
     },
     badge: {
@@ -304,7 +303,7 @@ const createStyles = (theme: any) =>
       fontWeight: '600',
     },
     featuresContainer: {
-      gap: theme.spacing.sm,
+      gap: 4,
     },
     featureItem: {
       flexDirection: 'row',

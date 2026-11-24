@@ -22,7 +22,7 @@ export default function AuthStack() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      
+
       {/* 🔐 Not logged in */}
       {!user && (
         <>

@@ -36,7 +36,7 @@ import {
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
-import { CouponAPI, AvailableCoupon } from "../api/coupon.api";
+import { AvailableCoupon, CouponAPI } from "../api/coupon.api";
 import { getBanners, getPopularServices } from "../api/dashboard.api";
 import { AppTabsParamList } from "../navigation/AppStack";
 
@@ -496,7 +496,7 @@ const hS = StyleSheet.create({
 
 const CACHE_KEY_SERVICES = "@gigiman_cached_services";
 
-  function CategorySection({ navigation }: any) {
+function CategorySection({ navigation }: any) {
   const { user } = useAuthContext();
   const [services, setServices] = useState<DomainService[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -1151,7 +1151,7 @@ function WhySection() {
       <View style={whyS.trustStrip}>
         <Ionicons name="checkmark-circle" size={20} color="#fff" />
         <AppText weight="bold" style={{ color: "#fff", fontSize: 14, marginLeft: 10, flex: 1 }}>
-          Trusted by 500+ happy customers
+          Trusted by 1500+ happy customers
         </AppText>
         <View style={{ flexDirection: "row" }}>
           {[1, 2, 3, 4, 5].map(k => <Ionicons key={k} name="star" size={12} color="#fbbf24" />)}

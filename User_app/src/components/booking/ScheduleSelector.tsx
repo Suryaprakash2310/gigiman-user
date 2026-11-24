@@ -214,17 +214,17 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={styles.heading}>
           <Ionicons
             name={isInstant ? 'flash' : 'calendar'}
             size={18}
-            color={isInstant ? '#F59E0B' : (theme?.colors?.primary || '#26413C')}
+            color={theme.dark ? theme.colors.primaryDark : theme.colors.primary}
           />
           <AppText weight="bold" size="body" style={[styles.title, { color: theme?.colors?.text || '#0F172A' }]}>
             {isInstant ? 'Select Instant Slot' : 'Schedule Later'}
           </AppText>
         </View>
-        <AppText size="caption" color="textMuted">
+        <AppText size="caption" color="textMuted" style={styles.dayLabel}>
           {isInstant
             ? (isTodayAvailable ? 'Today' : 'Tomorrow')
             : 'Next 3 Days'}
@@ -351,8 +351,8 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
       {/* Selected Slot Summary Badge */}
       {selectedTime && (
         <View style={styles.confirmationBox}>
-          <Ionicons name="checkmark-circle" size={16} color={theme?.colors?.primary || '#26413C'} />
-          <AppText size="caption" color="primary" weight="medium" style={{ marginLeft: 6 }}>
+          <Ionicons name="checkmark-circle" size={16} color={theme.dark ? theme.colors.primaryDark : theme.colors.primary} />
+          <AppText size="caption" weight="medium" style={styles.confirmationText}>
             Selected Slot: {formatDateDisplay(selectedDate || new Date())} • {formatTimeDisplay(selectedTime)}
           </AppText>
         </View>
@@ -364,22 +364,36 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: theme?.spacing?.lg ?? 16,
-      paddingVertical: theme?.spacing?.md ?? 12,
-      marginVertical: theme?.spacing?.md ?? 12,
-      backgroundColor: theme?.colors?.card || theme?.colors?.surface || '#FFFFFF',
-      borderRadius: theme?.radius?.lg ?? 16,
+      padding: 12,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.md,
       borderWidth: 1,
-      borderColor: theme?.dark ? (theme?.colors?.border || '#334155') : '#EDF2F7',
+      borderColor: theme.colors.border,
     },
     headerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 8,
+      gap: 8,
+    },
+    heading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 1,
+      gap: 6,
     },
     title: {
+      flexShrink: 1,
       fontSize: 14,
+    },
+    dayLabel: {
+      backgroundColor: theme.colors.background,
+      borderRadius: theme.radius.round,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
     },
     fallbackNoticeBox: {
       flexDirection: 'row',
@@ -419,12 +433,12 @@ const createStyles = (theme: any) =>
       color: '#718096',
     },
     loadingContainer: {
-      paddingVertical: 20,
+      paddingVertical: 12,
       alignItems: 'center',
       justifyContent: 'center',
     },
     emptyContainer: {
-      paddingVertical: 20,
+      paddingVertical: 12,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -432,40 +446,47 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'flex-start',
-      gap: 10,
-      marginVertical: 4,
+      gap: 6,
     },
     slotBox: {
-      width: '48%',
-      height: 44,
-      borderRadius: theme?.radius?.md ?? 10,
-      borderWidth: 1.5,
-      borderColor: theme?.dark ? '#334155' : '#E2E8F0',
-      backgroundColor: theme?.dark ? '#1E293B' : '#FFFFFF',
+      width: '32%',
+      minWidth: 78,
+      minHeight: 44,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.background,
       alignItems: 'center',
       justifyContent: 'center',
     },
     slotBoxActive: {
       borderColor: theme?.colors?.primary || '#26413C',
-      backgroundColor: `${theme?.colors?.primary || '#26413C'}14`,
+      backgroundColor: theme.colors.primary,
     },
     slotBoxText: {
       fontSize: 13,
       color: theme?.colors?.text || '#1E293B',
-      letterSpacing: 0.3,
+      textAlign: 'center',
+      fontVariant: ['tabular-nums'],
     },
     slotBoxTextActive: {
-      color: theme?.colors?.primary || '#26413C',
-      fontWeight: '700',
+      color: '#FFFFFF',
     },
     confirmationBox: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 12,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      marginTop: 8,
+      paddingVertical: 6,
+      paddingHorizontal: 8,
       backgroundColor: `${theme?.colors?.primary || '#26413C'}0D`,
       borderRadius: theme?.radius?.md ?? 10,
+    },
+    confirmationText: {
+      marginLeft: 6,
+      flexShrink: 1,
+      color: theme.dark ? theme.colors.text : theme.colors.primary,
     },
   });
 

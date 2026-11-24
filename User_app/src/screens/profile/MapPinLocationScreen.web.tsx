@@ -45,6 +45,7 @@ export default function MapPinLocationScreen() {
   const searchDebounceRef = useRef<any>(null);
   const mapRef = useRef<any>(null);
   const selectedCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const isSubmittingRef = useRef<boolean>(false);
   const mapContainerId = "leaflet-map-container";
 
   const [leafletLoaded, setLeafletLoaded] = useState(false);
@@ -289,21 +290,45 @@ export default function MapPinLocationScreen() {
   };
 
   const confirmLocation = () => {
+    if (isSubmittingRef.current) return;
     const coords = selectedCoordsRef.current || initialRegion;
     if (!coords) return;
 
-    navigation.navigate({
-      name: "AddEditAddress",
-      params: {
-        selectedAddressFromMap: {
-          line1: address || `Location (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})`,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-        },
-        preservedFormData: route.params?.formData,
+    isSubmittingRef.current = true;
+
+    const returnParams = {
+      selectedAddressFromMap: {
+        line1: address || `Location (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})`,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
       },
-      merge: true,
-    });
+      preservedFormData: route.params?.formData,
+      selectMode: route.params?.selectMode,
+      addressId: route.params?.addressId,
+      serviceCategoryId: route.params?.serviceCategoryId,
+      serviceData: route.params?.serviceData,
+      domainServiceId: route.params?.domainServiceId,
+      fromMain: route.params?.fromMain,
+      returnTo: route.params?.returnTo,
+      ...(route.params?.existingAddress ? { address: route.params.existingAddress } : {}),
+    };
+
+    const routes = navigation.getState()?.routes || [];
+    const hasAddEditAddress = routes.some((r: any) => r.name === "AddEditAddress");
+
+    if (hasAddEditAddress && typeof (navigation as any).popTo === "function") {
+      (navigation as any).popTo("AddEditAddress", returnParams, { merge: true });
+    } else if (hasAddEditAddress) {
+      navigation.navigate({
+        name: "AddEditAddress",
+        params: returnParams,
+        merge: true,
+      });
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("AddEditAddress", returnParams);
+    }
   };
 
   useEffect(() => {

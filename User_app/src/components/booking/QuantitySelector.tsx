@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
@@ -11,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import type { AppTheme } from '@/src/theme';
 import AppText from '@/src/components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
 
@@ -59,237 +59,96 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
   const isMaxed = quantity >= maxQuantity;
   const isMinned = quantity <= 1;
 
-  // Progress bar fill: how many segments are filled
-  const filled = quantity;
-  const total = maxQuantity;
+  const controlColor = theme.dark ? theme.colors.text : theme.colors.primary;
 
   return (
     <View style={styles.container}>
-      {/* Header Row */}
-      <View style={styles.headerRow}>
-        <View style={styles.labelRow}>
-          <View style={styles.labelDot} />
-          <AppText weight="bold" style={styles.label}>
-            {label}
-          </AppText>
-        </View>
-        <View style={styles.limitBadge}>
-          <AppText style={styles.limitText}>max {maxQuantity}</AppText>
-        </View>
+      <View style={styles.details}>
+        <AppText weight="semibold" size="small">{label}</AppText>
+        <AppText size="caption" color="textMuted">Max {maxQuantity}</AppText>
       </View>
 
-      {/* Stepper Pill */}
-      <View style={styles.stepperPill}>
-        {/* Decrease Button */}
+      <View style={styles.stepper}>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Decrease quantity"
           onPress={onDecrease}
           disabled={isMinned}
           activeOpacity={0.7}
-          style={[styles.stepBtn, isMinned && styles.stepBtnDisabled]}
+          style={[styles.stepButton, isMinned && styles.stepButtonDisabled]}
         >
-          <Ionicons
-            name="remove"
-            size={22}
-            color={isMinned ? theme.colors.textMuted : '#ffffff'}
-          />
+          <Ionicons name="remove" size={18} color={controlColor} />
         </TouchableOpacity>
 
-        {/* Count Display */}
-        <View style={styles.countArea}>
-          <Animated.View style={animatedCountStyle}>
-            <AppText weight="bold" style={styles.countText}>
-              {quantity}
-            </AppText>
-          </Animated.View>
-          <AppText style={styles.unitText}>
-            {quantity === 1 ? 'unit' : 'units'}
+        <Animated.View style={[styles.count, animatedCountStyle]}>
+          <AppText weight="semibold" style={styles.countText}>
+            {quantity}
           </AppText>
-        </View>
+        </Animated.View>
 
-        {/* Increase Button */}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Increase quantity"
           onPress={onIncrease}
           disabled={isMaxed}
           activeOpacity={0.7}
-          style={[styles.stepBtn, isMaxed && styles.stepBtnDisabled]}
+          style={[styles.stepButton, isMaxed && styles.stepButtonDisabled]}
         >
-          <Ionicons
-            name="add"
-            size={22}
-            color={isMaxed ? theme.colors.textMuted : '#ffffff'}
-          />
+          <Ionicons name="add" size={18} color={controlColor} />
         </TouchableOpacity>
-      </View>
-
-      {/* Segmented Progress Bar */}
-      <View style={styles.progressRow}>
-        {Array.from({ length: total }).map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.progressSegment,
-              i < filled && styles.progressSegmentFilled,
-              i === 0 && styles.segmentFirst,
-              i === total - 1 && styles.segmentLast,
-            ]}
-          />
-        ))}
-      </View>
-
-      {/* Bottom Context Line */}
-      <View style={styles.contextRow}>
-        {isMaxed ? (
-          <AppText style={styles.maxWarning}>
-            🚫 Maximum quantity reached
-          </AppText>
-        ) : (
-          <AppText style={styles.contextText}>
-            {maxQuantity - quantity} more available
-          </AppText>
-        )}
       </View>
     </View>
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     container: {
-      marginHorizontal: theme.spacing.lg,
-      marginVertical: theme.spacing.md,
+      marginHorizontal: 16,
+      marginBottom: theme.spacing.md,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
       backgroundColor: theme.colors.surface,
-      borderRadius: 20,
-      padding: theme.spacing.lg,
+      borderRadius: theme.radius.md,
       borderWidth: 1,
-      borderColor: theme.dark ? theme.colors.border : 'rgba(0,0,0,0.06)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.07,
-      shadowRadius: 12,
-      elevation: 3,
+      borderColor: theme.colors.border,
     },
-
-    // Header
-    headerRow: {
+    details: {
+      flexBasis: 88,
+      flexGrow: 1,
+      gap: 2,
+    },
+    stepper: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 16,
-    },
-    labelRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    labelDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: theme.colors.primary,
-    },
-    label: {
-      fontSize: 16,
-      color: theme.colors.text,
-    },
-    limitBadge: {
-      backgroundColor: `${theme.colors.primary}12`,
-      borderRadius: 20,
-      paddingHorizontal: 10,
-      paddingVertical: 3,
+      marginLeft: 'auto',
+      backgroundColor: theme.colors.background,
+      borderRadius: theme.radius.md,
       borderWidth: 1,
-      borderColor: `${theme.colors.primary}25`,
+      borderColor: theme.colors.border,
     },
-    limitText: {
-      fontSize: 11,
-      color: theme.colors.primary,
-      fontWeight: '600',
-    },
-
-    // Stepper pill
-    stepperPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9',
-      borderRadius: 16,
-      padding: 6,
-      marginBottom: 16,
-    },
-    stepBtn: {
-      width: 52,
-      height: 52,
-      borderRadius: 13,
-      backgroundColor: theme.colors.primary,
+    stepButton: {
+      width: 44,
+      height: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: theme.colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 4,
+      borderRadius: theme.radius.md,
     },
-    stepBtnDisabled: {
-      backgroundColor: theme.dark ? '#334155' : '#CBD5E1',
-      shadowOpacity: 0,
-      elevation: 0,
+    stepButtonDisabled: {
+      opacity: 0.35,
     },
-    countArea: {
-      flex: 1,
+    count: {
+      minWidth: 24,
       alignItems: 'center',
-      justifyContent: 'center',
     },
     countText: {
-      fontSize: 34,
-      color: theme.colors.text,
-      lineHeight: 40,
-    },
-    unitText: {
-      fontSize: 11,
-      color: theme.colors.textMuted,
-      marginTop: -2,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-    },
-
-    // Progress bar
-    progressRow: {
-      flexDirection: 'row',
-      gap: 4,
-      marginBottom: 10,
-      height: 6,
-    },
-    progressSegment: {
-      flex: 1,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.dark ? '#334155' : '#E2E8F0',
-    },
-    progressSegmentFilled: {
-      backgroundColor: theme.colors.primary,
-    },
-    segmentFirst: {
-      borderTopLeftRadius: 99,
-      borderBottomLeftRadius: 99,
-    },
-    segmentLast: {
-      borderTopRightRadius: 99,
-      borderBottomRightRadius: 99,
-    },
-
-    // Bottom context
-    contextRow: {
-      alignItems: 'center',
-    },
-    contextText: {
-      fontSize: 12,
-      color: theme.colors.textMuted,
-    },
-    maxWarning: {
-      fontSize: 12,
-      color: '#EF4444',
-      fontWeight: '600',
+      color: theme.dark ? theme.colors.text : theme.colors.primary,
+      fontVariant: ['tabular-nums'],
     },
   });
 
 export default QuantitySelector;
-

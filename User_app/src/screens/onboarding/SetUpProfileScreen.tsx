@@ -21,6 +21,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
+import type { AppTheme } from "@/src/theme";
 
 import { useTheme } from "@/src/theme/useTheme";
 import { useAuthContext } from "@/src/context/AuthContext";
@@ -106,7 +108,7 @@ function SuccessCheck({ color }: { color: string }) {
         },
       ]}
     >
-      <Text style={[checkStyles.tick, { color }]}>✓</Text>
+      <Ionicons name="checkmark" size={16} color={color} />
     </Animated.View>
   );
 }
@@ -119,7 +121,6 @@ const checkStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tick: { fontSize: 16, fontWeight: "700" },
 });
 
 // ─── LocationStatusRow ────────────────────────────────────────────────────────
@@ -128,30 +129,30 @@ function LocationStatusRow({
   theme,
 }: {
   status: LocationStatus;
-  theme: any;
+  theme: AppTheme;
 }) {
   const map: Record<
     LocationStatus,
-    { icon: string; label: string; color: string }
+    { icon: keyof typeof Ionicons.glyphMap; label: string; color: string }
   > = {
-    idle: { icon: "📍", label: "Waiting...", color: theme.colors.textMuted },
+    idle: { icon: "location-outline", label: "Waiting...", color: theme.colors.textMuted },
     detecting: {
-      icon: "📡",
+      icon: "locate-outline",
       label: "Detecting location...",
-      color: theme.colors.primary,
+      color: theme.dark ? theme.colors.primaryDark : theme.colors.primary,
     },
     success: {
-      icon: "✅",
+      icon: "checkmark",
       label: "Location Verified",
-      color: theme.colors.success,
+      color: theme.colors.primaryDark,
     },
     error: {
-      icon: "⚠️",
+      icon: "alert-circle-outline",
       label: "Unable to detect",
       color: theme.colors.danger,
     },
     "permission-denied": {
-      icon: "🚫",
+      icon: "ban-outline",
       label: "Permission denied",
       color: theme.colors.danger,
     },
@@ -171,7 +172,7 @@ function LocationStatusRow({
         <View
           style={[locStyles.iconCircle, { backgroundColor: `${color}18` }]}
         >
-          <Text style={{ fontSize: 13 }}>{map[status].icon}</Text>
+          <Ionicons name={map[status].icon} size={16} color={color} />
         </View>
       )}
       <Text style={[locStyles.label, { color }]}>{label}</Text>
@@ -184,7 +185,6 @@ const locStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginBottom: 16,
   },
   spinWrap: {
     width: 28,
@@ -199,7 +199,7 @@ const locStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontSize: 14, fontWeight: "600" },
+  label: { flexShrink: 1, fontSize: 13, fontWeight: "600" },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -357,401 +357,281 @@ export default function CompleteProfileScreen() {
     }
   };
 
-  const PRIMARY = theme.colors.primary;
-  const SUCCESS = theme.colors.success;
-  const DANGER = theme.colors.danger;
-  const isDark = theme.dark;
+  const primary = theme.colors.primary;
+  const brandText = theme.dark ? theme.colors.primaryDark : primary;
+  const { background, surface, border, text, textMuted, danger } = theme.colors;
 
   return (
     <KeyboardAvoidingView
-      style={[s.root, { backgroundColor: theme.colors.background }]}
+      style={[s.root, { backgroundColor: background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
     >
       <ScrollView
+        style={s.scrollView}
         contentContainerStyle={[
           s.scroll,
           {
-            paddingTop: insets.top + 32,
-            paddingBottom: insets.bottom + 120,
+            paddingTop: insets.top + 16,
+            paddingLeft: insets.left + 16,
+            paddingRight: insets.right + 16,
           },
         ]}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <View style={[s.logoWrap, { backgroundColor: `${PRIMARY}18` }]}>
-            <Text style={s.logoEmoji}>👤</Text>
+        <View style={s.content}>
+          <View style={s.header}>
+            <View style={s.brandRow}>
+              <View style={[s.profileIcon, { backgroundColor: primary }]}>
+                <Ionicons name="person-outline" size={22} color="#fff" />
+              </View>
+              <Text style={[s.wordmark, { color: brandText }]}>GIGIMAN</Text>
+            </View>
+            <Text style={[s.title, { color: text }]}>Complete Your Profile</Text>
+            <Text style={[s.subtitle, { color: textMuted }]}>
+              Just one more step before you start using Gigiman.
+            </Text>
           </View>
-          <Text style={[s.title, { color: theme.colors.text }]}>
-            Complete Your Profile
-          </Text>
-          <Text style={[s.subtitle, { color: theme.colors.textMuted }]}>
-            Just one more step before you start using Gigiman.
-          </Text>
-        </View>
 
-        {/* ── Card 1 – Full Name ── */}
-        <View
-          style={[
-            s.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: nameError
-                ? DANGER
-                : nameFocused
-                  ? PRIMARY
-                  : theme.colors.border,
-              borderWidth: nameFocused || !!nameError ? 1.5 : 1,
-            },
-          ]}
-        >
-          <Text style={[s.cardLabel, { color: theme.colors.textMuted }]}>
-            Full Name
-          </Text>
-          <View style={s.inputRow}>
+          <View style={s.field}>
+            <Text style={[s.fieldLabel, { color: text }]}>Full Name</Text>
             <View
               style={[
-                s.inputIcon,
+                s.inputRow,
                 {
-                  backgroundColor: nameFocused
-                    ? `${PRIMARY}15`
-                    : isDark
-                      ? "#ffffff0d"
-                      : "#00000009",
+                  backgroundColor: surface,
+                  borderColor: nameError ? danger : nameFocused ? brandText : border,
                 },
               ]}
             >
-              <Text style={{ fontSize: 16 }}>👤</Text>
+              <Ionicons name="person-outline" size={18} color={nameFocused ? brandText : textMuted} />
+              <TextInput
+                accessibilityLabel="Full Name"
+                value={fullName}
+                onChangeText={(t) => {
+                  setFullName(t);
+                  if (t.trim()) setNameError("");
+                }}
+                placeholder="Enter your full name"
+                placeholderTextColor={textMuted}
+                onFocus={() => setNameFocused(true)}
+                onBlur={() => {
+                  setNameFocused(false);
+                  if (!fullName.trim())
+                    setNameError("Please enter your full name.");
+                }}
+                style={[s.textInput, { color: text }]}
+                returnKeyType="done"
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
             </View>
-            <TextInput
-              value={fullName}
-              onChangeText={(t) => {
-                setFullName(t);
-                if (t.trim()) setNameError("");
-              }}
-              placeholder="Enter your full name"
-              placeholderTextColor={theme.colors.textMuted}
-              onFocus={() => setNameFocused(true)}
-              onBlur={() => {
-                setNameFocused(false);
-                if (!fullName.trim())
-                  setNameError("Please enter your full name.");
-              }}
-              style={[s.textInput, { color: theme.colors.text }]}
-              returnKeyType="done"
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            {!!nameError && (
+              <Text style={[s.inlineError, { color: danger }]}>{nameError}</Text>
+            )}
           </View>
-          {!!nameError && (
-            <Text style={[s.inlineError, { color: DANGER }]}>{nameError}</Text>
-          )}
-        </View>
 
-        {/* ── Card 2 – Location ── */}
-        <View
-          style={[
-            s.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor:
-                locationStatus === "success"
-                  ? SUCCESS
-                  : locationStatus === "error" ||
-                    locationStatus === "permission-denied"
-                    ? DANGER
-                    : locationStatus === "detecting"
-                      ? PRIMARY
-                      : theme.colors.border,
-              borderWidth: locationStatus !== "idle" ? 1.5 : 1,
-            },
-          ]}
-        >
-          <Text style={[s.cardLabel, { color: theme.colors.textMuted }]}>
-            Current Location
-          </Text>
+          <View style={[s.locationCard, { backgroundColor: surface, borderColor: border }]}>
+            <Text style={[s.fieldLabel, { color: text }]}>Current Location</Text>
+            <LocationStatusRow status={locationStatus} theme={theme} />
 
-          <LocationStatusRow status={locationStatus} theme={theme} />
+            {!!locationError && locationStatus !== "success" && (
+              <Text style={[s.inlineError, { color: danger }]}>{locationError}</Text>
+            )}
 
-          {!!locationError && locationStatus !== "success" && (
-            <Text
-              style={[s.inlineError, { color: DANGER, marginBottom: 12 }]}
-            >
-              {locationError}
-            </Text>
-          )}
-
-          {/* Retry / Re-detect button */}
-          {locationStatus !== "detecting" && (
-            <TouchableOpacity
-              onPress={detectLocation}
-              activeOpacity={0.75}
-              style={[
-                s.retryBtn,
-                {
-                  borderColor:
-                    locationStatus === "success" ? SUCCESS : PRIMARY,
-                  backgroundColor:
-                    locationStatus === "success"
-                      ? `${SUCCESS}0f`
-                      : `${PRIMARY}12`,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  s.retryBtnText,
-                  {
-                    color:
-                      locationStatus === "success" ? SUCCESS : PRIMARY,
-                  },
-                ]}
+            {locationStatus !== "detecting" && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={detectLocation}
+                activeOpacity={0.75}
+                style={[s.retryBtn, { borderColor: border, backgroundColor: background }]}
               >
-                {locationStatus === "success"
-                  ? "📡 Re-detect Location"
-                  : "🔄 Retry Location"}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Card 3 – Referral Code (Optional) ── */}
-        <View
-          style={[
-            s.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: referralCodeFocused ? PRIMARY : theme.colors.border,
-              borderWidth: referralCodeFocused ? 1.5 : 1,
-            },
-          ]}
-        >
-          <Text style={[s.cardLabel, { color: theme.colors.textMuted }]}>
-            Referral Code (Optional)
-          </Text>
-          <View style={s.inputRow}>
-          
-            <TextInput
-              value={referralCode}
-              onChangeText={(t) => setReferralCode(t)}
-              placeholder="Enter referral code"
-              placeholderTextColor={theme.colors.textMuted}
-              onFocus={() => setReferralCodeFocused(true)}
-              onBlur={() => setReferralCodeFocused(false)}
-              style={[s.textInput, { color: theme.colors.text }]}
-              returnKeyType="done"
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
+                <Ionicons name="refresh-outline" size={16} color={brandText} />
+                <Text style={[s.retryBtnText, { color: brandText }]}>
+                  {locationStatus === "success" ? "Re-detect Location" : "Retry Location"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </View>
 
-        {/* ── Card 4 – Info ── */}
-        <View
-          style={[
-            s.infoBox,
-            {
-              backgroundColor: isDark ? "#ffffff08" : "#00000006",
-              borderColor: isDark ? "#ffffff15" : "#00000010",
-            },
-          ]}
-        >
-          <Text style={{ fontSize: 16, marginTop: 1 }}>🛡️</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[s.infoText, { color: theme.colors.textMuted }]}>
-              Your location helps us find nearby service professionals faster.
+          <View style={s.field}>
+            <Text style={[s.fieldLabel, { color: text }]}>
+              Referral Code <Text style={{ color: textMuted, fontWeight: "400" }}>(Optional)</Text>
             </Text>
-            <Text
+            <View
               style={[
-                s.infoText,
-                { color: theme.colors.textMuted, marginTop: 4 },
+                s.inputRow,
+                { backgroundColor: surface, borderColor: referralCodeFocused ? brandText : border },
               ]}
             >
-              Your precise location is never shared publicly.
-            </Text>
+              <Ionicons name="pricetag-outline" size={18} color={referralCodeFocused ? brandText : textMuted} />
+              <TextInput
+                accessibilityLabel="Referral Code (Optional)"
+                value={referralCode}
+                onChangeText={(t) => setReferralCode(t)}
+                placeholder="Enter referral code"
+                placeholderTextColor={textMuted}
+                onFocus={() => setReferralCodeFocused(true)}
+                onBlur={() => setReferralCodeFocused(false)}
+                style={[s.textInput, { color: text }]}
+                returnKeyType="done"
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
+          <View style={[s.infoBox, { backgroundColor: `${brandText}0D`, borderColor: border }]}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={brandText} />
+            <View style={s.infoCopy}>
+              <Text style={[s.infoText, { color: textMuted }]}>
+                Your location helps us find nearby service professionals faster.
+              </Text>
+              <Text style={[s.infoText, { color: textMuted }]}>
+                Your precise location is never shared publicly.
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>
 
-      {/* ── Pinned Continue Button ── */}
       <View
         style={[
           s.bottomBar,
           {
-            paddingBottom: insets.bottom + 16,
-            backgroundColor: theme.colors.background,
-            borderTopColor: theme.colors.border,
+            paddingBottom: Math.max(insets.bottom, 12),
+            paddingLeft: insets.left + 16,
+            paddingRight: insets.right + 16,
+            backgroundColor: surface,
+            borderTopColor: border,
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={!canContinue}
-          activeOpacity={0.85}
-          style={[
-            s.continueBtn,
-            {
-              backgroundColor: canContinue ? PRIMARY : theme.colors.border,
-              shadowColor: canContinue ? PRIMARY : "transparent",
-            },
-          ]}
-        >
-          {submitting ? (
-            <View style={s.btnContent}>
-              <ActivityIndicator color="#fff" size="small" />
-              <Text style={s.continueBtnText}>Saving...</Text>
-            </View>
-          ) : (
-            <Text
-              style={[
-                s.continueBtnText,
-                {
-                  color: canContinue ? "#fff" : theme.colors.textMuted,
-                },
-              ]}
-            >
-              Continue
+        <View style={[s.content, s.footerContent]}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={handleSubmit}
+            disabled={!canContinue}
+            activeOpacity={0.85}
+            style={[
+              s.continueBtn,
+              { backgroundColor: canContinue || submitting ? primary : border },
+            ]}
+          >
+            {submitting ? (
+              <View style={s.btnContent}>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={[s.continueBtnText, { color: "#fff" }]}>Saving...</Text>
+              </View>
+            ) : (
+              <Text style={[s.continueBtnText, { color: canContinue ? "#fff" : textMuted }]}>
+                Continue
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {!canContinue && !submitting && (
+            <Text style={[s.disabledHint, { color: textMuted }]}>
+              {!fullName.trim() && locationStatus !== "success"
+                ? "Enter your name and allow location to continue"
+                : !fullName.trim()
+                  ? "Enter your full name to continue"
+                  : "Waiting for location verification…"}
             </Text>
           )}
-        </TouchableOpacity>
-
-        {!canContinue && !submitting && (
-          <Text style={[s.disabledHint, { color: theme.colors.textMuted }]}>
-            {!fullName.trim() && locationStatus !== "success"
-              ? "Enter your name and allow location to continue"
-              : !fullName.trim()
-                ? "Enter your full name to continue"
-                : "Waiting for location verification…"}
-          </Text>
-        )}
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { paddingHorizontal: 20 },
-
-  header: { alignItems: "flex-start", marginBottom: 28 },
-  logoWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+  scrollView: { flex: 1 },
+  scroll: { paddingBottom: 16 },
+  content: {
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    gap: 16,
+  },
+  header: { gap: 6 },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 6,
+  },
+  profileIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
   },
-  logoEmoji: { fontSize: 30 },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    //textAlign: "center",
-    lineHeight: 20,
-    maxWidth: 260,
-  },
-
-  card: {
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: 12,
-  },
-
-  inputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  inputIcon: {
-    width: 40,
-    height: 40,
+  wordmark: { fontSize: 14, fontWeight: "800", letterSpacing: 1.5, flexShrink: 1 },
+  title: { fontSize: 28, fontWeight: "700", letterSpacing: -0.5 },
+  subtitle: { fontSize: 14 },
+  field: { gap: 6 },
+  fieldLabel: { fontSize: 14, fontWeight: "600" },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+    gap: 10,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    borderWidth: 1,
   },
   textInput: {
     flex: 1,
+    minWidth: 0,
     fontSize: 16,
-    fontWeight: "500",
-    paddingVertical: 6,
-  },
-
-  inlineError: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: 8,
-  },
-
-  retryBtn: {
-    borderRadius: 12,
-    borderWidth: 1.5,
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignItems: "center",
   },
-  retryBtnText: { fontSize: 14, fontWeight: "600" },
-
+  locationCard: {
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  inlineError: { fontSize: 13, fontWeight: "500" },
+  retryBtn: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  retryBtnText: { flexShrink: 1, fontSize: 13, fontWeight: "600" },
   infoBox: {
     flexDirection: "row",
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 8,
     alignItems: "flex-start",
+    gap: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 12,
   },
-  infoText: { fontSize: 13, lineHeight: 19 },
-
+  infoCopy: { flex: 1, gap: 4 },
+  infoText: { fontSize: 13 },
   bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
   },
+  footerContent: { gap: 8 },
   continueBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
+    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
   },
-  btnContent: { flexDirection: "row", alignItems: "center", gap: 10 },
-  continueBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-  disabledHint: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 8,
-  },
+  btnContent: { flexDirection: "row", alignItems: "center", gap: 8 },
+  continueBtnText: { flexShrink: 1, fontSize: 16, fontWeight: "700", textAlign: "center" },
+  disabledHint: { fontSize: 12, textAlign: "center" },
 });

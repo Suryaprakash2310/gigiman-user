@@ -1,5 +1,3 @@
-import { injectRazorpayData } from "@/src/utils/razorpayInjector";
-import { razorpayHTML } from "@/src/utils/razorpayTemplate";
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import CryptoJS from "crypto-js";

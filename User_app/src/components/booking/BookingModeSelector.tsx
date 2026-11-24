@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import type { AppTheme } from '@/src/theme';
 import AppText from '@/src/components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
 
 interface BookingModeOption {
   id: 'now' | 'schedule' | 'recurring';
   label: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   description?: string;
 }
 
@@ -43,120 +43,107 @@ const BookingModeSelector: React.FC<BookingModeSelectorProps> = ({
   onModeChange,
 }) => {
   const { theme } = useTheme();
-  const styles = createStyles(theme);
+  const selectedColor = theme.dark ? theme.colors.primaryDark : theme.colors.primary;
+  const styles = createStyles(theme, selectedColor);
 
   return (
     <View style={styles.container}>
-      <AppText
-        weight="bold"
-        size="body"
-        style={[styles.title, { color: theme.colors.text }]}
-      >
+      <AppText weight="bold" size="body" style={styles.title}>
         When do you need it?
       </AppText>
 
       <View style={styles.modesContainer}>
-        {BOOKING_MODES.map((mode) => (
-          <TouchableOpacity
-            key={mode.id}
-            onPress={() => onModeChange(mode.id)}
-            style={styles.modeWrapper}
-            activeOpacity={0.8}
-          >
-            {selectedMode === mode.id ? (
-              <LinearGradient
-                colors={[theme.colors.primary, theme.colors.primaryDark]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.modeButton}
-              >
-                <Ionicons name={mode.icon as keyof typeof Ionicons.glyphMap} size={20} color="#fff" weight="bold" />
-                <View style={styles.modeTextWrapper}>
-                  <AppText weight="bold" size="body" style={{ color: '#fff' }}>
-                    {mode.label}
-                  </AppText>
-                  {mode.description && (
-                    <AppText size="caption" style={{ color: '#fff', opacity: 0.8 }}>
-                      {mode.description}
-                    </AppText>
-                  )}
-                </View>
-              </LinearGradient>
-            ) : (
-              <View
-                style={[
-                  styles.modeButton,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderWidth: 1,
-                    borderColor: theme.dark ? theme.colors.border : 'transparent',
-                  },
-                ]}
-              >
+        {BOOKING_MODES.map((mode) => {
+          const isSelected = selectedMode === mode.id;
+
+          return (
+            <TouchableOpacity
+              key={mode.id}
+              onPress={() => onModeChange(mode.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+              style={[styles.modeCard, isSelected && styles.modeCardSelected]}
+              activeOpacity={0.8}
+            >
+              {isSelected && (
                 <Ionicons
-                  name={mode.icon as keyof typeof Ionicons.glyphMap}
-                  size={20}
-                  color={theme.colors.textMuted}
-                  weight="bold"
+                  name="checkmark-circle"
+                  size={14}
+                  color={selectedColor}
+                  style={styles.checkmark}
                 />
-                <View style={styles.modeTextWrapper}>
-                  <AppText
-                    weight="bold"
-                    size="body"
-                    style={{ color: theme.colors.text }}
-                  >
-                    {mode.label}
-                  </AppText>
-                  {mode.description && (
-                    <AppText
-                      size="caption"
-                      color="textMuted"
-                    >
-                      {mode.description}
-                    </AppText>
-                  )}
-                </View>
+              )}
+              <View style={[styles.iconBackground, isSelected && styles.iconBackgroundSelected]}>
+                <Ionicons
+                  name={mode.icon}
+                  size={16}
+                  color={isSelected ? selectedColor : theme.colors.textMuted}
+                />
               </View>
-            )}
-          </TouchableOpacity>
-        ))}
+              <AppText weight="semibold" size="small" style={styles.centeredText}>
+                {mode.label}
+              </AppText>
+              {mode.description && (
+                <AppText size="caption" color="textMuted" style={styles.centeredText}>
+                  {mode.description}
+                </AppText>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: AppTheme, selectedColor: string) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.md,
-      marginVertical: theme.spacing.md,
-    },
-    title: {
+      marginHorizontal: 16,
       marginBottom: theme.spacing.md,
     },
+    title: {
+      marginBottom: theme.spacing.sm,
+    },
     modesContainer: {
-      flexDirection: 'column',
-      gap: theme.spacing.sm,
-    },
-    modeWrapper: {
-      width: '100%',
-    },
-    modeButton: {
       flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.lg,
-      borderRadius: theme.radius.lg,
-      gap: theme.spacing.sm,
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
+      gap: 6,
     },
-    modeTextWrapper: {
+    modeCard: {
       flex: 1,
+      minWidth: 0,
+      alignItems: 'center',
+      paddingHorizontal: 4,
+      paddingVertical: theme.spacing.sm,
+      gap: 4,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    modeCardSelected: {
+      backgroundColor: `${selectedColor}12`,
+      borderColor: selectedColor,
+    },
+    iconBackground: {
+      width: 28,
+      height: 28,
+      borderRadius: 10,
+      backgroundColor: theme.colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconBackgroundSelected: {
+      backgroundColor: `${selectedColor}1A`,
+    },
+    checkmark: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+    },
+    centeredText: {
+      textAlign: 'center',
+      alignSelf: 'stretch',
     },
   });
 

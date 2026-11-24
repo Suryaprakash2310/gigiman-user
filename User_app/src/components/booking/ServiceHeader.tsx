@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import AppText from '@/src/components/ui/AppText';
 import { useTheme } from '@/src/theme/useTheme';
+import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { Dimensions, StyleSheet, View } from 'react-native';
 
 interface ServiceHeaderProps {
   name: string;
@@ -93,7 +93,7 @@ const ServiceHeader: React.FC<ServiceHeaderProps> = ({
               <AppText
                 weight="semibold"
                 size="body"
-                style={{ color: theme.colors.primary }}
+                style={{ color: theme.dark ? theme.colors.text : theme.colors.primary }}
               >
                 {duration}m
               </AppText>
@@ -112,51 +112,45 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing.md,
     },
     headerCard: {
-      marginHorizontal: theme.spacing.lg,
-      marginTop: -40,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.lg,
+      marginHorizontal: 16,
+      marginTop: -24,
+      padding: 12,
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.xl,
+      borderRadius: theme.radius.md,
       borderWidth: 1,
-      borderColor: theme.dark ? theme.colors.border : 'transparent',
-      shadowColor: theme.colors.cardShadow,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
-      elevation: 8,
+      borderColor: theme.colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 1,
       zIndex: 10,
     },
     headerContent: {
       width: '100%',
     },
     title: {
-      marginBottom: theme.spacing.md,
-      lineHeight: 28,
+      marginBottom: 8,
+      lineHeight: 26,
     },
     detailsContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing.md,
+      gap: 8,
       flexWrap: 'wrap',
       rowGap: 8,
     },
     priceBadge: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.radius.lg,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: theme.colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 4,
     },
     durationBadge: {
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.radius.lg,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
     },
