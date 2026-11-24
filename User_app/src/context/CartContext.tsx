@@ -24,7 +24,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [totalOriginalPrice, setTotalOriginalPrice] = useState<number>(0);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  
+
   const { accessToken, user } = useAuthContext();
 
   const fetchCart = async () => {
@@ -60,6 +60,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addToCart = async (serviceCategoryId: string, type?: 'MAIN' | 'EXTRA', clearExist = false) => {
+    // ⚡ Optimistic UI update: instantly mark item as added (0ms delay)
+    const alreadyExists = cartItems.some((item) => item.serviceCategoryId === serviceCategoryId);
+    if (!alreadyExists && !clearExist) {
+      setCartItems((prev) => [
+        ...prev,
+        {
+          _id: `temp-${serviceCategoryId}`,
+          serviceCategoryId,
+          type: type || 'MAIN',
+          quantity: 1,
+          price: 0,
+          serviceCategoryName: '',
+          durationInMinutes: 0,
+          employeeCount: 1,
+        } as CartItem,
+      ]);
+    }
+
     try {
       setIsLoading(true);
       const res = await CartAPI.addToCart(serviceCategoryId, type, clearExist);
@@ -74,6 +92,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err: any) {
       console.error('Failed to add to cart:', err);
+      // Revert optimistic state on error
+      if (!alreadyExists && !clearExist) {
+        fetchCart();
+      }
       if (err.response?.data?.errorType === 'DIFFERENT_DOMAIN') {
         Alert.alert(
           'Different Service Category',
@@ -97,6 +119,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeFromCart = async (serviceCategoryId: string, removeAll = false) => {
+    // ⚡ Optimistic UI update: instantly remove item from cart state
+    setCartItems((prev) => prev.filter((item) => item.serviceCategoryId !== serviceCategoryId));
     try {
       setIsLoading(true);
       const res = await CartAPI.removeFromCart(serviceCategoryId, removeAll);
@@ -111,6 +135,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       console.error('Failed to remove from cart:', err);
+      fetchCart();
     } finally {
       setIsLoading(false);
     }

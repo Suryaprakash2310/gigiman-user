@@ -1,20 +1,22 @@
+import { injectRazorpayData } from "@/src/utils/razorpayInjector";
+import { razorpayHTML } from "@/src/utils/razorpayTemplate";
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import CryptoJS from "crypto-js";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   BackHandler,
-  SafeAreaView,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   Vibration,
-  View,
-  Modal,
-  TextInput,
-  Platform,
-  ActivityIndicator,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -30,17 +32,17 @@ import { WebView } from 'react-native-webview';
 import { razorpayHTML, handlePaymentShouldStartLoadWithRequest } from "@/src/utils/razorpayTemplate";
 import { injectRazorpayData } from "@/src/utils/razorpayInjector";
 
-import { ServiceAPI, CategoryService } from "@/src/api/service.api";
 import { initiateMaskedCall } from "@/src/api/call.api";
+import { CategoryService, ServiceAPI } from "@/src/api/service.api";
 import BookingDetailsCard from "@/src/components/BookingDetailsCard";
 import BookingProcessTracker from "@/src/components/BookingProcessTracker";
 import LiveTrackingMap from "@/src/components/LiveTrackingMap";
 import AppCard from "@/src/components/ui/AppCard";
 import AppText from "@/src/components/ui/AppText";
-import AppButton from "@/src/components/ui/AppButton";
 import { useBooking } from "@/src/context/BookingContext";
 import { BookingParamList } from "@/src/navigation/stacks/BookingStack";
 import { useTheme } from "@/src/theme/useTheme";
+import { FEES } from "@/src/utils/enums/Fees";
 import { mapBookingToBookingItem } from "@/src/utils/mapBooking";
 import api from "../api/client";
 import { BookingAPI } from "@/src/api/booking.api";
@@ -50,7 +52,7 @@ import CancellationModal from "@/src/components/CancellationModal";
 import ServiceTimerCard from "@/src/components/booking/ServiceTimerCard";
 import { BookingLocationMap } from "@/src/components/booking";
 import { socket } from "../socket/socket";
-import { FEES } from "@/src/utils/enums/Fees";
+import AppButton from "../components/ui/AppButton";
 
 
 type DetailsRoute = RouteProp<BookingParamList, "BookingDetails">;
@@ -65,9 +67,9 @@ export default function BookingOtp() {
 
   const [loading, setLoading] = useState(true);
   const booking = getBookingById(bookingId);
-  
+
   const fee = booking?.convenienceFee ?? FEES.CONVENIENCE_FEE;
-  
+
   const paymentAmount = booking
     ? booking.paymentStatus === 'partially_paid' && booking.remainingAmount && booking.remainingAmount > 0
       ? booking.remainingAmount
@@ -141,7 +143,7 @@ export default function BookingOtp() {
             list = data.categoriesservices as CategoryService[];
           }
         }
-        
+
         // Fallback: Fetch all domain services and combine their subcategories to avoid 404 endpoint
         if (list.length === 0) {
           try {
@@ -808,7 +810,7 @@ export default function BookingOtp() {
       if (incomingId && incomingId !== String(bookingId)) return;
 
       console.log("📍 [BookingOtp] Received trip/arrival/status socket update:", data);
-      
+
       // Immediate local update for faster UI response
       if (data?.status || data?.eta || data?.latitude || data?.otp) {
         updateBookingItem(String(bookingId), {
@@ -820,7 +822,7 @@ export default function BookingOtp() {
           } : {})
         });
       }
-      
+
       fetchBooking();
     };
 
@@ -883,7 +885,7 @@ export default function BookingOtp() {
       if (data.status === "APPROVED" || data.status === "approved") {
         const updatedPrice = data.totalPrice != null ? Number(data.totalPrice) : currentBooking.totalPrice;
         const updatedDuration = data.durationInMinutes != null ? Number(data.durationInMinutes) : currentBooking.durationInMinutes;
-        
+
         updateBookingItem(String(bookingId), {
           pendingServiceProposal: null,
           totalPrice: updatedPrice,
@@ -1886,33 +1888,33 @@ export default function BookingOtp() {
               'in_progress',
               'manual_assign',
             ].includes(booking.status) && (
-            <AppCard style={styles.addExtraCard}>
-              <View style={styles.addExtraHeader}>
-                <View style={[styles.iconCircle, { backgroundColor: "#EEF2FF" }]}>
-                  <Ionicons name="sparkles" size={22} color="#4F46E5" />
+              <AppCard style={styles.addExtraCard}>
+                <View style={styles.addExtraHeader}>
+                  <View style={[styles.iconCircle, { backgroundColor: "#EEF2FF" }]}>
+                    <Ionicons name="sparkles" size={22} color="#4F46E5" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
+                      Need Extra Services?
+                    </AppText>
+                    <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
+                      Add extra tasks or services to your ongoing booking
+                    </AppText>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <AppText weight="bold" size="h3" style={{ color: "#0F172A" }}>
-                    Need Extra Services?
-                  </AppText>
-                  <AppText size="small" color="textMuted" style={{ marginTop: 2 }}>
-                    Add extra tasks or services to your ongoing booking
-                  </AppText>
-                </View>
-              </View>
 
-              <TouchableOpacity
-                style={styles.addExtraBtn}
-                onPress={handleOpenAddExtraModal}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 15 }}>
-                  + Add Extra Service
-                </AppText>
-              </TouchableOpacity>
-            </AppCard>
-          )}
+                <TouchableOpacity
+                  style={styles.addExtraBtn}
+                  onPress={handleOpenAddExtraModal}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <AppText weight="bold" style={{ color: "#FFFFFF", fontSize: 15 }}>
+                    + Add Extra Service
+                  </AppText>
+                </TouchableOpacity>
+              </AppCard>
+            )}
 
 
 
@@ -1933,15 +1935,15 @@ export default function BookingOtp() {
                   <AppText style={{ color: "#0F172A" }} weight="medium">
                     {booking.scheduleDateTime
                       ? new Date(booking.scheduleDateTime).toLocaleString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: true,
-                        })
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })
                       : booking.createdAt
-                      ? new Date(booking.createdAt).toLocaleString(undefined, {
+                        ? new Date(booking.createdAt).toLocaleString(undefined, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -1949,7 +1951,7 @@ export default function BookingOtp() {
                           minute: "2-digit",
                           hour12: true,
                         })
-                      : (booking.dateLabel ? `${booking.dateLabel} ${booking.timeLabel || ""}` : "Immediate")}
+                        : (booking.dateLabel ? `${booking.dateLabel} ${booking.timeLabel || ""}` : "Immediate")}
                   </AppText>
                 </View>
 
@@ -2278,7 +2280,7 @@ export default function BookingOtp() {
           setPaying(false);
         }}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+        <View style={{ flex: 1, backgroundColor: "#ffffff" }}>
           <View style={{
             flexDirection: 'row',
             justifyContent: 'space-between',
@@ -2324,7 +2326,7 @@ export default function BookingOtp() {
               )}
             />
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* Modal for Booking Extra Services During Ongoing Service */}

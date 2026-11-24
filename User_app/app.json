@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gigiman",
     "slug": "gigi-user",
-    "version": "1.0.11",
+    "version": "1.0.1", // android vs is 2 and ios vs is 1
     "orientation": "portrait",
     "icon": "./assets/images/logogigi.png",
     "notification": {
@@ -16,6 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.suryaprakash23.gigiuser",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
@@ -27,18 +30,16 @@
           "bhim",
           "tez"
         ],
-        "NSLocationWhenInUseUsageDescription": "Gigiman needs your location to find nearby services, assign technicians, and provide live tracking.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Gigiman needs your location for seamless service tracking and accurate technician dispatch.",
-        "NSPhotoLibraryUsageDescription": "Gigiman needs access to your photos to upload profile avatars and attach issue screenshots to support tickets.",
-        "NSCameraUsageDescription": "Gigiman needs camera access so you can take profile photos and capture service issue photos.",
         "UIBackgroundModes": [
           "remote-notification"
+        ],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "app-1-909756007187-ios-b067d6736ebdafbe6e10e6"
+            ]
+          }
         ]
-      },
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyBinxX6SohboBjea3jH__3dNXWHK4jQ8xQ"
-        }
       }
     },
     "android": {
@@ -68,6 +69,8 @@
       "favicon": "./assets/images/logogigi.png"
     },
     "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       "expo-router",
       [
         "expo-splash-screen",
@@ -83,22 +86,19 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-build-properties",
       [
-        "expo-location",
+        "expo-build-properties",
         {
-          "locationWhenInUsePermission": "Gigiman needs your location to find nearby services, assign technicians, and provide live tracking."
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBMessaging"
+            ]
+          }
         }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Gigiman needs access to your photos to upload profile avatars and attach issue screenshots to support tickets.",
-          "cameraPermission": "Gigiman needs camera access so you can take profile photos and capture service issue photos."
-        }
-      ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

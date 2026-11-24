@@ -15,7 +15,6 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 interface ScheduleBookingProps { }
 
@@ -103,7 +102,7 @@ const ScheduleBooking: React.FC<ScheduleBookingProps> = () => {
         <View style={styles.container}>
             {/* Custom Header */}
             <View style={styles.headerContainer}>
-                <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+                <View style={{ flex: 1 }}>
                     <View style={styles.headerContent}>
                         <TouchableOpacity
                             onPress={() => navigation.goBack()}
@@ -121,7 +120,7 @@ const ScheduleBooking: React.FC<ScheduleBookingProps> = () => {
                             </AppText>
                         </View>
                     </View>
-                </SafeAreaView>
+                </View>
             </View>
 
             {/* Overlapping Form Card */}

@@ -36,7 +36,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = React.memo(({ service, 
         />
       </View>
       <View style={styles.contentContainer}>
-        <AppText numberOfLines={2} style={styles.titleText}>
+        <AppText weight="semibold" numberOfLines={2} style={styles.titleText}>
           {service.domainName}
         </AppText>
       </View>
